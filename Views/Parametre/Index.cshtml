@@ -1,0 +1,262 @@
+@{
+    ViewData["Title"] = "Parametreler";
+    var selectedYil = (int)ViewBag.SelectedYil;
+    var hedefler = (List<SOS.Models.MsK.TBLSOS_HEDEF_AYLIK>)ViewBag.Hedefler;
+    var anaUrunler = (List<SOS.Models.MsK.TBLSOS_ANA_URUN>)ViewBag.AnaUrunler;
+    var toplamHedef = (decimal)ViewBag.ToplamHedef;
+    var aylar = new[] { "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık" };
+    var qRenkler = new[] { "#3b82f6", "#10b981", "#f59e0b", "#ef4444" };
+}
+
+<!-- HEADER -->
+<div class="flex items-center justify-between mb-6 fade-ready">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center">
+            <i class="bi bi-sliders text-blue-700 text-lg"></i>
+        </div>
+        <div>
+            <h1 class="text-xl font-bold text-[#1e293b] tracking-tight">Parametreler</h1>
+            <p class="text-[11px] text-slate-400">Hedefler &middot; Ürün eşleştirme &middot; Genel ayarlar</p>
+        </div>
+    </div>
+</div>
+
+<!-- TAB NAV -->
+<div class="flex gap-1 mb-5 fade-ready">
+    <button onclick="switchTab('hedefler')" id="tab-hedefler" class="param-tab active px-4 py-2 rounded-xl text-xs font-semibold transition-all">
+        <i class="bi bi-bullseye mr-1.5"></i>Aylık hedefler
+    </button>
+    <button onclick="switchTab('urunler')" id="tab-urunler" class="param-tab px-4 py-2 rounded-xl text-xs font-semibold transition-all">
+        <i class="bi bi-box-seam mr-1.5"></i>Ürün eşleştirme
+    </button>
+    <button onclick="switchTab('ayarlar')" id="tab-ayarlar" class="param-tab px-4 py-2 rounded-xl text-xs font-semibold transition-all">
+        <i class="bi bi-gear mr-1.5"></i>Genel ayarlar
+    </button>
+</div>
+
+<!-- ═══ TAB 1: AYLIK HEDEFLER ═══ -->
+<div id="panel-hedefler" class="param-panel fade-ready">
+    <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+        <!-- Toolbar -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+            <div class="flex items-center gap-3">
+                <select id="yilSelect" onchange="location.href='/Parametre/Index?yil='+this.value"
+                        class="text-sm px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold focus:outline-none focus:border-blue-400">
+                    @for (int y = DateTime.Now.Year + 1; y >= 2025; y--)
+                    {
+                        if (y == selectedYil) { <option value="@y" selected>@y</option> }
+                        else { <option value="@y">@y</option> }
+                    }
+                </select>
+                <span class="text-[11px] text-slate-400">Genel aylık satış hedefleri</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wider">Yıllık toplam</p>
+                    <p id="yillikToplam" class="text-base font-bold text-[#1e293b]">₺@toplamHedef.ToString("N0")</p>
+                </div>
+                <button onclick="saveHedefler()" id="btnSave"
+                        class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                    <i class="bi bi-check2-circle"></i> Kaydet
+                </button>
+            </div>
+        </div>
+
+        <!-- Tablo -->
+        <table class="w-full">
+            <thead>
+                <tr class="text-[10px] text-slate-400 uppercase tracking-wider">
+                    <th class="text-left py-2.5 px-5 font-semibold w-8">#</th>
+                    <th class="text-left py-2.5 px-3 font-semibold">Ay</th>
+                    <th class="text-left py-2.5 px-3 font-semibold">Çeyrek</th>
+                    <th class="text-right py-2.5 px-5 font-semibold">Hedef tutar (₺)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int ay = 1; ay <= 12; ay++)
+                {
+                    var hedef = hedefler.FirstOrDefault(h => h.Ay == ay);
+                    var tutar = hedef?.HedefTutar ?? 0;
+                    var ceyrek = (ay - 1) / 3 + 1;
+                    var isQStart = (ay - 1) % 3 == 0;
+                    var isQEnd = ay % 3 == 0;
+                    var qColor = qRenkler[ceyrek - 1];
+                    var rowBg = isQStart ? "bg-slate-50/40" : "";
+
+                    <tr class="border-t border-slate-100/60 hover:bg-blue-50/30 transition-colors @rowBg group"
+                        style="@(isQStart ? $"border-top: 2px solid {qColor}20;" : "")">
+                        <td class="py-2 px-5">
+                            <div class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white" style="background: @qColor;">@ay</div>
+                        </td>
+                        <td class="py-2 px-3">
+                            <span class="text-sm font-semibold text-slate-700">@aylar[ay - 1]</span>
+                        </td>
+                        <td class="py-2 px-3">
+                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" style="background: @(qColor)15; color: @qColor;">@ceyrek. çeyrek</span>
+                        </td>
+                        <td class="py-2 px-5">
+                            <div class="flex items-center justify-end gap-0">
+                                <span class="text-xs text-slate-300 mr-1">₺</span>
+                                <input type="text"
+                                       id="hedef-@ay"
+                                       data-ay="@ay"
+                                       value="@(tutar > 0 ? tutar.ToString("N0") : "")"
+                                       placeholder="0"
+                                       onfocus="this.select()"
+                                       oninput="onHedefInput(this)"
+                                       class="hedef-input text-right text-sm font-bold text-[#1e293b] bg-transparent w-36 px-2 py-1 rounded-lg border border-transparent focus:border-blue-300 focus:bg-white focus:shadow-sm outline-none transition-all group-hover:border-slate-200" />
+                            </div>
+                        </td>
+                    </tr>
+
+                    @if (isQEnd)
+                    {
+                        var qStart = (ceyrek - 1) * 3 + 1;
+                        var qToplam = hedefler.Where(h => h.Ay >= qStart && h.Ay < qStart + 3).Sum(h => h.HedefTutar);
+                        <tr class="border-t border-slate-200/80" style="background: @(qColor)08;">
+                            <td colspan="3" class="py-2 px-5 text-right">
+                                <span class="text-[11px] font-bold" style="color: @qColor;">@ceyrek. Çeyrek toplamı</span>
+                            </td>
+                            <td class="py-2 px-5 text-right">
+                                <span id="q@(ceyrek)-toplam" class="text-sm font-bold" style="color: @qColor;">₺@qToplam.ToString("N0")</span>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+            <tfoot>
+                <tr class="border-t-2 border-slate-200 bg-slate-50">
+                    <td colspan="3" class="py-3 px-5 text-right">
+                        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Yıllık toplam</span>
+                    </td>
+                    <td class="py-3 px-5 text-right">
+                        <span id="yillikToplamFooter" class="text-base font-extrabold text-[#1e293b]">₺@toplamHedef.ToString("N0")</span>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- ═══ TAB 2: ÜRÜN EŞLEŞTİRME (placeholder) ═══ -->
+<div id="panel-urunler" class="param-panel hidden fade-ready">
+    <div class="bg-white rounded-2xl border border-slate-100 p-8 text-center">
+        <i class="bi bi-box-seam text-4xl text-slate-200"></i>
+        <p class="text-sm text-slate-400 mt-3">Ürün eşleştirme ekranı yapım aşamasında</p>
+        <p class="text-[10px] text-slate-300 mt-1">8 ana ürün &middot; 145 stok kodu eşleşmesi</p>
+    </div>
+</div>
+
+<!-- ═══ TAB 3: GENEL AYARLAR (placeholder) ═══ -->
+<div id="panel-ayarlar" class="param-panel hidden fade-ready">
+    <div class="bg-white rounded-2xl border border-slate-100 p-8 text-center">
+        <i class="bi bi-gear text-4xl text-slate-200"></i>
+        <p class="text-sm text-slate-400 mt-3">Genel ayarlar ekranı yapım aşamasında</p>
+    </div>
+</div>
+
+@section Scripts {
+<style>
+    .param-tab { background: #f1f5f9; color: #64748b; }
+    .param-tab.active { background: #1e40af; color: white; box-shadow: 0 2px 8px rgba(30,64,175,0.25); }
+    .param-tab:not(.active):hover { background: #e2e8f0; }
+    .hedef-input::-webkit-outer-spin-button,
+    .hedef-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .hedef-input { -moz-appearance: textfield; }
+</style>
+<script>
+(function(){
+    'use strict';
+
+    var dirty = false;
+    var yil = @selectedYil;
+    var fmtN = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 });
+
+    window.switchTab = function(tab) {
+        document.querySelectorAll('.param-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        document.querySelectorAll('.param-panel').forEach(p => p.classList.add('hidden'));
+        document.getElementById('panel-' + tab).classList.remove('hidden');
+    };
+
+    // Input format: yazarken otomatik binlik ayracı
+    window.onHedefInput = function(el) {
+        dirty = true;
+        document.getElementById('btnSave').disabled = false;
+        // Sadece rakam bırak, formatla
+        var raw = el.value.replace(/[^\d]/g, '');
+        if (raw) {
+            el.value = fmtN.format(parseInt(raw));
+        }
+        updateTotals();
+    };
+
+    function parseInputValue(el) {
+        return parseInt(el.value.replace(/[^\d]/g, '')) || 0;
+    }
+
+    function updateTotals() {
+        var toplam = 0;
+        var qTotals = [0, 0, 0, 0];
+        for (var ay = 1; ay <= 12; ay++) {
+            var val = parseInputValue(document.getElementById('hedef-' + ay));
+            toplam += val;
+            qTotals[Math.floor((ay - 1) / 3)] += val;
+        }
+        document.getElementById('yillikToplam').textContent = '₺' + fmtN.format(toplam);
+        document.getElementById('yillikToplamFooter').textContent = '₺' + fmtN.format(toplam);
+        for (var q = 0; q < 4; q++) {
+            var el = document.getElementById('q' + (q + 1) + '-toplam');
+            if (el) el.textContent = '₺' + fmtN.format(qTotals[q]);
+        }
+    }
+
+    window.saveHedefler = async function() {
+        var btn = document.getElementById('btnSave');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Kaydediliyor...';
+
+        var hedefler = [];
+        for (var ay = 1; ay <= 12; ay++) {
+            var val = parseInputValue(document.getElementById('hedef-' + ay));
+            hedefler.push({ yil: yil, ay: ay, hedefTutar: val });
+        }
+
+        try {
+            var res = await fetch('/Parametre/SaveHedefler', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hedefler: hedefler })
+            });
+            var d = await res.json();
+            if (d.success) {
+                btn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Kaydedildi';
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.add('bg-green-600');
+                dirty = false;
+                setTimeout(function(){
+                    btn.innerHTML = '<i class="bi bi-check2-circle"></i> Kaydet';
+                    btn.classList.remove('bg-green-600');
+                    btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    btn.disabled = true;
+                }, 2000);
+            } else { throw d.error || 'Hata'; }
+        } catch(e) {
+            btn.innerHTML = '<i class="bi bi-x-circle"></i> Hata!';
+            btn.classList.remove('bg-blue-600');
+            btn.classList.add('bg-red-600');
+            setTimeout(function(){
+                btn.innerHTML = '<i class="bi bi-check2-circle"></i> Kaydet';
+                btn.classList.remove('bg-red-600');
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                btn.disabled = false;
+            }, 2000);
+        }
+    };
+
+    window.addEventListener('beforeunload', function(e) {
+        if (dirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+})();
+</script>
+}

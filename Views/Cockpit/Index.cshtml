@@ -166,50 +166,63 @@
     var ytdPct = Model.YtdYuzde > 100 ? 100 : Model.YtdYuzde;
 }
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-    <!-- SOL: MEVCUT AY PERFORMANSI (İzole) -->
+    @{
+        var fixedMonthKalan = Math.Max(Model.FixedCurrentMonthTarget - Model.FixedCurrentMonthActual, 0);
+        var fixedMonthPctClamped = Model.FixedCurrentMonthPct > 100 ? 100 : Model.FixedCurrentMonthPct;
+        var fixedYtdKalan = Math.Max(Model.FixedYTDTarget - Model.FixedYTDActual, 0);
+        var fixedYtdPctClamped = Model.FixedYTDPct > 100 ? 100 : Model.FixedYTDPct;
+        var ayAdi = DateTime.Now.ToString("MMMM yyyy", new System.Globalization.CultureInfo("tr-TR"));
+    }
+    <!-- SOL: MEVCUT AY TAHSİLAT -->
     <div class="target-container">
-        <p class="text-[11px] font-bold text-blue-700 tracking-widest uppercase mb-3">MEVCUT AY PERFORMANSI</p>
+        <p class="text-[11px] font-bold text-blue-700 tracking-widest uppercase mb-3">MEVCUT AY TAHSİLAT</p>
         <div class="flex items-end gap-3 mb-1">
-            <p class="text-[2rem] font-extrabold text-blue-600 leading-none tracking-tight">₺@Model.FixedCurrentMonthTarget.ToString("N0")</p>
-            <span class="text-[10px] text-slate-400 mb-1">Nisan 2026 &times; ₺50M</span>
+            <p class="text-[2rem] font-extrabold text-[#1e293b] leading-none tracking-tight">₺@Model.FixedCurrentMonthTarget.ToString("N0")</p>
+            <span class="text-[10px] text-slate-400 mb-1">toplam fatura</span>
         </div>
-        <div class="flex items-center justify-between mb-1.5 mt-3">
-            <span class="text-[10px] font-semibold text-blue-600">%@Model.FixedCurrentMonthPct.ToString("N1") tamamlandı</span>
-            <span class="text-[10px] text-slate-400">Kalan <span class="font-semibold text-blue-700">₺@((Model.FixedCurrentMonthTarget-Model.FixedCurrentMonthActual).ToString("N0"))</span></span>
-        </div>
-        <div class="progress-track">
-            <div class="progress-fill" style="width:@(Model.FixedCurrentMonthPct.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
-        </div>
-        <div class="flex items-center justify-between mt-3">
+        <div class="flex items-center gap-4 mt-2">
             <div>
-                <p class="text-[9px] text-slate-400 uppercase tracking-wide">Gerçekleşen</p>
-                <p class="text-lg font-bold text-[#1e293b] leading-none mt-0.5">₺@Model.FixedCurrentMonthActual.ToString("N0")</p>
+                <p class="text-[9px] text-slate-400 uppercase tracking-wide">Tahsil edilen</p>
+                <p class="text-lg font-bold text-green-600 leading-none mt-0.5">₺@Model.FixedCurrentMonthActual.ToString("N0")</p>
+            </div>
+            <div>
+                <p class="text-[9px] text-slate-400 uppercase tracking-wide">Kalan</p>
+                <p class="text-lg font-bold text-blue-700 leading-none mt-0.5">₺@fixedMonthKalan.ToString("N0")</p>
             </div>
         </div>
-        <p class="text-[8px] text-slate-400 mt-3 border-t border-slate-100 pt-2">01.04.2026 — 30.04.2026</p>
+        <div class="flex items-center justify-between mb-1.5 mt-3">
+            <span class="text-[10px] font-semibold @(Model.FixedCurrentMonthPct >= 80 ? "text-green-600" : Model.FixedCurrentMonthPct >= 50 ? "text-amber-600" : "text-red-500")">%@Model.FixedCurrentMonthPct.ToString("N1") tahsil edildi</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" style="width:@(fixedMonthPctClamped.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+        </div>
+        <p class="text-[8px] text-slate-400 mt-3 border-t border-slate-100 pt-2">@ayAdi</p>
     </div>
 
-    <!-- SAĞ: YILLIK (YTD) PERFORMANS (İzole) -->
+    <!-- SAĞ: YILLIK (YTD) TAHSİLAT -->
     <div class="target-container">
-        <p class="text-[11px] font-bold text-blue-700 tracking-widest uppercase mb-3">YILLIK (YTD) PERFORMANS</p>
+        <p class="text-[11px] font-bold text-blue-700 tracking-widest uppercase mb-3">YILLIK (YTD) TAHSİLAT</p>
         <div class="flex items-end gap-3 mb-1">
-            <p class="text-[2rem] font-extrabold text-blue-600 leading-none tracking-tight">₺@Model.FixedYTDTarget.ToString("N0")</p>
-            <span class="text-[10px] text-slate-400 mb-1">01.01.2026 — 01.04.2026 &times; ₺200M</span>
+            <p class="text-[2rem] font-extrabold text-[#1e293b] leading-none tracking-tight">₺@Model.FixedYTDTarget.ToString("N0")</p>
+            <span class="text-[10px] text-slate-400 mb-1">toplam fatura</span>
         </div>
-        <div class="flex items-center justify-between mb-1.5 mt-3">
-            <span class="text-[10px] font-semibold text-blue-600">%@Model.FixedYTDPct.ToString("N1") tamamlandı</span>
-            <span class="text-[10px] text-slate-400">Kalan <span class="font-semibold text-blue-700">₺@((Model.FixedYTDTarget-Model.FixedYTDActual).ToString("N0"))</span></span>
-        </div>
-        <div class="progress-track">
-            <div class="progress-fill" style="width:@(Model.FixedYTDPct.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
-        </div>
-        <div class="flex items-center justify-between mt-3">
+        <div class="flex items-center gap-4 mt-2">
             <div>
-                <p class="text-[9px] text-slate-400 uppercase tracking-wide">Gerçekleşen</p>
-                <p class="text-lg font-bold text-[#1e293b] leading-none mt-0.5">₺@Model.FixedYTDActual.ToString("N0")</p>
+                <p class="text-[9px] text-slate-400 uppercase tracking-wide">Tahsil edilen</p>
+                <p class="text-lg font-bold text-green-600 leading-none mt-0.5">₺@Model.FixedYTDActual.ToString("N0")</p>
+            </div>
+            <div>
+                <p class="text-[9px] text-slate-400 uppercase tracking-wide">Kalan</p>
+                <p class="text-lg font-bold text-blue-700 leading-none mt-0.5">₺@fixedYtdKalan.ToString("N0")</p>
             </div>
         </div>
-        <p class="text-[8px] text-slate-400 mt-3 border-t border-slate-100 pt-2">01.01.2026 — 01.04.2026</p>
+        <div class="flex items-center justify-between mb-1.5 mt-3">
+            <span class="text-[10px] font-semibold @(Model.FixedYTDPct >= 80 ? "text-green-600" : Model.FixedYTDPct >= 50 ? "text-amber-600" : "text-red-500")">%@Model.FixedYTDPct.ToString("N1") tahsil edildi</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" style="width:@(fixedYtdPctClamped.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+        </div>
+        <p class="text-[8px] text-slate-400 mt-3 border-t border-slate-100 pt-2">01.01.@DateTime.Now.Year — @DateTime.Now.ToString("dd.MM.yyyy")</p>
     </div>
 </div>
 
@@ -248,42 +261,61 @@
             else { <span class="text-xs text-slate-300">—</span> }
         </div>
     </div>
-    <div class="card-secondary accent-amber p-4">
-        <div class="flex items-start justify-between mb-4">
-            <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center"><i class="bi bi-cash-stack text-indigo-700 text-lg"></i></div>
+    @{
+        var tahPctClamped = Model.TahsilatYuzde > 100 ? 100 : Model.TahsilatYuzde;
+        var tahBarColor = Model.TahsilatYuzde >= 80 ? "#10b981" : Model.TahsilatYuzde >= 50 ? "#f59e0b" : "#ef4444";
+        var tahPctColor = Model.TahsilatYuzde >= 80 ? "text-green-600" : Model.TahsilatYuzde >= 50 ? "text-amber-600" : "text-red-500";
+    }
+    <div class="card-secondary accent-amber p-5">
+        <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center"><i class="bi bi-cash-stack text-indigo-700 text-lg"></i></div>
+                <p class="text-xs font-bold text-slate-500 tracking-wide uppercase">@tahsilatLabel</p>
+            </div>
             <button onclick="toggleDrill('tahsilatlar')" class="w-8 h-8 rounded-xl bg-white/60 hover:bg-indigo-100 flex items-center justify-center transition-all group">
                 <i class="bi bi-chevron-down text-slate-400 group-hover:text-indigo-700 chevron-btn" id="arrow-tahsilatlar"></i>
             </button>
         </div>
-        <p class="text-xs font-bold text-slate-500 tracking-wide mb-1 uppercase">@tahsilatLabel</p>
-        <div class="flex items-baseline gap-2">
-            <p id="tahsilatlarTutar" class="text-[1.75rem] font-semibold text-[#1e293b] leading-tight">₺@Model.TahsilatlarToplam.ToString("N0")</p>
-            <span class="text-xs text-slate-400">/ ₺@Model.TahsilEdilecek.ToString("N0")</span>
-        </div>
-        <div class="flex items-center justify-between mt-2">
-            <span id="tahsilatlarAdet" class="text-xs text-slate-400">@Model.TahsilatlarAdet adet</span>
-            @if (Model.TahsilKalan > 0)
-            {
-                <span class="text-[10px] text-blue-500 font-medium">Kalan: ₺@Model.TahsilKalan.ToString("N0")</span>
-            }
-            else
-            {
-                <span class="text-[10px] text-green-500 font-medium flex items-center gap-1"><i class="bi bi-check-circle-fill"></i> Hedef tamamlandı</span>
-            }
+
+        <!-- Ana rakam: Tahsil edilen / Toplam -->
+        <div class="flex items-end gap-2">
+            <p id="tahsilatlarTutar" class="text-[2rem] font-extrabold text-[#1e293b] leading-none tracking-tight">₺@Model.TahsilatlarToplam.ToString("N0")</p>
+            <p class="text-sm text-slate-400 mb-0.5 font-medium">/ ₺@Model.TahsilEdilecek.ToString("N0")</p>
         </div>
         <div class="flex items-center justify-between mt-1">
-            <span class="text-xs text-slate-400"></span>
-            @if (Model.TahsilatlarTrend != 0) { <span class="text-xs font-semibold flex items-center gap-1 @(Model.TahsilatlarTrend > 0 ? "trend-up" : "trend-down")"><i class="bi @(Model.TahsilatlarTrend > 0 ? "bi-arrow-up-right" : "bi-arrow-down-right")"></i> %@Math.Abs(Model.TahsilatlarTrend).ToString("N1")</span> }
-            else { <span class="text-xs text-slate-300">—</span> }
+            <span class="text-[10px] text-slate-400">@Model.TahsilatlarAdet / @Model.FaturalarAdet fatura</span>
+            <span class="text-lg font-extrabold @tahPctColor">%@Model.TahsilatYuzde.ToString("N1")</span>
         </div>
-        <!-- Vadesi Geçmiş Alacak -->
-        <div class="mt-3 pt-3 border-t border-slate-200/60">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] text-amber-600 font-semibold flex items-center gap-1"><i class="bi bi-exclamation-triangle-fill" style="font-size:10px;"></i> Vadesi geçmiş</span>
-                <span class="text-[10px] text-slate-400">@Model.VadesiGecmisAdet fatura</span>
+
+        <!-- Progress bar -->
+        <div class="progress-track mt-2">
+            <div class="h-full rounded-full transition-all duration-1000" style="width:@(tahPctClamped.ToString(System.Globalization.CultureInfo.InvariantCulture))%; background:@tahBarColor;"></div>
+        </div>
+
+        <!-- Kalan + Trend (tek satır) -->
+        <div class="flex items-center justify-between mt-3">
+            <span class="text-xs text-slate-500">Kalan: <span class="font-bold text-blue-700">₺@Model.TahsilKalan.ToString("N0")</span></span>
+            @if (Model.TahsilatlarTrend != 0)
+            {
+                <span class="text-xs font-semibold flex items-center gap-1 @(Model.TahsilatlarTrend > 0 ? "trend-up" : "trend-down")">
+                    <i class="bi @(Model.TahsilatlarTrend > 0 ? "bi-arrow-up-right" : "bi-arrow-down-right")"></i> %@Math.Abs(Model.TahsilatlarTrend).ToString("N1")
+                </span>
+            }
+        </div>
+
+        <!-- Önceki dönem + Vadesi geçmiş (kompakt alt bölüm) -->
+        <div class="mt-3 pt-3 border-t border-slate-200/60 flex items-start justify-between gap-4">
+            @if (Model.OncekiDonemToplam > 0)
+            {
+                <div>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wide">Önceki dönem bakiye</p>
+                    <p class="text-sm font-semibold text-slate-600">₺@Model.OncekiDonemKalan.ToString("N0")</p>
+                </div>
+            }
+            <div class="text-right">
+                <p class="text-[9px] text-amber-600 font-semibold flex items-center justify-end gap-1"><i class="bi bi-exclamation-triangle-fill" style="font-size:9px;"></i> Vadesi geçmiş &middot; @Model.VadesiGecmisAdet</p>
+                <p class="text-sm font-bold text-red-500">₺@Model.VadesiGecmisAlacak.ToString("N0")</p>
             </div>
-            <p class="text-sm font-bold text-red-500 mt-1">₺@Model.VadesiGecmisAlacak.ToString("N2")</p>
-            <p class="text-[9px] text-slate-400 mt-0.5">01.01.2025 — @Model.FiltreBaslangic.ToString("dd.MM.yyyy") arası açık bakiye</p>
         </div>
     </div>
     <div class="card-secondary accent-red p-4">

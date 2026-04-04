@@ -1,0 +1,1322 @@
+@model SOS.Models.ViewModels.FirsatAnalizViewModel
+
+@{
+    ViewData["Title"] = "Firsat Analiz";
+    var dateRange = Model.FiltreBaslangic.ToString("dd.MM.yyyy") + " - " + Model.FiltreBitis.ToString("dd.MM.yyyy");
+}
+
+<style>
+    /* Card system - matching Cockpit patterns */
+    .fa-card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid rgba(30,58,138,0.06);
+        box-shadow: 0 1px 3px rgba(30,58,138,0.04), 0 4px 12px rgba(30,58,138,0.03);
+        transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1);
+        position: relative;
+        overflow: hidden;
+    }
+    .fa-card:hover {
+        box-shadow: 0 4px 16px rgba(30,58,138,0.08), 0 12px 40px rgba(30,58,138,0.06);
+        transform: translateY(-2px);
+    }
+
+    /* Accent strips */
+    .accent-indigo::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#4f46e5,#818cf8); border-radius:16px 16px 0 0; }
+    .accent-emerald::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:#10b981; opacity:0.75; border-radius:16px 16px 0 0; }
+    .accent-amber::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:#f59e0b; opacity:0.75; border-radius:16px 16px 0 0; }
+    .accent-red::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:#ef4444; opacity:0.75; border-radius:16px 16px 0 0; }
+
+    .trend-up { color:#10b981; }
+    .trend-down { color:#ef4444; }
+
+    /* Shimmer */
+    .shimmer { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:8px; }
+    @@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* Filter pills */
+    .filter-pill {
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.25,0.1,0.25,1);
+        border: none;
+        outline: none;
+        white-space: nowrap;
+    }
+    .filter-pill.active { background: #4f46e5; color: white; box-shadow: 0 2px 8px rgba(79,70,229,0.25); }
+    .filter-pill:not(.active) { background: #f1f5f9; color: #475569; }
+    .filter-pill:not(.active):hover { background: #e2e8f0; color: #1e293b; }
+
+    /* KPI sparkline container */
+    .sparkline-wrap { height: 30px; width: 100%; }
+    .sparkline-wrap canvas { width: 100% !important; height: 30px !important; }
+
+    /* Progress ring */
+    .progress-ring { transform: rotate(-90deg); }
+    .progress-ring__bg { stroke: #e0e7ff; fill: none; }
+    .progress-ring__fill { fill: none; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(0.25,0.1,0.25,1); }
+
+    /* Funnel */
+    .funnel-container { display: flex; align-items: center; gap: 0; width: 100%; padding: 24px 0; }
+    .funnel-segment {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 12px;
+        color: white;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.25,0.1,0.25,1);
+        min-height: 80px;
+        clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%);
+    }
+    .funnel-segment:first-child { clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 0 50%); border-radius: 12px 0 0 12px; }
+    .funnel-segment:last-child { clip-path: polygon(0 0, 100% 0, 100% 50%, 100% 100%, 0 100%, 16px 50%); border-radius: 0 12px 12px 0; }
+    .funnel-segment:hover { filter: brightness(1.08); transform: translateY(-2px); }
+    .funnel-conversion {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 42px;
+        flex-shrink: 0;
+    }
+    .funnel-conv-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 7px;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+
+    /* Status panel doughnut */
+    .status-panel { min-height: 280px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Drill panel */
+    .drill-panel {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid rgba(30,58,138,0.06);
+        box-shadow: 0 1px 3px rgba(30,58,138,0.04);
+        overflow: hidden;
+        max-height: 0;
+        opacity: 0;
+        transition: max-height 0.5s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.3s ease-in-out, margin 0.3s ease-in-out, padding 0.3s ease-in-out;
+        margin-bottom: 0;
+        padding: 0 28px;
+    }
+    .drill-panel.open { max-height: 600px; opacity: 1; margin-bottom: 16px; padding: 24px 28px; }
+
+    .chevron-btn { transition: transform 0.3s cubic-bezier(0.25,0.1,0.25,1); }
+    .chevron-btn.rotated { transform: rotate(180deg); }
+
+    /* Detail table */
+    .fa-table thead th { position: sticky; top: 0; background: white; z-index: 5; box-shadow: 0 1px 0 #e2e8f0; }
+    .fa-table tbody tr { transition: background 0.15s ease; }
+    .fa-table tbody tr:hover { background: rgba(79,70,229,0.03); }
+
+    /* Leaderboard progress bar */
+    .lb-bar { height: 3px; border-radius: 2px; background: #e0e7ff; margin-top: 4px; overflow: hidden; }
+    .lb-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg,#4f46e5,#818cf8); transition: width 1s cubic-bezier(0.25,0.1,0.25,1); }
+
+    /* Slide-over panel */
+    .slide-overlay {
+        position: fixed; inset: 0; z-index: 49;
+        background: rgba(15,23,42,0.5);
+        backdrop-filter: blur(4px);
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.3s cubic-bezier(0.25,0.1,0.25,1);
+    }
+    .slide-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .slide-panel {
+        position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
+        width: 450px; max-width: 90vw;
+        background: white;
+        box-shadow: -8px 0 40px rgba(15,23,42,0.15);
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.25,0.1,0.25,1);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    .slide-panel.active { transform: translateX(0); }
+
+    /* Risk alerts */
+    .risk-item {
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: white;
+        border: 1px solid rgba(30,58,138,0.06);
+        margin-bottom: 8px;
+        transition: all 0.2s ease;
+    }
+    .risk-item:hover { transform: translateX(2px); }
+    .risk-critical { border-left: 3px solid #ef4444; }
+    .risk-warning { border-left: 3px solid #f59e0b; }
+    .risk-info { border-left: 3px solid #3b82f6; }
+
+    /* CountUp animation helper */
+    .countup-val { display: inline-block; }
+
+    /* Date range inputs */
+    .date-input {
+        padding: 5px 10px; border-radius: 8px; border: 1px solid #e2e8f0;
+        font-size: 12px; font-family: 'Inter', sans-serif; color: #475569;
+        background: white; outline: none; transition: border-color 0.2s;
+    }
+    .date-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79,70,229,0.1); }
+
+    /* Custom select */
+    .fa-select {
+        padding: 5px 28px 5px 10px; border-radius: 8px; border: 1px solid #e2e8f0;
+        font-size: 12px; font-family: 'Inter', sans-serif; color: #475569;
+        background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") no-repeat right 8px center;
+        appearance: none; outline: none; transition: border-color 0.2s; cursor: pointer;
+    }
+    .fa-select:focus { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79,70,229,0.1); }
+</style>
+
+<!-- ===== HEADER BAR ===== -->
+<div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+    <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center">
+            <i class="bi bi-graph-up-arrow text-indigo-700" style="font-size:16px;"></i>
+        </div>
+        <div>
+            <h1 class="text-[24px] font-bold text-[#1e293b] tracking-tight leading-none">Firsat Analiz</h1>
+            <p class="text-[13px] text-slate-400 mt-0.5">Pipeline Durumu ve Satis Performansi</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap">
+        <!-- Filter pills -->
+        <div class="flex items-center gap-1" id="filterPills">
+            <button class="filter-pill @(Model.AktifFiltre == "all" ? "active" : "")" data-filter="all">Tumu</button>
+            <button class="filter-pill @(Model.AktifFiltre == "month" ? "active" : "")" data-filter="month">Bu ay</button>
+            <button class="filter-pill @(Model.AktifFiltre == "lastmonth" ? "active" : "")" data-filter="lastmonth">Gecen ay</button>
+            <button class="filter-pill @(Model.AktifFiltre == "q1" ? "active" : "")" data-filter="q1">Q1</button>
+            <button class="filter-pill @(Model.AktifFiltre == "q2" ? "active" : "")" data-filter="q2">Q2</button>
+            <button class="filter-pill @(Model.AktifFiltre == "q3" ? "active" : "")" data-filter="q3">Q3</button>
+            <button class="filter-pill @(Model.AktifFiltre == "q4" ? "active" : "")" data-filter="q4">Q4</button>
+            <button class="filter-pill @(Model.AktifFiltre == "ytd" ? "active" : "")" data-filter="ytd">YTD</button>
+        </div>
+        <div class="flex items-center gap-1.5">
+            <input type="date" id="rangeStart" class="date-input" value="@Model.FiltreBaslangic.ToString("yyyy-MM-dd")">
+            <span class="text-slate-300 text-xs">-</span>
+            <input type="date" id="rangeEnd" class="date-input" value="@Model.FiltreBitis.ToString("yyyy-MM-dd")">
+        </div>
+        <select id="filterPerson" class="fa-select">
+            <option value="">Tum kisiler</option>
+            @foreach (var k in Model.Kisiler)
+            {
+                <option value="@k.Id">@k.Name</option>
+            }
+        </select>
+        <select id="filterProduct" class="fa-select">
+            <option value="">Tum urunler</option>
+            @foreach (var u in Model.Urunler)
+            {
+                <option value="@u.Id">@u.Name</option>
+            }
+        </select>
+    </div>
+</div>
+
+<!-- ===== ROW 1: HERO KPI CARDS ===== -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6" id="kpiRow">
+    <!-- Pipeline Toplam -->
+    <div class="fa-card accent-indigo p-5" id="kpi-pipeline">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="bi bi-layers text-indigo-600" style="font-size:13px;"></i></div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Pipeline Toplam</span>
+        </div>
+        <p class="text-[28px] font-bold text-[#1e293b] tracking-tight leading-none countup-val" data-kpi="pipelineToplam">
+            <span class="shimmer inline-block w-28 h-8"></span>
+        </p>
+        <div class="flex items-center gap-2 mt-2">
+            <span class="text-[12px] font-semibold" data-kpi-trend="pipelineTrend"><span class="shimmer inline-block w-12 h-4"></span></span>
+        </div>
+        <div class="sparkline-wrap mt-3"><canvas id="spark-pipeline"></canvas></div>
+        <p class="text-[11px] text-slate-400 mt-2" data-kpi-sub="pipelineSub"><span class="shimmer inline-block w-24 h-3"></span></p>
+    </div>
+
+    <!-- Aktif Firsat -->
+    <div class="fa-card accent-indigo p-5" id="kpi-aktif">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="bi bi-bullseye text-indigo-600" style="font-size:13px;"></i></div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Aktif Firsat</span>
+        </div>
+        <p class="text-[28px] font-bold text-[#1e293b] tracking-tight leading-none countup-val" data-kpi="aktifFirsat">
+            <span class="shimmer inline-block w-28 h-8"></span>
+        </p>
+        <div class="flex items-center gap-2 mt-2">
+            <span class="text-[12px] font-semibold" data-kpi-trend="aktifTrend"><span class="shimmer inline-block w-12 h-4"></span></span>
+        </div>
+        <div class="sparkline-wrap mt-3"><canvas id="spark-aktif"></canvas></div>
+        <p class="text-[11px] text-slate-400 mt-2" data-kpi-sub="aktifSub"><span class="shimmer inline-block w-24 h-3"></span></p>
+    </div>
+
+    <!-- Bekleyen Teklif -->
+    <div class="fa-card accent-indigo p-5" id="kpi-teklif">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="bi bi-file-earmark-text text-indigo-600" style="font-size:13px;"></i></div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Bekleyen Teklif</span>
+        </div>
+        <p class="text-[28px] font-bold text-[#1e293b] tracking-tight leading-none countup-val" data-kpi="acikTeklif">
+            <span class="shimmer inline-block w-28 h-8"></span>
+        </p>
+        <div class="flex items-center gap-2 mt-2">
+            <span class="text-[12px] font-semibold" data-kpi-trend="teklifTrend"><span class="shimmer inline-block w-12 h-4"></span></span>
+        </div>
+        <div class="sparkline-wrap mt-3"><canvas id="spark-teklif"></canvas></div>
+        <p class="text-[11px] text-slate-400 mt-2" data-kpi-sub="teklifSub"><span class="shimmer inline-block w-24 h-3"></span></p>
+    </div>
+
+    <!-- Acik Siparis -->
+    <div class="fa-card accent-indigo p-5" id="kpi-siparis">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="bi bi-cart-check text-indigo-600" style="font-size:13px;"></i></div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Acik Siparis</span>
+        </div>
+        <p class="text-[28px] font-bold text-[#1e293b] tracking-tight leading-none countup-val" data-kpi="acikSiparis">
+            <span class="shimmer inline-block w-28 h-8"></span>
+        </p>
+        <div class="flex items-center gap-2 mt-2">
+            <span class="text-[12px] font-semibold" data-kpi-trend="siparisTrend"><span class="shimmer inline-block w-12 h-4"></span></span>
+        </div>
+        <div class="sparkline-wrap mt-3"><canvas id="spark-siparis"></canvas></div>
+        <p class="text-[11px] text-slate-400 mt-2" data-kpi-sub="siparisSub"><span class="shimmer inline-block w-24 h-3"></span></p>
+    </div>
+
+    <!-- Kazanma Orani -->
+    <div class="fa-card accent-indigo p-5" id="kpi-winrate">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="bi bi-trophy text-indigo-600" style="font-size:13px;"></i></div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Kazanma Orani</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <svg width="72" height="72" viewBox="0 0 72 72" class="progress-ring" id="winrate-ring">
+                <circle class="progress-ring__bg" cx="36" cy="36" r="30" stroke-width="6"/>
+                <circle class="progress-ring__fill" cx="36" cy="36" r="30" stroke-width="6" stroke="#4f46e5"
+                    stroke-dasharray="188.5" stroke-dashoffset="188.5" id="winrate-circle"/>
+            </svg>
+            <div>
+                <p class="text-[28px] font-bold text-[#1e293b] tracking-tight leading-none countup-val" data-kpi="kazanmaOrani">
+                    <span class="shimmer inline-block w-16 h-8"></span>
+                </p>
+                <p class="text-[11px] text-slate-400 mt-1" data-kpi-sub="winrateSub"><span class="shimmer inline-block w-20 h-3"></span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ROW 2: SALES FUNNEL ===== -->
+<div class="fa-card p-6 mb-6" id="funnelCard">
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+            <i class="bi bi-funnel text-indigo-500" style="font-size:12px;"></i> Satis Hunisi
+        </h3>
+        <span class="text-[10px] text-slate-400" id="funnelDateRange">@dateRange</span>
+    </div>
+    <div class="funnel-container" id="funnelBody">
+        <div class="shimmer w-full" style="height:80px;border-radius:12px;"></div>
+    </div>
+</div>
+
+<!-- ===== ROW 3: STATUS PANELS ===== -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="statusRow">
+    <!-- FIRSATLAR -->
+    <div class="fa-card status-panel p-5" id="panel-firsatlar">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Firsatlar</h3>
+                <p class="text-lg font-bold text-[#1e293b] mt-0.5" data-status-total="firsatlar"><span class="shimmer inline-block w-20 h-5"></span></p>
+            </div>
+            <div style="width:120px;height:120px;"><canvas id="doughnut-firsatlar"></canvas></div>
+        </div>
+        <div id="status-list-firsatlar" class="space-y-2">
+            <div class="shimmer h-4 w-full"></div>
+            <div class="shimmer h-4 w-4/5"></div>
+            <div class="shimmer h-4 w-11/12"></div>
+        </div>
+        <button onclick="toggleStatusDrill('firsatlar')" class="mt-4 w-full flex items-center justify-center gap-1 text-[11px] text-indigo-500 font-medium hover:text-indigo-700 transition-colors py-1">
+            <span>Detaylari gor</span>
+            <i class="bi bi-chevron-down chevron-btn" id="arrow-status-firsatlar" style="font-size:11px;"></i>
+        </button>
+    </div>
+
+    <!-- TEKLIFLER -->
+    <div class="fa-card status-panel p-5" id="panel-teklifler">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Teklifler</h3>
+                <p class="text-lg font-bold text-[#1e293b] mt-0.5" data-status-total="teklifler"><span class="shimmer inline-block w-20 h-5"></span></p>
+            </div>
+            <div style="width:120px;height:120px;"><canvas id="doughnut-teklifler"></canvas></div>
+        </div>
+        <div id="status-list-teklifler" class="space-y-2">
+            <div class="shimmer h-4 w-full"></div>
+            <div class="shimmer h-4 w-4/5"></div>
+            <div class="shimmer h-4 w-11/12"></div>
+        </div>
+        <button onclick="toggleStatusDrill('teklifler')" class="mt-4 w-full flex items-center justify-center gap-1 text-[11px] text-indigo-500 font-medium hover:text-indigo-700 transition-colors py-1">
+            <span>Detaylari gor</span>
+            <i class="bi bi-chevron-down chevron-btn" id="arrow-status-teklifler" style="font-size:11px;"></i>
+        </button>
+    </div>
+
+    <!-- SIPARISLER -->
+    <div class="fa-card status-panel p-5" id="panel-siparisler">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Siparisler</h3>
+                <p class="text-lg font-bold text-[#1e293b] mt-0.5" data-status-total="siparisler"><span class="shimmer inline-block w-20 h-5"></span></p>
+            </div>
+            <div style="width:120px;height:120px;"><canvas id="doughnut-siparisler"></canvas></div>
+        </div>
+        <div id="status-list-siparisler" class="space-y-2">
+            <div class="shimmer h-4 w-full"></div>
+            <div class="shimmer h-4 w-4/5"></div>
+            <div class="shimmer h-4 w-11/12"></div>
+        </div>
+        <button onclick="toggleStatusDrill('siparisler')" class="mt-4 w-full flex items-center justify-center gap-1 text-[11px] text-indigo-500 font-medium hover:text-indigo-700 transition-colors py-1">
+            <span>Detaylari gor</span>
+            <i class="bi bi-chevron-down chevron-btn" id="arrow-status-siparisler" style="font-size:11px;"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Status drill panels -->
+<div id="drill-status-firsatlar" class="drill-panel"><div id="drill-data-firsatlar"></div></div>
+<div id="drill-status-teklifler" class="drill-panel"><div id="drill-data-teklifler"></div></div>
+<div id="drill-status-siparisler" class="drill-panel"><div id="drill-data-siparisler"></div></div>
+
+<!-- ===== ROW 4: CHARTS ===== -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="chartRow">
+    <!-- Pipeline Trend -->
+    <div class="fa-card px-5 pt-4 pb-3">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                <i class="bi bi-graph-up text-indigo-500" style="font-size:12px;"></i> Pipeline Trend
+            </h3>
+            <span class="text-[9px] text-slate-400">Son 6 ay</span>
+        </div>
+        <div style="height:200px;" id="chart-trend-wrap">
+            <canvas id="chart-trend"></canvas>
+        </div>
+    </div>
+
+    <!-- Urun Dagilimi -->
+    <div class="fa-card px-5 pt-4 pb-3">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                <i class="bi bi-box-seam text-indigo-500" style="font-size:12px;"></i> Urun Dagilimi
+            </h3>
+            <span class="text-[9px] text-slate-400">Top 5</span>
+        </div>
+        <div style="height:200px;" id="chart-product-wrap">
+            <canvas id="chart-product"></canvas>
+        </div>
+    </div>
+
+    <!-- Musteri Yogunlasma -->
+    <div class="fa-card px-5 pt-4 pb-3">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                <i class="bi bi-people text-indigo-500" style="font-size:12px;"></i> Musteri Yogunlasma
+            </h3>
+            <span class="text-[9px] text-slate-400">Top 10</span>
+        </div>
+        <div style="height:200px;" id="chart-customer-wrap">
+            <canvas id="chart-customer"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ROW 5: LEADERBOARD + RISK ===== -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+    <!-- Leaderboard (8 cols) -->
+    <div class="lg:col-span-8 fa-card p-5" id="leaderboardCard">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                <i class="bi bi-award text-indigo-500" style="font-size:12px;"></i> Takim Performansi
+            </h3>
+            <span class="text-[10px] text-slate-400" id="lbDateRange">@dateRange</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-[12px] fa-table" id="leaderboardTable">
+                <thead>
+                    <tr class="border-b border-slate-100">
+                        <th class="text-center py-2.5 px-2 font-semibold text-slate-400 w-8">#</th>
+                        <th class="text-left py-2.5 px-3 font-semibold text-slate-400">Satici</th>
+                        <th class="text-right py-2.5 px-3 font-semibold text-slate-400">Pipeline</th>
+                        <th class="text-right py-2.5 px-3 font-semibold text-slate-400">Kazanilan</th>
+                        <th class="text-center py-2.5 px-3 font-semibold text-slate-400">Donusum</th>
+                        <th class="text-right py-2.5 px-3 font-semibold text-slate-400">Ort.</th>
+                        <th class="text-right py-2.5 px-3 font-semibold text-slate-400">Ciro</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <tr><td colspan="7" class="py-8"><div class="shimmer h-5 w-full mb-2"></div><div class="shimmer h-5 w-4/5 mb-2"></div><div class="shimmer h-5 w-11/12"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Risk Alerts (4 cols) -->
+    <div class="lg:col-span-4 fa-card p-5" id="riskCard">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                <i class="bi bi-shield-exclamation text-amber-500" style="font-size:12px;"></i> Risk Uyarilari
+            </h3>
+        </div>
+        <div id="riskBody" class="space-y-2">
+            <div class="shimmer h-16 w-full mb-2"></div>
+            <div class="shimmer h-16 w-full mb-2"></div>
+            <div class="shimmer h-16 w-full"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SLIDE-OVER PANEL ===== -->
+<div class="slide-overlay" id="slideOverlay" onclick="closeSlideOver()"></div>
+<div class="slide-panel" id="slidePanel">
+    <div class="flex items-center justify-between p-5 border-b border-slate-100">
+        <div>
+            <h3 class="text-base font-bold text-[#1e293b]" id="slideName">-</h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">360 Satis Gorunumu</p>
+        </div>
+        <button onclick="closeSlideOver()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all">
+            <i class="bi bi-x-lg text-slate-500" style="font-size:14px;"></i>
+        </button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-5" id="slideContent">
+        <div class="shimmer h-6 w-full mb-3"></div>
+        <div class="shimmer h-6 w-4/5 mb-3"></div>
+        <div class="shimmer h-6 w-11/12"></div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    'use strict';
+
+    // ── Formatters ──
+    const fmtCurrency = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 });
+    const fmtNumber = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 });
+    const fmtPct = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    function abbrev(v) {
+        if (v >= 1e9) return '\u20BA' + (v / 1e9).toFixed(1) + 'B';
+        if (v >= 1e6) return '\u20BA' + (v / 1e6).toFixed(1) + 'M';
+        if (v >= 1e3) return '\u20BA' + (v / 1e3).toFixed(0) + 'K';
+        return '\u20BA' + fmtNumber.format(v);
+    }
+
+    function axisAbbrev(v) {
+        if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+        if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
+        return v;
+    }
+
+    // ── State ──
+    let activeFilter = '@Model.AktifFiltre';
+    let chartInstances = {};
+    let debounceTimer = null;
+    let drillLoaded = {};
+    let activeStatusDrill = null;
+
+    // ── Filter params builder ──
+    function getFilterParams() {
+        const s = document.getElementById('rangeStart').value;
+        const e = document.getElementById('rangeEnd').value;
+        const p = document.getElementById('filterPerson').value;
+        const pr = document.getElementById('filterProduct').value;
+        let qs = 'filter=' + encodeURIComponent(activeFilter);
+        if (s) qs += '&startDate=' + s;
+        if (e) qs += '&endDate=' + e;
+        if (p) qs += '&person=' + encodeURIComponent(p);
+        if (pr) qs += '&product=' + encodeURIComponent(pr);
+        return qs;
+    }
+
+    // ── Gradient helper ──
+    function makeGradient(ctx, c1, c2, h) {
+        const g = ctx.createLinearGradient(0, 0, 0, h || 200);
+        g.addColorStop(0, c1);
+        g.addColorStop(1, c2);
+        return g;
+    }
+
+    // ── Chart.js common tooltip config ──
+    const tooltipConfig = {
+        backgroundColor: 'rgba(30,27,75,0.92)',
+        titleFont: { family: 'Inter', size: 12, weight: '600' },
+        bodyFont: { family: 'Inter', size: 11 },
+        padding: 12,
+        cornerRadius: 10,
+        displayColors: false
+    };
+
+    // ── CountUp animation ──
+    function countUp(el, target, duration, prefix, suffix) {
+        prefix = prefix || '';
+        suffix = suffix || '';
+        duration = duration || 500;
+        const start = performance.now();
+        const from = 0;
+        function step(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
+            const current = from + (target - from) * eased;
+            el.textContent = prefix + fmtNumber.format(Math.round(current)) + suffix;
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    // ── Sparkline drawer ──
+    function drawSparkline(canvasId, data, color) {
+        const cv = document.getElementById(canvasId);
+        if (!cv || !data || !data.length) return;
+        const ctx = cv.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = cv.getBoundingClientRect();
+        cv.width = rect.width * dpr;
+        cv.height = 30 * dpr;
+        ctx.scale(dpr, dpr);
+        const w = rect.width, h = 30;
+        const max = Math.max(...data), min = Math.min(...data);
+        const range = max - min || 1;
+        const step = w / (data.length - 1 || 1);
+
+        ctx.beginPath();
+        data.forEach((v, i) => {
+            const x = i * step;
+            const y = h - ((v - min) / range) * (h - 4) - 2;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = color || '#4f46e5';
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        // Fill
+        ctx.lineTo((data.length - 1) * step, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        const grd = ctx.createLinearGradient(0, 0, 0, h);
+        grd.addColorStop(0, (color || '#4f46e5') + '30');
+        grd.addColorStop(1, (color || '#4f46e5') + '05');
+        ctx.fillStyle = grd;
+        ctx.fill();
+    }
+
+    // ── Fetch with retry ──
+    async function fetchJson(url, retries) {
+        retries = retries || 2;
+        for (let i = 0; i <= retries; i++) {
+            try {
+                const r = await fetch('/FirsatAnaliz/' + url);
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return await r.json();
+            } catch (err) {
+                if (i === retries) throw err;
+            }
+        }
+    }
+
+    // ── LOAD KPI SUMMARY ──
+    async function loadKpiSummary() {
+        try {
+            const d = await fetchJson('GetKpiSummary?' + getFilterParams());
+
+            // Pipeline Toplam
+            const pipeEl = document.querySelector('[data-kpi="pipelineToplam"]');
+            pipeEl.textContent = '';
+            countUp(pipeEl, d.pipelineToplam, 500, '\u20BA');
+
+            // Aktif Firsat
+            const aktifEl = document.querySelector('[data-kpi="aktifFirsat"]');
+            aktifEl.textContent = '';
+            countUp(aktifEl, d.aktifFirsatAdet, 500);
+
+            // Aktif trend
+            const aktifTrend = document.querySelector('[data-kpi-trend="aktifTrend"]');
+            if (d.aktifFirsatTrend !== 0) {
+                const up = d.aktifFirsatTrend > 0;
+                aktifTrend.className = 'text-[12px] font-semibold ' + (up ? 'trend-up' : 'trend-down');
+                aktifTrend.innerHTML = '<i class="bi ' + (up ? 'bi-arrow-up-right' : 'bi-arrow-down-right') + '"></i> %' + fmtPct.format(Math.abs(d.aktifFirsatTrend));
+            } else {
+                aktifTrend.innerHTML = '<span class="text-slate-300">-</span>';
+            }
+
+            // Pipeline trend (reuse aktifFirsatTrend for now)
+            const pipeTrend = document.querySelector('[data-kpi-trend="pipelineTrend"]');
+            pipeTrend.className = 'text-[12px] font-semibold ' + (d.aktifFirsatTrend > 0 ? 'trend-up' : d.aktifFirsatTrend < 0 ? 'trend-down' : '');
+            if (d.aktifFirsatTrend !== 0) {
+                pipeTrend.innerHTML = '<i class="bi ' + (d.aktifFirsatTrend > 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-right') + '"></i> %' + fmtPct.format(Math.abs(d.aktifFirsatTrend));
+            } else {
+                pipeTrend.innerHTML = '<span class="text-slate-300">-</span>';
+            }
+
+            // Teklif
+            const teklifEl = document.querySelector('[data-kpi="acikTeklif"]');
+            teklifEl.textContent = '';
+            countUp(teklifEl, d.acikTeklifToplam, 500, '\u20BA');
+            const teklifTrend = document.querySelector('[data-kpi-trend="teklifTrend"]');
+            teklifTrend.innerHTML = '<span class="text-slate-400">' + d.acikTeklifAdet + ' adet</span>';
+
+            // Siparis
+            const siparisEl = document.querySelector('[data-kpi="acikSiparis"]');
+            siparisEl.textContent = '';
+            countUp(siparisEl, d.acikSiparisToplam, 500, '\u20BA');
+            const siparisTrend = document.querySelector('[data-kpi-trend="siparisTrend"]');
+            siparisTrend.innerHTML = '<span class="text-slate-400">' + d.acikSiparisAdet + ' adet</span>';
+
+            // Win rate
+            const winEl = document.querySelector('[data-kpi="kazanmaOrani"]');
+            winEl.textContent = '%' + fmtPct.format(d.kazanmaOraniCount);
+
+            const circumference = 2 * Math.PI * 30; // 188.5
+            const offset = circumference - (d.kazanmaOraniCount / 100) * circumference;
+            document.getElementById('winrate-circle').style.strokeDashoffset = offset;
+
+            // Sub labels
+            document.querySelector('[data-kpi-sub="pipelineSub"]').textContent = d.aktifFirsatAdet + ' adet \u00B7 ' + abbrev(d.ortAnlasma) + ' ort';
+            document.querySelector('[data-kpi-sub="aktifSub"]').textContent = abbrev(d.pipelineToplam) + ' toplam deger';
+            document.querySelector('[data-kpi-sub="teklifSub"]').textContent = d.acikTeklifAdet + ' adet beklemede';
+            document.querySelector('[data-kpi-sub="siparisSub"]').textContent = d.acikSiparisAdet + ' acik \u00B7 ' + d.kapaliSiparisAdet + ' kapali';
+            document.querySelector('[data-kpi-sub="winrateSub"]').textContent = 'Gelir bazli %' + fmtPct.format(d.kazanmaOraniRevenue);
+
+        } catch (err) {
+            console.error('KPI load error:', err);
+        }
+    }
+
+    // ── LOAD FUNNEL ──
+    async function loadFunnel() {
+        try {
+            const stages = await fetchJson('GetFunnelData?' + getFilterParams());
+            const body = document.getElementById('funnelBody');
+            if (!stages || !stages.length) {
+                body.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 w-full">Huni verisi bulunamadi.</p>';
+                return;
+            }
+
+            const colors = ['#6366f1', '#4f46e5', '#4338ca', '#3730a3', '#312e81'];
+            let html = '';
+            const maxCount = Math.max(...stages.map(s => s.count)) || 1;
+
+            stages.forEach((s, i) => {
+                const widthPct = 15 + (s.count / maxCount) * 85;
+                html += '<div class="funnel-segment" style="background:' + (s.color || colors[i] || colors[4]) + '; flex: 0 0 ' + widthPct + '%; min-width: 100px;">';
+                html += '<span class="text-[10px] font-semibold opacity-80">' + s.name + '</span>';
+                html += '<span class="text-[15px] font-bold">' + fmtNumber.format(s.count) + '</span>';
+                html += '<span class="text-[10px] opacity-80">' + abbrev(s.value) + '</span>';
+                html += '</div>';
+
+                if (i < stages.length - 1) {
+                    const rate = s.conversionRate;
+                    let badgeClass = 'bg-red-100 text-red-700';
+                    if (rate >= 70) badgeClass = 'bg-emerald-100 text-emerald-700';
+                    else if (rate >= 40) badgeClass = 'bg-amber-100 text-amber-700';
+                    html += '<div class="funnel-conversion">';
+                    html += '<span class="funnel-conv-badge ' + badgeClass + '">%' + fmtPct.format(rate) + '</span>';
+                    html += '</div>';
+                }
+            });
+
+            body.innerHTML = html;
+        } catch (err) {
+            console.error('Funnel load error:', err);
+            document.getElementById('funnelBody').innerHTML = '<p class="text-[11px] text-red-400 text-center py-4 w-full">Hata olustu.</p>';
+        }
+    }
+
+    // ── LOAD STATUS BREAKDOWNS ──
+    async function loadStatusBreakdown(type) {
+        try {
+            const d = await fetchJson('GetStatusBreakdown?type=' + type + '&' + getFilterParams());
+            if (!d) return;
+
+            // Total
+            const totalEl = document.querySelector('[data-status-total="' + type + '"]');
+            totalEl.textContent = abbrev(d.grandTotal) + ' \u00B7 ' + d.grandCount + ' adet';
+
+            // Doughnut
+            const cvId = 'doughnut-' + type;
+            if (chartInstances[cvId]) { chartInstances[cvId].destroy(); delete chartInstances[cvId]; }
+            const cv = document.getElementById(cvId);
+            if (cv && d.items && d.items.length) {
+                chartInstances[cvId] = new Chart(cv, {
+                    type: 'doughnut',
+                    data: {
+                        labels: d.items.map(x => x.statusName),
+                        datasets: [{
+                            data: d.items.map(x => x.count),
+                            backgroundColor: d.items.map(x => x.color),
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        cutout: '68%',
+                        animation: { animateRotate: true, duration: 800, easing: 'easeOutQuart' },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: Object.assign({}, tooltipConfig, {
+                                callbacks: {
+                                    label: function(ctx) { return ctx.label + ': ' + ctx.raw + ' adet'; }
+                                }
+                            })
+                        }
+                    }
+                });
+            }
+
+            // Status list
+            const listEl = document.getElementById('status-list-' + type);
+            if (d.items && d.items.length) {
+                let h = '';
+                const maxCount = Math.max(...d.items.map(x => x.count)) || 1;
+                d.items.forEach(item => {
+                    const pct = d.grandCount > 0 ? ((item.count / d.grandCount) * 100) : 0;
+                    h += '<div class="flex items-center gap-3">';
+                    h += '<div class="status-dot" style="background:' + item.color + ';"></div>';
+                    h += '<span class="text-[12px] text-slate-600 flex-1">' + item.statusName + '</span>';
+                    h += '<span class="text-[12px] font-semibold text-[#1e293b]">' + item.count + '</span>';
+                    h += '<span class="text-[11px] text-slate-400 w-10 text-right">%' + fmtPct.format(pct) + '</span>';
+                    h += '</div>';
+                });
+                listEl.innerHTML = h;
+            } else {
+                listEl.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-2">Veri bulunamadi</p>';
+            }
+        } catch (err) {
+            console.error('Status ' + type + ' load error:', err);
+        }
+    }
+
+    // ── STATUS DRILL TOGGLE ──
+    function toggleStatusDrill(type) {
+        const panel = document.getElementById('drill-status-' + type);
+        const arrow = document.getElementById('arrow-status-' + type);
+        if (activeStatusDrill === type) {
+            panel.classList.remove('open');
+            arrow.classList.remove('rotated');
+            activeStatusDrill = null;
+        } else {
+            if (activeStatusDrill) {
+                document.getElementById('drill-status-' + activeStatusDrill).classList.remove('open');
+                document.getElementById('arrow-status-' + activeStatusDrill).classList.remove('rotated');
+            }
+            panel.classList.add('open');
+            arrow.classList.add('rotated');
+            activeStatusDrill = type;
+            if (!drillLoaded['status-' + type]) loadStatusDrillData(type);
+        }
+    }
+    window.toggleStatusDrill = toggleStatusDrill;
+
+    async function loadStatusDrillData(type) {
+        const el = document.getElementById('drill-data-' + type);
+        el.innerHTML = '<div class="shimmer h-5 w-full mb-2"></div><div class="shimmer h-5 w-4/5"></div>';
+        try {
+            const d = await fetchJson('GetDetail?type=' + type + '&page=1&pageSize=20&' + getFilterParams());
+            if (!d || !d.rows || !d.rows.length) {
+                el.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-4">Veri bulunamadi.</p>';
+                drillLoaded['status-' + type] = true;
+                return;
+            }
+            let h = '<div class="overflow-x-auto"><table class="w-full text-[11px] fa-table"><thead><tr class="border-b border-slate-100">';
+            h += '<th class="text-left py-2 px-2 font-semibold text-slate-400">No</th>';
+            h += '<th class="text-left py-2 px-2 font-semibold text-slate-400">Musteri</th>';
+            h += '<th class="text-left py-2 px-2 font-semibold text-slate-400">Urun</th>';
+            h += '<th class="text-center py-2 px-2 font-semibold text-slate-400">Durum</th>';
+            h += '<th class="text-right py-2 px-2 font-semibold text-slate-400">Tutar</th>';
+            h += '<th class="text-center py-2 px-2 font-semibold text-slate-400">Tarih</th>';
+            h += '<th class="text-left py-2 px-2 font-semibold text-slate-400">Sahip</th>';
+            h += '</tr></thead><tbody>';
+            d.rows.forEach(function(r) {
+                h += '<tr class="border-t border-slate-50 hover:bg-indigo-50/20 transition-colors">';
+                h += '<td class="py-1.5 px-2 text-[#1e293b] font-medium">' + (r.teklifNo || '-') + '</td>';
+                h += '<td class="py-1.5 px-2 text-slate-500 max-w-[140px] truncate">' + (r.musteriAdi || '-') + '</td>';
+                h += '<td class="py-1.5 px-2 text-slate-500 max-w-[120px] truncate">' + (r.urunAdi || '-') + '</td>';
+                h += '<td class="py-1.5 px-2 text-center"><span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium" style="background:' + (r.durumRenk || '#e2e8f0') + '20; color:' + (r.durumRenk || '#475569') + ';">' + (r.durum || '-') + '</span></td>';
+                h += '<td class="py-1.5 px-2 text-right font-semibold text-[#1e293b]">' + fmtCurrency.format(r.tutar || 0) + '</td>';
+                h += '<td class="py-1.5 px-2 text-center text-slate-500">' + (r.tarih ? new Date(r.tarih).toLocaleDateString('tr-TR') : '-') + '</td>';
+                h += '<td class="py-1.5 px-2 text-slate-500">' + (r.sahip || '-') + '</td>';
+                h += '</tr>';
+            });
+            h += '</tbody></table></div>';
+            if (d.totalCount > 20) {
+                h += '<p class="text-[10px] text-slate-400 text-center mt-3">' + d.totalCount + ' kayittan ilk 20 gosteriliyor</p>';
+            }
+            el.innerHTML = h;
+            drillLoaded['status-' + type] = true;
+        } catch (err) {
+            el.innerHTML = '<p class="text-[11px] text-red-400 text-center py-4">Hata olustu.</p>';
+        }
+    }
+
+    // ── LOAD CHARTS ──
+    async function loadCharts() {
+        await Promise.all([
+            loadTrendChart(),
+            loadProductChart(),
+            loadCustomerChart()
+        ]);
+    }
+
+    async function loadTrendChart() {
+        const cv = document.getElementById('chart-trend');
+        if (!cv) return;
+        try {
+            const d = await fetchJson('GetChartData?chartType=trend&' + getFilterParams());
+            if (!d || !d.labels || !d.labels.length) {
+                document.getElementById('chart-trend-wrap').innerHTML = '<p class="text-[11px] text-slate-400 text-center py-8">Veri bulunamadi.</p>';
+                return;
+            }
+            if (chartInstances['trend']) chartInstances['trend'].destroy();
+            const ctx = cv.getContext('2d');
+
+            const datasets = d.datasets.map(function(ds, i) {
+                const colors = ['#6366f1', '#10b981', '#f59e0b'];
+                const bgFrom = [
+                    'rgba(99,102,241,0.25)', 'rgba(16,185,129,0.15)', 'rgba(245,158,11,0.15)'
+                ];
+                const bgTo = [
+                    'rgba(99,102,241,0.02)', 'rgba(16,185,129,0.02)', 'rgba(245,158,11,0.02)'
+                ];
+                return {
+                    label: ds.label,
+                    data: ds.data,
+                    borderColor: ds.borderColor || colors[i],
+                    backgroundColor: makeGradient(ctx, bgFrom[i] || bgFrom[0], bgTo[i] || bgTo[0]),
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: ds.borderColor || colors[i],
+                    tension: 0.4,
+                    fill: true
+                };
+            });
+
+            chartInstances['trend'] = new Chart(cv, {
+                type: 'line',
+                data: { labels: d.labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 800, easing: 'easeOutQuart' },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 10 }, padding: 12, usePointStyle: true, pointStyleWidth: 8 } },
+                        tooltip: Object.assign({}, tooltipConfig, {
+                            mode: 'index',
+                            callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + fmtCurrency.format(ctx.raw); } }
+                        })
+                    },
+                    scales: {
+                        x: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 9 }, color: '#94a3b8', maxRotation: 0 } },
+                        y: { grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false, borderDash: [3,3] }, border: { display: false }, ticks: { font: { family: 'Inter', size: 9 }, color: '#94a3b8', callback: axisAbbrev } }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Trend chart error:', err);
+        }
+    }
+
+    async function loadProductChart() {
+        const cv = document.getElementById('chart-product');
+        if (!cv) return;
+        try {
+            const d = await fetchJson('GetChartData?chartType=product&' + getFilterParams());
+            if (!d || !d.labels || !d.labels.length) {
+                document.getElementById('chart-product-wrap').innerHTML = '<p class="text-[11px] text-slate-400 text-center py-8">Veri bulunamadi.</p>';
+                return;
+            }
+            if (chartInstances['product']) chartInstances['product'].destroy();
+
+            const barColors = ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#ddd6fe'];
+            chartInstances['product'] = new Chart(cv, {
+                type: 'bar',
+                data: {
+                    labels: d.labels,
+                    datasets: [{
+                        data: d.datasets[0].data,
+                        backgroundColor: d.labels.map(function(_, i) { return barColors[i] || barColors[5]; }),
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barThickness: 18
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 800, easing: 'easeOutQuart' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: Object.assign({}, tooltipConfig, {
+                            callbacks: { label: function(ctx) { return fmtCurrency.format(ctx.raw); } }
+                        })
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false, borderDash: [3,3] }, border: { display: false }, ticks: { font: { family: 'Inter', size: 9 }, color: '#94a3b8', callback: axisAbbrev } },
+                        y: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#475569' } }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Product chart error:', err);
+        }
+    }
+
+    async function loadCustomerChart() {
+        const cv = document.getElementById('chart-customer');
+        if (!cv) return;
+        try {
+            const d = await fetchJson('GetChartData?chartType=customer&' + getFilterParams());
+            if (!d || !d.labels || !d.labels.length) {
+                document.getElementById('chart-customer-wrap').innerHTML = '<p class="text-[11px] text-slate-400 text-center py-8">Veri bulunamadi.</p>';
+                return;
+            }
+            if (chartInstances['customer']) chartInstances['customer'].destroy();
+
+            const palette = ['#4f46e5','#6366f1','#818cf8','#a5b4fc','#c7d2fe','#10b981','#34d399','#6ee7b7','#f59e0b','#fbbf24'];
+            chartInstances['customer'] = new Chart(cv, {
+                type: 'doughnut',
+                data: {
+                    labels: d.labels,
+                    datasets: [{
+                        data: d.datasets[0].data,
+                        backgroundColor: d.labels.map(function(_, i) { return palette[i] || palette[9]; }),
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '55%',
+                    animation: { animateRotate: true, duration: 800, easing: 'easeOutQuart' },
+                    plugins: {
+                        legend: { position: 'right', labels: { font: { family: 'Inter', size: 9 }, padding: 6, usePointStyle: true, pointStyleWidth: 6 } },
+                        tooltip: Object.assign({}, tooltipConfig, {
+                            callbacks: { label: function(ctx) { return ctx.label + ': ' + fmtCurrency.format(ctx.raw); } }
+                        })
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Customer chart error:', err);
+        }
+    }
+
+    // ── LOAD LEADERBOARD ──
+    async function loadLeaderboard() {
+        try {
+            const rows = await fetchJson('GetLeaderboard?' + getFilterParams());
+            const body = document.getElementById('leaderboardBody');
+            if (!rows || !rows.length) {
+                body.innerHTML = '<tr><td colspan="7" class="text-[11px] text-slate-400 text-center py-6">Veri bulunamadi.</td></tr>';
+                return;
+            }
+
+            const maxPipeline = Math.max(...rows.map(function(r) { return r.pipelineValue; })) || 1;
+            const medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49']; // gold, silver, bronze
+
+            let h = '';
+            rows.forEach(function(r) {
+                const medal = r.rank <= 3 ? medals[r.rank - 1] : r.rank;
+                const barW = (r.pipelineValue / maxPipeline * 100).toFixed(1);
+                h += '<tr class="border-t border-slate-50 cursor-pointer leaderboard-row" data-person="' + encodeURIComponent(r.name) + '">';
+                h += '<td class="py-2.5 px-2 text-center text-[13px]">' + medal + '</td>';
+                h += '<td class="py-2.5 px-3"><div><span class="font-semibold text-[#1e293b]">' + r.name + '</span>';
+                h += '<div class="lb-bar"><div class="lb-bar-fill" style="width:' + barW + '%;"></div></div>';
+                h += '</div></td>';
+                h += '<td class="py-2.5 px-3 text-right font-medium text-[#1e293b]">' + abbrev(r.pipelineValue) + '</td>';
+                h += '<td class="py-2.5 px-3 text-right text-emerald-600 font-medium">' + r.wonDeals + '/' + r.totalDeals + '</td>';
+                h += '<td class="py-2.5 px-3 text-center">';
+                h += '<span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ';
+                h += r.winRate >= 60 ? 'bg-emerald-100 text-emerald-700' : r.winRate >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+                h += '">%' + fmtPct.format(r.winRate) + '</span></td>';
+                h += '<td class="py-2.5 px-3 text-right text-slate-500">' + abbrev(r.avgDealSize) + '</td>';
+                h += '<td class="py-2.5 px-3 text-right font-semibold text-[#1e293b]">' + abbrev(r.pipelineValue) + '</td>';
+                h += '</tr>';
+            });
+            body.innerHTML = h;
+
+            // Bind click events for slide-over
+            body.querySelectorAll('.leaderboard-row').forEach(function(row) {
+                row.addEventListener('click', function() {
+                    openSlideOver(decodeURIComponent(this.dataset.person));
+                });
+            });
+        } catch (err) {
+            console.error('Leaderboard error:', err);
+        }
+    }
+
+    // ── LOAD RISK ALERTS ──
+    async function loadRiskAlerts() {
+        try {
+            const alerts = await fetchJson('GetRiskAlerts');
+            const body = document.getElementById('riskBody');
+            if (!alerts || !alerts.length) {
+                body.innerHTML = '<div class="flex flex-col items-center justify-center py-8"><i class="bi bi-check-circle text-emerald-400" style="font-size:24px;"></i><p class="text-[12px] text-slate-400 mt-2">Risk uyarisi yok</p></div>';
+                return;
+            }
+
+            let h = '';
+            alerts.forEach(function(a) {
+                let cls = 'risk-info';
+                if (a.severity === 'CRITICAL') cls = 'risk-critical';
+                else if (a.severity === 'WARNING') cls = 'risk-warning';
+
+                let iconClass = 'bi-info-circle text-blue-500';
+                if (a.severity === 'CRITICAL') iconClass = 'bi-exclamation-octagon text-red-500';
+                else if (a.severity === 'WARNING') iconClass = 'bi-exclamation-triangle text-amber-500';
+
+                h += '<div class="risk-item ' + cls + '">';
+                h += '<div class="flex items-start gap-3">';
+                h += '<i class="bi ' + iconClass + ' mt-0.5" style="font-size:14px;"></i>';
+                h += '<div class="flex-1 min-w-0">';
+                h += '<div class="flex items-center justify-between">';
+                h += '<span class="text-[12px] font-semibold text-[#1e293b]">' + a.title + '</span>';
+                h += '<span class="text-[10px] font-bold text-slate-400">' + a.count + '</span>';
+                h += '</div>';
+                h += '<p class="text-[11px] text-slate-500 mt-0.5">' + a.message + '</p>';
+                if (a.value > 0) {
+                    h += '<p class="text-[11px] font-semibold text-slate-600 mt-1">' + fmtCurrency.format(a.value) + '</p>';
+                }
+                h += '</div></div></div>';
+            });
+            body.innerHTML = h;
+        } catch (err) {
+            console.error('Risk alerts error:', err);
+        }
+    }
+
+    // ── LOAD SPARKLINES (via KPI endpoint, uses stub data array) ──
+    async function loadSparklines() {
+        try {
+            const d = await fetchJson('GetChartData?chartType=trend&' + getFilterParams());
+            if (d && d.datasets && d.datasets.length) {
+                // Use first dataset for pipeline sparkline
+                if (d.datasets[0]) drawSparkline('spark-pipeline', Array.from(d.datasets[0].data), '#4f46e5');
+                if (d.datasets[1]) drawSparkline('spark-aktif', Array.from(d.datasets[1].data), '#10b981');
+                // Generate simulated sparklines for teklif/siparis from available data
+                if (d.datasets[0]) {
+                    const data0 = Array.from(d.datasets[0].data);
+                    drawSparkline('spark-teklif', data0.map(function(v) { return v * 0.6 + Math.random() * v * 0.1; }), '#6366f1');
+                    drawSparkline('spark-siparis', data0.map(function(v) { return v * 0.4 + Math.random() * v * 0.1; }), '#818cf8');
+                }
+            }
+        } catch (err) {
+            // Sparklines are non-critical
+        }
+    }
+
+    // ── SLIDE-OVER PANEL ──
+    async function openSlideOver(personName) {
+        document.getElementById('slideName').textContent = personName;
+        document.getElementById('slideOverlay').classList.add('active');
+        document.getElementById('slidePanel').classList.add('active');
+        document.getElementById('slideContent').innerHTML = '<div class="shimmer h-6 w-full mb-3"></div><div class="shimmer h-6 w-4/5 mb-3"></div><div class="shimmer h-6 w-11/12"></div>';
+
+        try {
+            const d = await fetchJson('GetPersonScorecard?person=' + encodeURIComponent(personName) + '&' + getFilterParams());
+            if (!d) {
+                document.getElementById('slideContent').innerHTML = '<p class="text-[11px] text-slate-400 text-center py-8">Veri bulunamadi.</p>';
+                return;
+            }
+
+            let h = '';
+
+            // Summary KPIs
+            h += '<div class="grid grid-cols-2 gap-3 mb-5">';
+            if (d.pipelineValue !== undefined) {
+                h += '<div class="bg-indigo-50 rounded-xl p-3"><p class="text-[9px] text-indigo-500 font-semibold uppercase">Pipeline</p><p class="text-base font-bold text-[#1e293b] mt-1">' + abbrev(d.pipelineValue || 0) + '</p></div>';
+            }
+            if (d.wonDeals !== undefined) {
+                h += '<div class="bg-emerald-50 rounded-xl p-3"><p class="text-[9px] text-emerald-500 font-semibold uppercase">Kazanilan</p><p class="text-base font-bold text-[#1e293b] mt-1">' + (d.wonDeals || 0) + ' firsat</p></div>';
+            }
+            if (d.winRate !== undefined) {
+                h += '<div class="bg-amber-50 rounded-xl p-3"><p class="text-[9px] text-amber-500 font-semibold uppercase">Donusum</p><p class="text-base font-bold text-[#1e293b] mt-1">%' + fmtPct.format(d.winRate || 0) + '</p></div>';
+            }
+            if (d.avgDealSize !== undefined) {
+                h += '<div class="bg-sky-50 rounded-xl p-3"><p class="text-[9px] text-sky-500 font-semibold uppercase">Ort. Anlasma</p><p class="text-base font-bold text-[#1e293b] mt-1">' + abbrev(d.avgDealSize || 0) + '</p></div>';
+            }
+            h += '</div>';
+
+            // Monthly trend mini chart
+            h += '<div class="mb-5"><p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Aylik Trend</p>';
+            h += '<canvas id="slide-trend" height="100"></canvas></div>';
+
+            // Open deals
+            if (d.openDeals && d.openDeals.length) {
+                h += '<p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Acik Firsatlar</p>';
+                h += '<div class="space-y-2 mb-4">';
+                d.openDeals.forEach(function(deal) {
+                    h += '<div class="bg-slate-50 rounded-lg p-3 flex items-center justify-between">';
+                    h += '<div><p class="text-[12px] font-medium text-[#1e293b]">' + (deal.musteriAdi || '-') + '</p>';
+                    h += '<p class="text-[10px] text-slate-400">' + (deal.urunAdi || '-') + '</p></div>';
+                    h += '<div class="text-right"><p class="text-[12px] font-bold text-[#1e293b]">' + fmtCurrency.format(deal.tutar || 0) + '</p>';
+                    h += '<span class="inline-flex px-1.5 py-0.5 rounded text-[9px] font-medium" style="background:' + (deal.durumRenk || '#e2e8f0') + '20; color:' + (deal.durumRenk || '#475569') + ';">' + (deal.durum || '-') + '</span>';
+                    h += '</div></div>';
+                });
+                h += '</div>';
+            }
+
+            // Customer distribution
+            if (d.customerDistribution && d.customerDistribution.length) {
+                h += '<p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Musteri Dagilimi</p>';
+                h += '<div class="space-y-1.5 mb-4">';
+                d.customerDistribution.forEach(function(c) {
+                    h += '<div class="flex items-center gap-2">';
+                    h += '<span class="text-[11px] text-slate-600 flex-1 truncate">' + c.name + '</span>';
+                    h += '<span class="text-[11px] font-semibold text-[#1e293b]">' + fmtCurrency.format(c.value || 0) + '</span>';
+                    h += '</div>';
+                });
+                h += '</div>';
+            }
+
+            // Product performance
+            if (d.productPerformance && d.productPerformance.length) {
+                h += '<p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Urun Performansi</p>';
+                h += '<div class="space-y-1.5">';
+                d.productPerformance.forEach(function(p) {
+                    h += '<div class="flex items-center gap-2">';
+                    h += '<span class="text-[11px] text-slate-600 flex-1 truncate">' + p.name + '</span>';
+                    h += '<span class="text-[11px] font-semibold text-[#1e293b]">' + fmtCurrency.format(p.value || 0) + '</span>';
+                    h += '</div>';
+                });
+                h += '</div>';
+            }
+
+            document.getElementById('slideContent').innerHTML = h;
+
+            // Render mini trend chart
+            if (d.monthlyTrend && d.monthlyTrend.labels && d.monthlyTrend.labels.length) {
+                const tcv = document.getElementById('slide-trend');
+                if (tcv) {
+                    new Chart(tcv, {
+                        type: 'bar',
+                        data: {
+                            labels: d.monthlyTrend.labels,
+                            datasets: [{
+                                data: d.monthlyTrend.data,
+                                backgroundColor: '#6366f1',
+                                borderRadius: 4,
+                                barThickness: 14
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 600 },
+                            plugins: { legend: { display: false }, tooltip: Object.assign({}, tooltipConfig, { callbacks: { label: function(ctx) { return fmtCurrency.format(ctx.raw); } } }) },
+                            scales: {
+                                x: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 9 }, color: '#94a3b8' } },
+                                y: { display: false }
+                            }
+                        }
+                    });
+                }
+            }
+
+        } catch (err) {
+            document.getElementById('slideContent').innerHTML = '<p class="text-[11px] text-red-400 text-center py-8">Veri yuklenirken hata olustu.</p>';
+        }
+    }
+
+    function closeSlideOver() {
+        document.getElementById('slideOverlay').classList.remove('active');
+        document.getElementById('slidePanel').classList.remove('active');
+    }
+    window.closeSlideOver = closeSlideOver;
+
+    // ESC to close slide-over
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeSlideOver();
+    });
+
+    // ── FILTER MANAGEMENT ──
+    function refreshAll() {
+        // Reset drill state
+        drillLoaded = {};
+        activeStatusDrill = null;
+        document.querySelectorAll('.drill-panel').forEach(function(p) { p.classList.remove('open'); });
+        document.querySelectorAll('.chevron-btn').forEach(function(c) { c.classList.remove('rotated'); });
+
+        // Destroy all charts
+        Object.keys(chartInstances).forEach(function(k) {
+            if (chartInstances[k]) { chartInstances[k].destroy(); delete chartInstances[k]; }
+        });
+
+        // Fire all loads in parallel
+        Promise.all([
+            loadKpiSummary(),
+            loadFunnel(),
+            loadStatusBreakdown('firsatlar'),
+            loadStatusBreakdown('teklifler'),
+            loadStatusBreakdown('siparisler'),
+            loadCharts(),
+            loadLeaderboard(),
+            loadRiskAlerts(),
+            loadSparklines()
+        ]);
+    }
+
+    function debouncedRefresh() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(refreshAll, 300);
+    }
+
+    // Filter pill clicks
+    document.getElementById('filterPills').addEventListener('click', function(e) {
+        const pill = e.target.closest('.filter-pill');
+        if (!pill) return;
+        document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
+        pill.classList.add('active');
+        activeFilter = pill.dataset.filter;
+        debouncedRefresh();
+    });
+
+    // Date range change
+    document.getElementById('rangeStart').addEventListener('change', function() {
+        activeFilter = 'range';
+        document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
+        debouncedRefresh();
+    });
+    document.getElementById('rangeEnd').addEventListener('change', function() {
+        activeFilter = 'range';
+        document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
+        debouncedRefresh();
+    });
+
+    // Person/Product change
+    document.getElementById('filterPerson').addEventListener('change', debouncedRefresh);
+    document.getElementById('filterProduct').addEventListener('change', debouncedRefresh);
+
+    // ── INIT ──
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshAll();
+    });
+
+})();
+</script>
+}

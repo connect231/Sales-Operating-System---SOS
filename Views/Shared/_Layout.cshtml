@@ -166,9 +166,13 @@
 
         <!-- Nav -->
         <nav class="w-full flex-1 py-2">
-            <a href="@Url.Action("Index", "Cockpit")" class="nav-link active">
+            <a href="@Url.Action("Index", "Cockpit")" class="nav-link @(ViewData["Title"]?.ToString() == "Cockpit" ? "active" : "")">
                 <i class="bi bi-bar-chart-line"></i>
                 <span class="nav-link-text">Cockpit</span>
+            </a>
+            <a href="@Url.Action("Index", "FirsatAnaliz")" class="nav-link @(ViewData["Title"]?.ToString() == "Firsat Analiz" ? "active" : "")">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span class="nav-link-text">Firsat Analiz</span>
             </a>
         </nav>
 

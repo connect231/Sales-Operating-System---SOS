@@ -43,7 +43,7 @@ namespace SOS.Models.MsK.SpModels
         public string? AccountTitle { get; set; }
         public string? Durum { get; set; }
         public int? Gecikme_Gun { get; set; }
-        public int? Satıs_Vadesi { get; set; }
+        public int? Satis_Vadesi { get; set; }
         public DateTime? Tahsil_Tarihi { get; set; }
         public int? Bekleme_Gun { get; set; }
 
