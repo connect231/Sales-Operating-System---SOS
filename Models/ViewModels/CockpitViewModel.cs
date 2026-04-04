@@ -40,9 +40,13 @@ namespace SOS.Models.ViewModels
         public DateTime FiltreBaslangic { get; set; }
         public DateTime FiltreBitis { get; set; }
 
-        // Tahsil edilecek hedef (dönem bazlı)
-        public decimal TahsilEdilecek { get; set; }
-        public decimal TahsilKalan { get; set; }
+        // Tahsilat kartı: dönem bazlı toplam/tahsil/kalan/yüzde
+        public decimal TahsilEdilecek { get; set; }  // = FaturalarToplam (dönemdeki tüm faturalar)
+        public decimal TahsilKalan { get; set; }     // = FaturalarToplam - TahsilatlarToplam
+        public decimal TahsilatYuzde { get; set; }   // = TahsilatlarToplam / FaturalarToplam * 100
+        public decimal OncekiDonemToplam { get; set; }  // Önceki eşdeğer dönemin fatura toplamı
+        public decimal OncekiDonemTahsilat { get; set; } // Önceki eşdeğer dönemin tahsilat toplamı
+        public decimal OncekiDonemKalan { get; set; }    // Önceki dönemin kalan bakiyesi
 
         // CEI Dönem (seçilen filtre başlangıcı → bugün)
         public decimal CeiDonemTahsilat { get; set; }

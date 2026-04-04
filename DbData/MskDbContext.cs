@@ -112,6 +112,10 @@ public partial class MskDbContext : DbContext
 
     public virtual DbSet<VIEW_CP_EXCEL_FATURA> VIEW_CP_EXCEL_FATURAs { get; set; }
 
+    public virtual DbSet<TBLSOS_ANA_URUN> TBLSOS_ANA_URUNs { get; set; }
+    public virtual DbSet<TBLSOS_URUN_ESLESTIRME> TBLSOS_URUN_ESLESTIRMEs { get; set; }
+    public virtual DbSet<TBLSOS_HEDEF_AYLIK> TBLSOS_HEDEF_AYLIKs { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseSqlServer("Name=ConnectionStrings:MsKConnection");
 

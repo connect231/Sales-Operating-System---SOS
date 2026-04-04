@@ -253,6 +253,19 @@ namespace SOS.Controllers
             var tahToplam = tahsilatlar.Sum(f => f.Fatura_Toplam ?? 0);
             var sozToplam = sozlesmeler.Sum(s => s.TotalAmount ?? 0);
 
+            // ═══ TAHSİLAT KARTI: Dönemdeki faturalar vs tahsilat ═══
+            // Toplam = dönemdeki tüm faturaların tutarı
+            // Tahsil Edilen = dönemdeki tahsilat (TAHSİL EDİLDİ + KREDİ KARTI)
+            // Kalan = Toplam - Tahsil Edilen
+            // Yüzde = Tahsil Edilen / Toplam * 100
+            var tahsilEdilecek = fatToplam;  // dönemdeki tüm faturalar
+            var tahsilKalan = Math.Max(fatToplam - tahToplam, 0);
+            var tahsilatYuzde = fatToplam > 0
+                ? Math.Round(tahToplam / fatToplam * 100, 1)
+                : 0;
+            // Önceki eşdeğer dönem kalan bakiyesi
+            var oncekiDonemKalan = Math.Max(prevFatToplam - prevTahToplam, 0);
+
             // ═══ CEI 1: DÖNEM BAŞARISI (filtre start → bugün) ═══
             var donemSonuCei = end;
             if (activeFilter == "month")
@@ -266,8 +279,6 @@ namespace SOS.Controllers
                 .ToListAsync();
             var ceiDonemVgBakiye = ceiDonemVgNull.Sum(f => (f.Fatura_Toplam ?? 0) - (f.Tahsil_Edilen ?? 0));
             var ceiDonemTahsilat = tahToplam;
-            var tahsilEdilecek = ceiDonemTahsilat + ceiDonemVgBakiye;
-            var tahsilKalan = Math.Max(tahsilEdilecek - ceiDonemTahsilat, 0);
             var ceiDonemOran = tahsilEdilecek > 0
                 ? Math.Round(ceiDonemTahsilat / tahsilEdilecek * 100, 1)
                 : 0;
@@ -389,28 +400,38 @@ namespace SOS.Controllers
                 : 0;
 
 
-            // Sabit: Mevcut Ay (Nisan 2026)
-            var fixedMonthStart = new DateTime(2026, 4, 1);
-            var fixedMonthEnd = new DateTime(2026, 4, 30, 23, 59, 59);
-            var fixedMonthTarget = 50_000_000m;
-            var fixedMonthActual = await _context.VIEW_CP_EXCEL_FATURAs
-                .Where(f => (f.Odeme_Sozu_Tarihi.HasValue || f.Tahsil_Tarihi.HasValue)
-                    && (f.Odeme_Sozu_Tarihi ?? f.Tahsil_Tarihi) >= fixedMonthStart
-                    && (f.Odeme_Sozu_Tarihi ?? f.Tahsil_Tarihi) <= fixedMonthEnd
-                    && f.Durum != null && (f.Durum.Trim() == "TAHSİL EDİLDİ" || f.Durum.Trim() == "KREDİ KARTI" || f.Durum.Trim() == "KREDI KARTI"))
-                .SumAsync(f => f.Fatura_Toplam ?? 0);
+            // Dinamik: Mevcut Ay (otomatik hesaplanır)
+            var fixedMonthStart = new DateTime(now2.Year, now2.Month, 1);
+            var fixedMonthEnd = new DateTime(now2.Year, now2.Month, DateTime.DaysInMonth(now2.Year, now2.Month), 23, 59, 59);
+            // Mevcut aydaki tüm faturalar = hedef (toplam)
+            var fixedMonthFaturalar = await _context.VIEW_CP_EXCEL_FATURAs
+                .Where(f => f.Fatura_Tarihi.HasValue
+                    && f.Fatura_Tarihi.Value >= fixedMonthStart
+                    && f.Fatura_Tarihi.Value <= fixedMonthEnd)
+                .ToListAsync();
+            var fixedMonthTarget = NetTutar(fixedMonthFaturalar);
+            // Mevcut aydaki tahsilat
+            var fixedMonthActual = allTahData
+                .Where(f => IsTahsilatOrKrediKarti(f.Durum))
+                .Where(f => { var t = f.Odeme_Sozu_Tarihi ?? f.Tahsil_Tarihi; return t.HasValue && t.Value >= fixedMonthStart && t.Value <= fixedMonthEnd; })
+                .Sum(f => f.Fatura_Toplam ?? 0);
             var fixedMonthPct = fixedMonthTarget > 0 ? Math.Round(fixedMonthActual / fixedMonthTarget * 100, 1) : 0;
 
-            // Sabit: YTD (01.01.2026 - 01.04.2026)
-            var fixedYTDStart = new DateTime(2026, 1, 1);
-            var fixedYTDEnd = new DateTime(2026, 4, 1, 23, 59, 59);
-            var fixedYTDTarget = 200_000_000m;
-            var fixedYTDActual = await _context.VIEW_CP_EXCEL_FATURAs
-                .Where(f => (f.Odeme_Sozu_Tarihi.HasValue || f.Tahsil_Tarihi.HasValue)
-                    && (f.Odeme_Sozu_Tarihi ?? f.Tahsil_Tarihi) >= fixedYTDStart
-                    && (f.Odeme_Sozu_Tarihi ?? f.Tahsil_Tarihi) <= fixedYTDEnd
-                    && f.Durum != null && (f.Durum.Trim() == "TAHSİL EDİLDİ" || f.Durum.Trim() == "KREDİ KARTI" || f.Durum.Trim() == "KREDI KARTI"))
-                .SumAsync(f => f.Fatura_Toplam ?? 0);
+            // Dinamik: YTD (01.01.YYYY → bugün)
+            var fixedYTDStart = new DateTime(now2.Year, 1, 1);
+            var fixedYTDEnd = now2.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+            // YTD tüm faturalar = hedef (toplam)
+            var fixedYTDFaturalar = await _context.VIEW_CP_EXCEL_FATURAs
+                .Where(f => f.Fatura_Tarihi.HasValue
+                    && f.Fatura_Tarihi.Value >= fixedYTDStart
+                    && f.Fatura_Tarihi.Value <= fixedYTDEnd)
+                .ToListAsync();
+            var fixedYTDTarget = NetTutar(fixedYTDFaturalar);
+            // YTD tahsilat
+            var fixedYTDActual = allTahData
+                .Where(f => IsTahsilatOrKrediKarti(f.Durum))
+                .Where(f => { var t = f.Odeme_Sozu_Tarihi ?? f.Tahsil_Tarihi; return t.HasValue && t.Value >= fixedYTDStart && t.Value <= fixedYTDEnd; })
+                .Sum(f => f.Fatura_Toplam ?? 0);
             var fixedYTDPct = fixedYTDTarget > 0 ? Math.Round(fixedYTDActual / fixedYTDTarget * 100, 1) : 0;
 
             var vm = new CockpitViewModel
@@ -441,6 +462,10 @@ namespace SOS.Controllers
                 SozlesmeDetaylari = sozlesmeler.OrderByDescending(s => s.TotalAmount).ToList(),
                 TahsilEdilecek = tahsilEdilecek,
                 TahsilKalan = tahsilKalan,
+                TahsilatYuzde = tahsilatYuzde,
+                OncekiDonemToplam = prevFatToplam,
+                OncekiDonemTahsilat = prevTahToplam,
+                OncekiDonemKalan = oncekiDonemKalan,
                 CeiDonemTahsilat = ceiDonemTahsilat,
                 CeiDonemVadesiGecmis = ceiDonemVgBakiye,
                 CeiDonemOran = ceiDonemOran,

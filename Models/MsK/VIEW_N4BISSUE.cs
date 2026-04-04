@@ -32,7 +32,7 @@ public partial class VIEW_N4BISSUE
     public string? Gelis_Kanali { get; set; }
 
     [StringLength(200)]
-    public string? Tercih_Edilen_Geri_Dönüs_Metodu2 { get; set; }
+    public string? Tercih_Edilen_Geri_Donus_Metodu2 { get; set; }
 
     [StringLength(200)]
     public string? Cevap_Verilen_Kanallar1 { get; set; }

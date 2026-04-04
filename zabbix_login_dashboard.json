@@ -1,9 +1,0 @@
-{
-    "jsonrpc": "2.0",
-    "method": "user.login",
-    "params": {
-        "username": "univera_dashboard",
-        "password": "22GJ0s0XtG3e"
-    },
-    "id": 1
-}
