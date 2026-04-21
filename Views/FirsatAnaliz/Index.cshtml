@@ -69,12 +69,14 @@
     .funnel-card {
         cursor: pointer;
         user-select: none;
-        padding: 20px 20px 16px;
+        padding: 12px 12px 10px;
         display: flex;
         flex-direction: column;
         min-width: 0;
         overflow: hidden;
+        word-break: break-word;
     }
+    .funnel-card p { min-width: 0; }
     .funnel-card::before {
         content: '';
         position: absolute;
@@ -257,7 +259,7 @@
     }
 </style>
 
-<div class="fa-dash" style="position:sticky; top:-32px; z-index:40; background:#f8fafc; margin:-32px -32px 0; padding:32px 32px 12px; box-shadow:0 8px 12px -8px rgba(15,23,42,0.08);">
+<div class="fa-dash" style="position:sticky; top:-32px; z-index:40; background:#f8fafc; margin:-32px 0 0; padding:16px 0 10px; box-shadow:0 8px 12px -8px rgba(15,23,42,0.08);">
 
     <!-- ═══ HEADER ═══ -->
     <div class="flex items-center justify-between mb-4">
@@ -275,15 +277,15 @@
     </div>
 
     <!-- ═══ FUNNEL CARDS ═══ -->
-    <div class="flex items-stretch gap-0 mb-6" id="funnelRow">
+    <div class="flex flex-wrap items-stretch gap-2 mb-4" id="funnelRow">
 
         <!-- 1: Tüm Fırsatlar -->
-        <div class="fa-card funnel-card fc-orange flex-1 fade-up fade-up-d1" data-funnel="1" onclick="window._clickFunnel(1)">
+        <div class="fa-card funnel-card fc-orange basis-[200px] flex-1 fade-up fade-up-d1" data-funnel="1" onclick="window._clickFunnel(1)">
             <div class="flex items-start justify-between mb-3">
                 <span class="text-[11px] font-semibold text-[#64748b]">Tüm Fırsatlar <span id="dot1" class="kpi-status-dot"></span></span>
                 <div class="fc-icon"><i class="bi bi-layers"></i></div>
             </div>
-            <p id="kpiVal1" class="text-[26px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+            <p id="kpiVal1" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
             <p id="kpiSub1" class="text-[13px] text-[#64748b] mt-2 font-semibold">--</p>
             <div id="kpiNote1" class="hidden"></div><span id="kpiNoteText1" class="hidden"></span>
             <div class="flex-1"></div>
@@ -293,12 +295,12 @@
         </div>
 
         <!-- 2: Dönem fırsat potansiyeli -->
-        <div class="fa-card funnel-card fc-violet flex-1 fade-up fade-up-d2" data-funnel="2" onclick="window._clickFunnel(2)">
+        <div class="fa-card funnel-card fc-violet basis-[200px] flex-1 fade-up fade-up-d2" data-funnel="2" onclick="window._clickFunnel(2)">
             <div class="flex items-start justify-between mb-3">
                 <span id="kpiLabel2" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Fırsat</span>
                 <div class="fc-icon"><i class="bi bi-bullseye"></i></div>
             </div>
-            <p id="kpiVal2" class="text-[26px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+            <p id="kpiVal2" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
             <p id="kpiSub2a" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
             <span id="kpiSub2" class="hidden"></span>
             <div class="flex-1"></div>
@@ -308,12 +310,12 @@
         </div>
 
         <!-- 3: Donem teklif -->
-        <div class="fa-card funnel-card fc-blue flex-1 fade-up fade-up-d3" data-funnel="3" onclick="window._clickFunnel(3)">
+        <div class="fa-card funnel-card fc-blue basis-[200px] flex-1 fade-up fade-up-d3" data-funnel="3" onclick="window._clickFunnel(3)">
             <div class="flex items-start justify-between mb-3">
                 <span id="kpiLabel3" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Teklif</span>
                 <div class="fc-icon"><i class="bi bi-file-earmark-text"></i></div>
             </div>
-            <p id="kpiVal3" class="text-[26px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+            <p id="kpiVal3" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
             <p id="kpiSub3" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
             <div class="flex-1"></div>
             <div id="kpiLost3" class="hidden">
@@ -322,12 +324,12 @@
         </div>
 
         <!-- 4: Dönem sipariş -->
-        <div class="fa-card funnel-card fc-cyan flex-1 fade-up fade-up-d4" data-funnel="4" onclick="window._clickFunnel(4)">
+        <div class="fa-card funnel-card fc-cyan basis-[200px] flex-1 fade-up fade-up-d4" data-funnel="4" onclick="window._clickFunnel(4)">
             <div class="flex items-start justify-between mb-3">
                 <span id="kpiLabel4" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Sipariş</span>
                 <div class="fc-icon"><i class="bi bi-cart-check"></i></div>
             </div>
-            <p id="kpiVal4" class="text-[26px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+            <p id="kpiVal4" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
             <p id="kpiSub4" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
             <div id="kpiLost4" class="hidden mt-1.5">
                 <p id="kpiLost4Text" class="text-[10px] text-amber-600 leading-tight"></p>
@@ -335,12 +337,12 @@
         </div>
 
         <!-- 5: Dönem satış faturası -->
-        <div class="fa-card funnel-card fc-green flex-1 fade-up fade-up-d5" data-funnel="5" onclick="window._clickFunnel(5)">
+        <div class="fa-card funnel-card fc-green basis-[200px] flex-1 fade-up fade-up-d5" data-funnel="5" onclick="window._clickFunnel(5)">
             <div class="flex items-start justify-between mb-3">
                 <span id="kpiLabel5" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Satış Faturası</span>
                 <div class="fc-icon"><i class="bi bi-receipt"></i></div>
             </div>
-            <p id="kpiVal5" class="text-[26px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+            <p id="kpiVal5" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
             <p id="kpiSub5" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
         </div>
 
@@ -550,12 +552,19 @@
         </div>
     </div>
 
-    <!-- ═══ FOUR COLUMN: Ürün + Temsilci + Fırsat Sahipleri + Müşteri ═══ -->
-    <div class="grid grid-cols-4 gap-5 mb-6">
+    <!-- ═══ FOUR COLUMN: Ürün + Satıcı + Fırsat Sahibi + Müşteri ═══ -->
+    <div class="flex items-center justify-end mb-2">
+        <button id="toggleFirsatSahibiBtn"
+                class="text-[11px] text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded border border-slate-200 bg-white flex items-center gap-1.5">
+            <i class="bi bi-eye-slash" id="toggleFirsatSahibiIcon" style="font-size:10px;"></i>
+            <span id="toggleFirsatSahibiText">Fırsat Sahipleri'ni gizle</span>
+        </button>
+    </div>
+    <div class="grid grid-cols-4 gap-3 mb-6" id="breakdownGrid">
 
         <!-- 1: Ürün Bazlı -->
-        <div>
-            <div class="fa-card p-5 h-full">
+        <div data-breakdown-card="urun">
+            <div class="fa-card p-4 h-full">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center">
                         <i class="bi bi-box-seam text-emerald-600" style="font-size:13px;"></i>
@@ -568,9 +577,9 @@
             </div>
         </div>
 
-        <!-- 2: Satış Temsilcisi Bazlı -->
-        <div>
-            <div class="fa-card p-5 h-full">
+        <!-- 2: Satıcı (Satış Temsilcisi) Bazlı -->
+        <div data-breakdown-card="satici">
+            <div class="fa-card p-4 h-full">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center">
                         <i class="bi bi-people text-indigo-600" style="font-size:13px;"></i>
@@ -583,9 +592,9 @@
             </div>
         </div>
 
-        <!-- 3: Fırsat Sahipleri -->
-        <div>
-            <div class="fa-card p-5 h-full">
+        <!-- 3: Fırsat Sahipleri (gizlenebilir) -->
+        <div data-breakdown-card="sahip">
+            <div class="fa-card p-4 h-full">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
                         <i class="bi bi-person-badge text-amber-600" style="font-size:13px;"></i>
@@ -599,8 +608,8 @@
         </div>
 
         <!-- 4: Müşteri Bazlı -->
-        <div>
-            <div class="fa-card p-5 h-full">
+        <div data-breakdown-card="musteri">
+            <div class="fa-card p-4 h-full">
                 <div class="flex items-center gap-2 mb-4">
                     <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
                         <i class="bi bi-building text-violet-600" style="font-size:13px;"></i>
@@ -706,8 +715,12 @@
         prefix = prefix || '';
         suffix = suffix || '';
         duration = duration || 800;
+        // Race guard: her çağrıda seq artar; eski step kendi seq'i güncel değilse çıkar
+        var mySeq = (parseInt(el.dataset.cuSeq || '0', 10) + 1);
+        el.dataset.cuSeq = String(mySeq);
         var start = performance.now();
         function step(now) {
+            if (parseInt(el.dataset.cuSeq || '0', 10) !== mySeq) return; // üzerine yeni countUp geldi → iptal
             var elapsed = now - start;
             var progress = Math.min(elapsed / duration, 1);
             var eased = 1 - Math.pow(1 - progress, 3); // ease-out-cubic
@@ -750,21 +763,68 @@
     var activeProductFilter = '';
     var activeCustomerFilter = '';
     var activeOwnerFilter = '';
+    var activeFirsatSahibiFilter = '';
 
-    // Ürün/Müşteri/Temsilci tıklama filtreleri
+    /* ══════════════════════════════════
+       PERFORMANS: request guard + client cache + abort
+       ══════════════════════════════════ */
+    var _reqSeq = 0;                      // her refreshAll'a artan id (race guard)
+    var _currentAbort = null;             // in-flight fetch'leri toptan iptal
+    var _clientCache = new Map();         // url → { data, ts }
+    var CLIENT_TTL = 30000;               // 30 sn stale-while-revalidate
+    var _tabDebounce = null;
+
+    function cachedFetch(url, opts) {
+        var now = Date.now();
+        var hit = _clientCache.get(url);
+        if (hit && (now - hit.ts) < CLIENT_TTL) {
+            // stale-while-revalidate: anında stale dön, arka planda tazele
+            fetch(url, opts).then(function(r){ return r.json(); })
+                .then(function(fresh){ _clientCache.set(url, { data: fresh, ts: Date.now() }); })
+                .catch(function(){});
+            return Promise.resolve(hit.data);
+        }
+        return fetch(url, opts).then(function(r){ return r.json(); })
+            .then(function(fresh){ _clientCache.set(url, { data: fresh, ts: Date.now() }); return fresh; });
+    }
+
+    // Filtre değişiminde client cache'i geçersiz kılmaya gerek yok — URL'ye 'filter' dahil
+    // Ama tahakkuk invalidate vs. için manuel çağrılabilir:
+    window._clearClientCache = function() { _clientCache.clear(); };
+
+    // Ürün/Müşteri/Temsilci/Sahip tıklama filtreleri — birbirini dışlar (tek aktif)
+    function _clearAllBreakdownFilters() {
+        activeProductFilter = '';
+        activeCustomerFilter = '';
+        activeOwnerFilter = '';
+        activeFirsatSahibiFilter = '';
+    }
     window._filterByProduct = function(urun) {
         urun = decodeURIComponent(urun);
-        if (activeProductFilter === urun) { activeProductFilter = ''; } else { activeProductFilter = urun; activeCustomerFilter = ''; activeOwnerFilter = ''; }
+        var wasActive = activeProductFilter === urun;
+        _clearAllBreakdownFilters();
+        if (!wasActive) activeProductFilter = urun;
         refreshLowerSections();
     };
     window._filterByCustomer = function(musteri) {
         musteri = decodeURIComponent(musteri);
-        if (activeCustomerFilter === musteri) { activeCustomerFilter = ''; } else { activeCustomerFilter = musteri; activeProductFilter = ''; activeOwnerFilter = ''; }
+        var wasActive = activeCustomerFilter === musteri;
+        _clearAllBreakdownFilters();
+        if (!wasActive) activeCustomerFilter = musteri;
         refreshLowerSections();
     };
     window._filterByOwner = function(owner) {
         owner = decodeURIComponent(owner);
-        if (activeOwnerFilter === owner) { activeOwnerFilter = ''; } else { activeOwnerFilter = owner; activeProductFilter = ''; activeCustomerFilter = ''; }
+        var wasActive = activeOwnerFilter === owner;
+        _clearAllBreakdownFilters();
+        if (!wasActive) activeOwnerFilter = owner;
+        refreshLowerSections();
+    };
+    window._filterByFirsatSahibi = function(sahibi) {
+        sahibi = decodeURIComponent(sahibi);
+        var wasActive = activeFirsatSahibiFilter === sahibi;
+        _clearAllBreakdownFilters();
+        if (!wasActive) activeFirsatSahibiFilter = sahibi;
         refreshLowerSections();
     };
 
@@ -912,29 +972,47 @@
        LOAD ALL
        ══════════════════════════════════ */
     async function refreshAll() {
-        // Tüm kartlar tek SP'den (loadKpis K1-K5 dahil) + breakdown + detay
-        await Promise.all([
-            loadKpis(),
-            loadFunnelBreakdown(activeFunnel > 0 ? activeFunnel : 2),
-            loadOppDetail(1),
-            loadOwnerOptions(),
-            loadSalesCycle(),
-            loadFirsatSahipleri()
-        ]);
+        // Önceki dalga in-flight ise iptal et — race'i öldür
+        if (_currentAbort) { try { _currentAbort.abort(); } catch (_) {} }
+        _currentAbort = new AbortController();
+        var myReq = ++_reqSeq;
+
+        // Skeleton: içerikleri SIFIRLAMA, sadece opacity'yi düşür (değerler ekranda kalsın)
+        document.querySelectorAll('.content-panel').forEach(function(p){ p.classList.add('fading'); });
+
+        try {
+            // Ana paint: KPI + funnel breakdown + opp detay
+            await Promise.all([
+                loadKpis(myReq),
+                loadFunnelBreakdown(activeFunnel > 0 ? activeFunnel : 2, myReq),
+                loadOppDetail(1, myReq)
+            ]);
+        } finally {
+            if (myReq === _reqSeq) {
+                document.querySelectorAll('.content-panel').forEach(function(p){ p.classList.remove('fading'); });
+            }
+        }
+
+        // SalesCycle ana thread'ı bloklamasın — idle'da
+        var idle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 120); };
+        idle(function(){ if (myReq === _reqSeq) loadSalesCycle(myReq); });
     }
 
-    async function loadSalesCycle() {
+    async function loadSalesCycle(reqId) {
+        reqId = reqId || _reqSeq;
         try {
-            var data = await fetch('/FirsatAnaliz/GetSalesCycleData?' + getFilterParams()).then(function(r) { return r.json(); });
+            var signal = _currentAbort ? _currentAbort.signal : undefined;
+            var data = await cachedFetch('/FirsatAnaliz/GetSalesCycleData?' + getFilterParams(), { signal: signal });
+            if (reqId !== _reqSeq) return;
             renderSalesCycle(data);
-        } catch(e) { console.error('SalesCycle error:', e); }
+        } catch(e) { if (e.name !== 'AbortError') console.error('SalesCycle error:', e); }
     }
 
     async function loadFaturaKarti() {
         try {
             var f = await fetch('/FirsatAnaliz/GetFaturaKarti?' + getFilterParams()).then(function(r) { return r.json(); });
             // Kart 5 güncelle
-            countUp(document.getElementById('kpiVal5'), f.kapaliSiparisTutar, 700);
+            countUp(document.getElementById('kpiVal5'), f.kapaliSiparisTutar, 500);
             document.getElementById('kpiSub5').textContent = f.kapaliSiparisAdet + ' faturalanan sipariş';
             // Hedef panelini fatura verisiyle güncelle
             window._faturaData = f;
@@ -944,10 +1022,13 @@
     }
 
     async function refreshLowerSections() {
+        if (_currentAbort) { try { _currentAbort.abort(); } catch (_) {} }
+        _currentAbort = new AbortController();
+        var myReq = ++_reqSeq;
         var funnel = activeFunnel > 0 ? activeFunnel : 2;
         await Promise.all([
-            loadFunnelBreakdown(funnel),
-            loadOppDetail(1)
+            loadFunnelBreakdown(funnel, myReq),
+            loadOppDetail(1, myReq)
         ]);
     }
 
@@ -955,111 +1036,142 @@
     function fadeOut(el) { el.classList.add('fading'); }
     function fadeIn(el) { el.classList.remove('fading'); }
 
-    async function loadFunnelBreakdown(funnel) {
+    /* ── Ortak breakdown renderer: DocumentFragment ile tek DOM write ── */
+    function renderBreakdownList(containerId, rows, type) {
         try {
-            // Fade out all panels
-            var panels = document.querySelectorAll('.content-panel');
-            panels.forEach(fadeOut);
-
-            var bpParams = getFilterParams() + '&funnel=' + funnel;
-            if (activeCustomerFilter) bpParams += '&customer=' + encodeURIComponent(activeCustomerFilter);
-            if (activeProductFilter) bpParams += '&product=' + encodeURIComponent(activeProductFilter);
-            if (activeOwnerFilter) bpParams += '&ownerName=' + encodeURIComponent(activeOwnerFilter);
-            var data = await fetch('/FirsatAnaliz/GetFunnelBreakdown?' + bpParams).then(function(r) { return r.json(); });
-
-            // Kısa fade geçişi (veri geldiğinde hemen render)
-            await new Promise(function(r) { setTimeout(r, 80); });
-
-            // Owner/Müşteri listesi güncelle
-            var ownerEl = document.getElementById('ownerList');
-            if (data.ownerBreakdown && data.ownerBreakdown.length) {
-                var h = '';
-                data.ownerBreakdown.forEach(function(o, i) {
-                    var isActive = activeOwnerFilter === o.adSoyad;
-                    h += '<div class="flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer transition-colors '+(isActive ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'hover:bg-[#f8fafc]')+'" onclick="window._filterByOwner(\''+encodeURIComponent(o.adSoyad)+'\')">';
-                    h += medalHtml(i + 1);
-                    h += '<div class="flex-1 min-w-0">';
-                    h += '<p class="text-[12px] font-semibold text-[#0f172a] truncate">'+o.adSoyad+'</p>';
-                    h += '<p class="text-[10px] text-[#94a3b8]">'+o.adet+' adet</p>';
-                    h += '</div>';
-                    h += '<div class="text-right">';
-                    h += '<p class="text-[13px] font-bold text-[#0f172a]">'+abbr(o.tutar)+'</p>';
-                    h += '</div></div>';
-                    if (i < data.ownerBreakdown.length - 1) h += '<div class="divider"></div>';
-                });
-                ownerEl.innerHTML = h;
-            } else ownerEl.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-6">Veri Bulunamadı</p>';
-
-            // Fırsat Sahipleri dağılımı
-            var fsEl = document.getElementById('firsatSahipleriList');
-            if (data.firsatSahipleriBreakdown && data.firsatSahipleriBreakdown.length) {
-                var fh = '';
-                data.firsatSahipleriBreakdown.forEach(function(o, i) {
-                    var clr = avatarColors[(i + 3) % avatarColors.length];
-                    fh += '<div class="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-[#f8fafc] transition-colors">';
-                    fh += '<span class="text-[11px] font-bold text-[#94a3b8] w-5 text-center">#' + (i + 1) + '</span>';
-                    fh += '<div class="avatar-circle" style="background:' + clr + ';">' + initials(o.adSoyad) + '</div>';
-                    fh += '<div class="flex-1 min-w-0">';
-                    fh += '<p class="text-[12px] font-semibold text-[#0f172a] truncate">' + o.adSoyad + '</p>';
-                    fh += '<span class="text-[10px] text-[#94a3b8]">' + o.adet + ' adet</span>';
-                    fh += '</div>';
-                    fh += '<div class="text-right">';
-                    fh += '<p class="text-[13px] font-bold text-[#0f172a]">' + abbr(o.tutar) + '</p>';
-                    fh += '</div></div>';
-                    if (i < data.firsatSahipleriBreakdown.length - 1) fh += '<div class="divider"></div>';
-                });
-                fsEl.innerHTML = fh;
-            } else fsEl.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-6">Veri Bulunamadı</p>';
-
-            // Ürün dağılımı
-            var prodEl = document.getElementById('productBars');
-            if (data.productBreakdown && data.productBreakdown.length) {
-                var max = Math.max.apply(null, data.productBreakdown.map(function(p) { return p.tutar; })) || 1;
-                var ph = '';
-                data.productBreakdown.forEach(function(p) {
-                    var pct = Math.max((p.tutar / max) * 100, 3);
-                    var isActiveProd = activeProductFilter === p.urun;
-                    ph += '<div class="cursor-pointer rounded-lg px-1 py-0.5 -mx-1 transition-colors '+(isActiveProd ? 'bg-emerald-50 ring-1 ring-emerald-200' : 'hover:bg-emerald-50/50')+'" onclick="window._filterByProduct(\''+encodeURIComponent(p.urun)+'\')">';
-                    ph += '<div class="flex items-center justify-between mb-1">';
-                    ph += '<span class="text-[11px] font-semibold text-[#334155]">'+p.urun+'</span>';
-                    ph += '<span class="text-[11px] font-bold text-[#0f172a]">'+abbr(p.tutar)+'</span>';
-                    ph += '</div>';
-                    ph += '<div class="pbar-track"><div class="pbar-fill" style="width:'+pct+'%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>';
-                    ph += '</div>';
-                });
-                prodEl.innerHTML = ph;
-            } else prodEl.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-4">Veri Bulunamadı</p>';
-
-            // Müşteri dağılımı
-            var custEl = document.getElementById('customerBars');
-            if (data.customerBreakdown && data.customerBreakdown.length) {
-                var cmax = Math.max.apply(null, data.customerBreakdown.map(function(c) { return c.tutar; })) || 1;
-                var ch = '';
-                data.customerBreakdown.forEach(function(c) {
-                    var cpct = Math.max((c.tutar / cmax) * 100, 3);
-                    var isActiveCust = activeCustomerFilter === c.musteri;
-                    ch += '<div class="cursor-pointer rounded-lg px-1 py-0.5 -mx-1 transition-colors '+(isActiveCust ? 'bg-violet-50 ring-1 ring-violet-200' : 'hover:bg-violet-50/50')+'" onclick="window._filterByCustomer(\''+encodeURIComponent(c.musteri)+'\')">';
-                    ch += '<div class="flex items-center justify-between mb-1">';
-                    ch += '<span class="text-[11px] font-semibold text-[#334155] truncate max-w-[200px]">'+(c.musteri||'--')+'</span>';
-                    ch += '<span class="text-[11px] font-bold text-[#0f172a]">'+abbr(c.tutar)+'</span>';
-                    ch += '</div>';
-                    ch += '<div class="pbar-track"><div class="pbar-fill" style="width:'+cpct+'%; background: linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>';
-                    ch += '</div>';
-                });
-                custEl.innerHTML = ch;
-            } else custEl.innerHTML = '';
-
-            // Fade in all panels
-            var panels = document.querySelectorAll('.content-panel');
-            panels.forEach(fadeIn);
-
-        } catch(e) {
-            console.error('FunnelBreakdown error:', e);
-            document.querySelectorAll('.content-panel').forEach(fadeIn);
+        var el = document.getElementById(containerId);
+        if (!el) { console.warn('[FA] renderBreakdownList: el yok', containerId); return; }
+        if (!rows || !rows.length) {
+            el.innerHTML = (type === 'customer')
+                ? ''
+                : '<p class="text-[11px] text-[#94a3b8] text-center py-6">Veri Bulunamadı</p>';
+            return;
+        }
+        var frag = document.createDocumentFragment();
+        var totalTutar = 0, totalAdet = 0;
+        var maxTutar = 1;
+        if (type === 'product' || type === 'customer') {
+            maxTutar = Math.max.apply(null, rows.map(function(r){ return r.tutar || 0; })) || 1;
         }
 
-        // Detay tablosu da güncelle
-        loadOppDetail(1);
+        rows.forEach(function(r, i) {
+            var div = document.createElement('div');
+            if (type === 'owner') {
+                var isActive = activeOwnerFilter === r.adSoyad;
+                div.className = 'flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer transition-colors ' +
+                                (isActive ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'hover:bg-[#f8fafc]');
+                div.setAttribute('onclick', "window._filterByOwner('" + encodeURIComponent(r.adSoyad) + "')");
+                div.innerHTML = medalHtml(i + 1) +
+                    '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#0f172a] truncate">' + r.adSoyad +
+                    '</p><p class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</p></div>' +
+                    '<div class="text-right"><p class="text-[13px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</p></div>';
+            } else if (type === 'firsat') {
+                var clr = avatarColors[(i + 3) % avatarColors.length];
+                var isA = activeFirsatSahibiFilter === r.adSoyad;
+                div.className = 'flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer transition-colors ' +
+                                (isA ? 'bg-amber-50 ring-1 ring-amber-200' : 'hover:bg-[#f8fafc]');
+                div.setAttribute('onclick', "window._filterByFirsatSahibi('" + encodeURIComponent(r.adSoyad) + "')");
+                div.innerHTML = '<span class="text-[11px] font-bold text-[#94a3b8] w-5 text-center">#' + (i + 1) + '</span>' +
+                    '<div class="avatar-circle" style="background:' + clr + ';">' + initials(r.adSoyad) + '</div>' +
+                    '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#0f172a] truncate">' + r.adSoyad +
+                    '</p><span class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</span></div>' +
+                    '<div class="text-right"><p class="text-[13px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</p></div>';
+            } else if (type === 'product') {
+                var pct = Math.max((r.tutar / maxTutar) * 100, 3);
+                var isP = activeProductFilter === r.urun;
+                div.className = 'cursor-pointer rounded-lg px-1 py-0.5 -mx-1 transition-colors ' +
+                                (isP ? 'bg-emerald-50 ring-1 ring-emerald-200' : 'hover:bg-emerald-50/50');
+                div.setAttribute('onclick', "window._filterByProduct('" + encodeURIComponent(r.urun) + "')");
+                div.innerHTML = '<div class="flex items-center justify-between mb-1">' +
+                    '<span class="text-[11px] font-semibold text-[#334155]">' + r.urun + '</span>' +
+                    '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</span></div>' +
+                    '<div class="pbar-track"><div class="pbar-fill" style="width:' + pct +
+                    '%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>';
+            } else { /* customer */
+                var cp = Math.max((r.tutar / maxTutar) * 100, 3);
+                var isC = activeCustomerFilter === r.musteri;
+                div.className = 'cursor-pointer rounded-lg px-1 py-0.5 -mx-1 transition-colors ' +
+                                (isC ? 'bg-violet-50 ring-1 ring-violet-200' : 'hover:bg-violet-50/50');
+                div.setAttribute('onclick', "window._filterByCustomer('" + encodeURIComponent(r.musteri) + "')");
+                div.innerHTML = '<div class="flex items-center justify-between mb-1">' +
+                    '<span class="text-[11px] font-semibold text-[#334155] truncate max-w-[200px]">' + (r.musteri || '--') + '</span>' +
+                    '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</span></div>' +
+                    '<div class="pbar-track"><div class="pbar-fill" style="width:' + cp +
+                    '%; background: linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>';
+            }
+            frag.appendChild(div);
+            totalTutar += r.tutar || 0;
+            totalAdet  += r.adet  || 0;
+            if (i < rows.length - 1 && (type === 'owner' || type === 'firsat')) {
+                var divider = document.createElement('div');
+                divider.className = 'divider';
+                frag.appendChild(divider);
+            }
+        });
+
+        var footer = document.createElement('div');
+        footer.className = 'mt-3 pt-2 border-t border-[#e2e8f0] flex items-center justify-between text-[11px]';
+        var adetSuffix = totalAdet ? ' · ' + totalAdet + ' adet' : '';
+        footer.innerHTML = '<span class="font-semibold text-[#64748b]">Toplam</span>' +
+                           '<span class="font-extrabold text-[#0f172a]">' + abbr(totalTutar) + adetSuffix + '</span>';
+        frag.appendChild(footer);
+
+        // Tek DOM write
+        el.textContent = '';
+        el.appendChild(frag);
+        // Fade race guard: veri geldiğinde containerı görünür kıl
+        el.classList.remove('fading');
+        } catch (err) {
+            console.error('[FA] renderBreakdownList HATA:', containerId, type, err, 'rows sample:', rows && rows[0]);
+        }
+    }
+
+    async function loadFunnelBreakdown(funnel, reqId) {
+        reqId = reqId || _reqSeq;
+        try {
+            var bpParams = getFilterParams() + '&funnel=' + funnel;
+            if (activeCustomerFilter)     bpParams += '&customer='     + encodeURIComponent(activeCustomerFilter);
+            if (activeProductFilter)      bpParams += '&product='      + encodeURIComponent(activeProductFilter);
+            if (activeOwnerFilter)        bpParams += '&ownerName='    + encodeURIComponent(activeOwnerFilter);
+            if (activeFirsatSahibiFilter) bpParams += '&firsatSahibi=' + encodeURIComponent(activeFirsatSahibiFilter);
+
+            var signal = _currentAbort ? _currentAbort.signal : undefined;
+            var data = await cachedFetch('/FirsatAnaliz/GetFunnelBreakdown?' + bpParams, { signal: signal });
+
+            // Race guard: kullanıcı bu arada tab değiştirdiyse bu response'u atla
+            if (reqId !== _reqSeq) { console.warn('[FA] funnel stale, reqId=', reqId, 'curSeq=', _reqSeq); return; }
+
+            console.log('[FA] funnel veri geldi', {
+                owner: (data.ownerBreakdown||[]).length,
+                firsat: (data.firsatSahipleriBreakdown||[]).length,
+                product: (data.productBreakdown||[]).length,
+                customer: (data.customerBreakdown||[]).length
+            });
+
+            // 4 breakdown — DocumentFragment ile tek DOM write
+            renderBreakdownList('ownerList',           data.ownerBreakdown,           'owner');
+            renderBreakdownList('firsatSahipleriList', data.firsatSahipleriBreakdown, 'firsat');
+            renderBreakdownList('productBars',         data.productBreakdown,         'product');
+            renderBreakdownList('customerBars',        data.customerBreakdown,        'customer');
+        } catch(e) {
+            if (e.name === 'AbortError') {
+                // Abort sonrası UI stuck olmasın: fading'i kaldır, kullanıcı bir sonraki veriyi bekliyor olsun
+                ['ownerList','firsatSahipleriList','productBars','customerBars'].forEach(function(id){
+                    var el = document.getElementById(id);
+                    if (el) el.classList.remove('fading');
+                });
+                // Arka planda bir kez daha dene — abort eden işlemin ardından cache sıcak olmalı
+                setTimeout(function(){ if (reqId === _reqSeq) loadFunnelBreakdown(funnel, reqId); }, 50);
+                return;
+            }
+            console.error('FunnelBreakdown error:', e);
+            // Hata durumunda da fading'i kaldır, "Veri Bulunamadı" göster
+            ['ownerList','firsatSahipleriList','productBars','customerBars'].forEach(function(id){
+                var el = document.getElementById(id);
+                if (el) { el.classList.remove('fading'); el.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-6">Veri Bulunamadı</p>'; }
+            });
+            return;
+        }
     }
 
     /* ══════════════════════════════════
@@ -1075,21 +1187,56 @@
         el.classList.remove('hidden');
     }
 
-    async function loadKpis() {
+    async function loadKpis(reqId) {
+        reqId = reqId || _reqSeq;
         try {
-            var opp = await fetch('/FirsatAnaliz/GetOpportunitySummary?' + getFilterParams()).then(function(r) { return r.json(); });
+            // 1) Hafif core — kartlar hemen dolsun (KpiCore endpoint'i Task #9'da eklendi)
+            var signal = _currentAbort ? _currentAbort.signal : undefined;
+            var coreUrl = '/FirsatAnaliz/GetKpiCore?' + getFilterParams();
+            var core = await cachedFetch(coreUrl, { signal: signal });
+            if (reqId !== _reqSeq) return;
+
+            // Hızlı paint: 5 kartı core verisiyle doldur (animasyonlu countUp)
+            var lblCore = donemLabel();
+            document.getElementById('kpiLabel2').textContent = lblCore + ' Fırsat';
+            document.getElementById('kpiLabel3').textContent = lblCore + ' Teklif';
+            document.getElementById('kpiLabel4').textContent = lblCore + ' Sipariş';
+            document.getElementById('kpiLabel5').textContent = lblCore + ' Satış Faturası';
+
+            countUp(document.getElementById('kpiVal1'), core.tumFirsatTutar, 500);
+            document.getElementById('kpiSub1').textContent = core.tumFirsatAdet + ' fırsat · Açık havuz';
+            countUp(document.getElementById('kpiVal2'), core.exFirsatTutar, 500);
+            document.getElementById('kpiSub2a').textContent = core.exFirsatAdet + ' fırsat · Henüz teklif verilmemiş';
+            countUp(document.getElementById('kpiVal3'), core.exTeklifTutar, 500);
+            document.getElementById('kpiSub3').textContent = core.exTeklifAdet + ' fırsat · Teklif aşamasında';
+            countUp(document.getElementById('kpiVal4'), core.exSiparisTutar, 500);
+            document.getElementById('kpiSub4').textContent = core.exSiparisAdet + ' fırsat · Sipariş aşamasında';
+            countUp(document.getElementById('kpiVal5'), core.kapaliSiparisTutar, 500);
+            document.getElementById('kpiSub5').textContent = core.kapaliSiparisAdet + ' faturalanan sipariş';
+
+            // Hedef tutarı hazır — ilk renk kodlaması için
+            window._hedefTutar = core.hedefTutar || 0;
+            window._faturaData = { kapaliSiparisTutar: core.kapaliSiparisTutar, kapaliSiparisAdet: core.kapaliSiparisAdet, gecenDonemFatura: 0 };
+
+            // 2) Tam summary — footer notları, aşama dağılımı, aylık trend, ağırlıklı potansiyel
+            //    Arka planda idle'da çağır, ilk paint'i bloklamasın
+            var idle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 80); };
+            idle(function(){ if (reqId === _reqSeq) loadKpisFull(reqId); });
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error('KPI core error:', e);
+        }
+    }
+
+    // Tam summary — footer / stage dağılımı / aylık trend / hedef paneli
+    async function loadKpisFull(reqId) {
+        reqId = reqId || _reqSeq;
+        try {
+            var signal = _currentAbort ? _currentAbort.signal : undefined;
+            var opp = await cachedFetch('/FirsatAnaliz/GetOpportunitySummary?' + getFilterParams(), { signal: signal });
+            if (reqId !== _reqSeq) return;
             var lbl = donemLabel();
 
-            // Update period labels
-            document.getElementById('kpiLabel2').textContent = lbl + ' Fırsat';
-            document.getElementById('kpiLabel3').textContent = lbl + ' Teklif';
-            document.getElementById('kpiLabel4').textContent = lbl + ' Sipariş';
-            document.getElementById('kpiLabel5').textContent = lbl + ' Satış Faturası';
-
-            // Card 1: Tüm Fırsatlar — CountUp animasyonlu
-            countUp(document.getElementById('kpiVal1'), opp.tumFirsatTutar, 1200);
-            document.getElementById('kpiSub1').textContent = opp.tumFirsatAdet + ' fırsat · Açık havuz';
-            // Sarı notu kaldır
+            // Sarı notu kaldır (ilk paint'te de set edilebilir ama burada kalsın)
             document.getElementById('kpiNote1').classList.add('hidden');
 
             // Card 1: Won + Lost info
@@ -1103,10 +1250,15 @@
                 lost1.classList.remove('hidden');
             } else lost1.classList.add('hidden');
 
-            // Card 2: Fırsat aşaması (exclusive — teklifi yok)
-            countUp(document.getElementById('kpiVal2'), opp.exFirsatTutar, 1000);
+            // Card 2: exclusive pipeline rafine değer (GetKpiCore SP proxy'sini summary ile değiştir)
+            countUp(document.getElementById('kpiVal2'), opp.exFirsatTutar, 300);
             document.getElementById('kpiSub2a').textContent = opp.exFirsatAdet + ' fırsat · Henüz teklif verilmemiş';
-
+            // Card 3: rafine
+            countUp(document.getElementById('kpiVal3'), opp.exTeklifTutar, 300);
+            document.getElementById('kpiSub3').textContent = opp.exTeklifAdet + ' fırsat · Teklif aşamasında';
+            // Card 4: rafine
+            countUp(document.getElementById('kpiVal4'), opp.exSiparisTutar, 300);
+            document.getElementById('kpiSub4').textContent = opp.exSiparisAdet + ' fırsat · Sipariş aşamasında';
             // Card 2: Footer — teklif aşamasına geçenler + kaybedilen
             var lost2 = document.getElementById('kpiLost2');
             var parts2 = [];
@@ -1117,10 +1269,7 @@
                 lost2.classList.remove('hidden');
             } else lost2.classList.add('hidden');
 
-            // Card 3: Teklif aşaması (exclusive — siparişe dönüşmemiş)
-            countUp(document.getElementById('kpiVal3'), opp.exTeklifTutar, 900);
-            document.getElementById('kpiSub3').textContent = opp.exTeklifAdet + ' fırsat · Teklif aşamasında';
-
+            // Card 3 — countUp zaten core'dan geldi
             // Card 3: Footer — siparişe dönüşen + reddedilen
             var lost3 = document.getElementById('kpiLost3');
             var parts3 = [];
@@ -1131,10 +1280,7 @@
                 lost3.classList.remove('hidden');
             } else lost3.classList.add('hidden');
 
-            // Card 4: Sipariş aşaması (exclusive — faturaya dönüşmemiş)
-            countUp(document.getElementById('kpiVal4'), opp.exSiparisTutar, 800);
-            document.getElementById('kpiSub4').textContent = opp.exSiparisAdet + ' fırsat · Sipariş aşamasında';
-
+            // Card 4 — countUp zaten core'dan geldi
             // Card 4: Footer — faturaya dönüşen
             var lost4 = document.getElementById('kpiLost4');
             if (opp.faturayaGecen > 0) {
@@ -1142,8 +1288,7 @@
                 lost4.classList.remove('hidden');
             } else lost4.classList.add('hidden');
 
-            // Card 5: Fatura aşaması (exclusive fırsat adedi, SP fatura tutarı)
-            countUp(document.getElementById('kpiVal5'), opp.kapaliSiparisTutar, 700);
+            // Card 5 — core'daki countUp yeterli, sadece sub metni exFaturaAdet ile refine edilebilir
             document.getElementById('kpiSub5').textContent = opp.exFaturaAdet + ' fırsat · Faturaya dönüştü';
 
             document.getElementById('kpiVal4').dataset.raw = opp.exSiparisTutar;
@@ -1435,12 +1580,23 @@
     var monthlyChartInstance = null;
     function renderMonthlyChart(data) {
         var canvas = document.getElementById('monthlyChartCanvas');
-        if (!canvas) return;
-        if (monthlyChartInstance) { monthlyChartInstance.destroy(); monthlyChartInstance = null; }
-        if (!data || !data.length) return;
+        if (!canvas || !data || !data.length) return;
 
         var ayMap = { '01':'Oca','02':'Şub','03':'Mar','04':'Nis','05':'May','06':'Haz','07':'Tem','08':'Ağu','09':'Eyl','10':'Eki','11':'Kas','12':'Ara' };
         var labels = data.map(function(d) { var p = d.ay.split('-'); return ayMap[p[1]] || p[1]; });
+        var firsatData = data.map(function(d) { return d.firsatTutar; });
+        var teklifData = data.map(function(d) { return d.teklifTutar; });
+        var siparisData = data.map(function(d) { return d.acikSiparisTutar; });
+
+        // ⚡ Mevcut instance varsa sadece data swap + update('none') — destroy yok
+        if (monthlyChartInstance) {
+            monthlyChartInstance.data.labels = labels;
+            monthlyChartInstance.data.datasets[0].data = firsatData;
+            monthlyChartInstance.data.datasets[1].data = teklifData;
+            monthlyChartInstance.data.datasets[2].data = siparisData;
+            monthlyChartInstance.update('none');
+            return;
+        }
 
         var ctx = canvas.getContext('2d');
 
@@ -1617,7 +1773,6 @@
     function renderHedefChart(hedef, opp) {
         var cv = document.getElementById('hedefChart');
         if (!cv || !cv.getContext) return;
-        if (hedefChartInstance) hedefChartInstance.destroy();
         var stages = [
             { label: 'Fırsat', value: opp.exFirsatTutar || 0, color: '#8b5cf6' },
             { label: 'Teklif', value: opp.exTeklifTutar || 0, color: '#3b82f6' },
@@ -1627,6 +1782,18 @@
         // Y ekseni hedef çizgisini her zaman kapsasın
         var maxBar = Math.max.apply(null, stages.map(function(s) { return s.value; }));
         var yMax = Math.max(maxBar, hedef) * 1.12; // %12 padding
+
+        // ⚡ Mevcut instance varsa data + y-max swap, destroy yok
+        if (hedefChartInstance) {
+            hedefChartInstance.data.labels = stages.map(function(s){ return s.label; });
+            hedefChartInstance.data.datasets[0].data = stages.map(function(s){ return s.value; });
+            hedefChartInstance.data.datasets[0].backgroundColor = stages.map(function(s){ return s.color; });
+            hedefChartInstance.options.scales.y.suggestedMax = yMax;
+            _hedefLineValue = hedef;
+            hedefChartInstance.update('none');
+            return;
+        }
+
         var cfg = {
             type: 'bar',
             data: {
@@ -1650,132 +1817,6 @@
         };
         _hedefLineValue = hedef;
         hedefChartInstance = new Chart(cv, cfg);
-    }
-
-    /* ══════════════════════════════════
-       OWNER PERFORMANCE
-       ══════════════════════════════════ */
-    async function loadOwnerPerformance() {
-        try {
-            var data = await fetch('/FirsatAnaliz/GetOwnerPerformance?' + getFilterParams()).then(function(r) { return r.json(); });
-            var el = document.getElementById('ownerList');
-            if (!data || !data.length) {
-                el.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-6">Veri Bulunamadı</p>';
-                return;
-            }
-
-            var h = '';
-            data.slice(0, 12).forEach(function(o, i) {
-                var clr = avatarColors[i % avatarColors.length];
-                var wrClass = o.kazanmaOrani >= 80 ? 'text-emerald-600' : o.kazanmaOrani >= 50 ? 'text-amber-600' : 'text-red-500';
-                h += '<div class="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-[#f8fafc] transition-colors">';
-                h += medalHtml(i + 1);
-                h += '<div class="avatar-circle" style="background:' + clr + ';">' + initials(o.adSoyad) + '</div>';
-                h += '<div class="flex-1 min-w-0">';
-                h += '<p class="text-[12px] font-semibold text-[#0f172a] truncate">' + o.adSoyad + '</p>';
-                h += '<div class="flex items-center gap-2 mt-1">';
-                h += '<span class="text-[10px] text-[#94a3b8]">' + o.won + ' won / ' + o.toplam + ' toplam</span>';
-                h += '<span class="text-[10px] font-bold ' + wrClass + '">%' + fmtPct.format(o.kazanmaOrani) + '</span>';
-                h += '</div></div>';
-                h += '<div class="text-right">';
-                h += '<p class="text-[13px] font-bold text-[#0f172a]">' + abbr(o.wonTutar) + '</p>';
-                h += '<p class="text-[9px] text-[#94a3b8] font-medium">Kazanilan</p>';
-                h += '</div>';
-                h += '</div>';
-                if (i < data.length - 1 && i < 11) h += '<div class="divider"></div>';
-            });
-            el.innerHTML = h;
-        } catch (e) { console.error('Owner error:', e); }
-    }
-
-    /* ══════════════════════════════════
-       FIRSAT SAHİPLERİ
-       ══════════════════════════════════ */
-    async function loadFirsatSahipleri() {
-        try {
-            var data = await fetch('/FirsatAnaliz/GetFirsatSahipleri?' + getFilterParams()).then(function(r) { return r.json(); });
-            var el = document.getElementById('firsatSahipleriList');
-            if (!data || !data.length) {
-                el.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-6">Veri Bulunamadı</p>';
-                return;
-            }
-
-            var h = '';
-            data.slice(0, 12).forEach(function(o, i) {
-                var clr = avatarColors[(i + 3) % avatarColors.length];
-                h += '<div class="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-[#f8fafc] transition-colors">';
-                h += '<span class="text-[11px] font-bold text-[#94a3b8] w-5 text-center">#' + (i + 1) + '</span>';
-                h += '<div class="avatar-circle" style="background:' + clr + ';">' + initials(o.adSoyad) + '</div>';
-                h += '<div class="flex-1 min-w-0">';
-                h += '<p class="text-[12px] font-semibold text-[#0f172a] truncate">' + o.adSoyad + '</p>';
-                h += '<span class="text-[10px] text-[#94a3b8]">' + o.toplam + ' adet</span>';
-                h += '</div>';
-                h += '<div class="text-right">';
-                h += '<p class="text-[13px] font-bold text-[#0f172a]">' + abbr(o.toplamTutar) + '</p>';
-                h += '</div>';
-                h += '</div>';
-                if (i < data.length - 1 && i < 11) h += '<div class="divider"></div>';
-            });
-            el.innerHTML = h;
-        } catch (e) { console.error('FirsatSahipleri error:', e); }
-    }
-
-    /* ══════════════════════════════════
-       PRODUCTS
-       ══════════════════════════════════ */
-    async function loadProducts() {
-        try {
-            var data = await fetch('/FirsatAnaliz/GetProductPerformance?' + getFilterParams()).then(function(r) { return r.json(); });
-            var el = document.getElementById('productBars');
-            if (!data || !data.length) {
-                el.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-4">Veri Bulunamadı</p>';
-                return;
-            }
-
-            var max = Math.max.apply(null, data.map(function(d) { return d.teklifTutar; })) || 1;
-            var h = '';
-            data.slice(0, 8).forEach(function(p) {
-                var pct = Math.max((p.teklifTutar / max) * 100, 3);
-                h += '<div>';
-                h += '<div class="flex items-center justify-between mb-1">';
-                h += '<span class="text-[11px] font-semibold text-[#334155]">' + (p.urunGrubu || '--') + '</span>';
-                h += '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(p.teklifTutar) + '</span>';
-                h += '</div>';
-                h += '<div class="pbar-track"><div class="pbar-fill" style="width:' + pct + '%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>';
-                h += '</div>';
-            });
-            el.innerHTML = h;
-        } catch (e) { console.error('Product error:', e); }
-    }
-
-    /* ══════════════════════════════════
-       CUSTOMERS
-       ══════════════════════════════════ */
-    async function loadCustomers() {
-        try {
-            var data = await fetch('/FirsatAnaliz/GetChartData?chartType=customer&' + getFilterParams()).then(function(r) { return r.json(); });
-            var el = document.getElementById('customerBars');
-            if (!data || !data.labels || !data.labels.length) {
-                el.innerHTML = '<p class="text-[11px] text-[#94a3b8] text-center py-4">Veri Bulunamadı</p>';
-                return;
-            }
-
-            var vals = data.datasets[0].data;
-            var max = Math.max.apply(null, vals) || 1;
-            var h = '';
-            data.labels.slice(0, 7).forEach(function(lbl, i) {
-                var val = vals[i] || 0;
-                var pct = Math.max((val / max) * 100, 3);
-                h += '<div>';
-                h += '<div class="flex items-center justify-between mb-1">';
-                h += '<span class="text-[11px] font-semibold text-[#334155] truncate max-w-[200px]">' + (lbl || '--') + '</span>';
-                h += '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(val) + '</span>';
-                h += '</div>';
-                h += '<div class="pbar-track"><div class="pbar-fill" style="width:' + pct + '%; background: linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>';
-                h += '</div>';
-            });
-            el.innerHTML = h;
-        } catch (e) { console.error('Customer error:', e); }
     }
 
     /* ══════════════════════════════════
@@ -1803,6 +1844,9 @@
         if (activeCustomerFilter) params += '&customer=' + encodeURIComponent(activeCustomerFilter);
         if (activeProductFilter) params += '&product=' + encodeURIComponent(activeProductFilter);
         if (activeOwnerFilter) params += '&ownerName=' + encodeURIComponent(activeOwnerFilter);
+        if (activeFirsatSahibiFilter) params += '&firsatSahibi=' + encodeURIComponent(activeFirsatSahibiFilter);
+        // Aktif funnel (Fırsat=2, Teklif=3, Sipariş=4, Fatura=5) → detay tablosu da breakdown ile aynı exclusive sete göre daralsın
+        if (activeFunnel > 1) params += '&funnel=' + activeFunnel;
 
         // Aktif filtre badge
         var filterBadge = document.getElementById('activeFilterBadge');
@@ -1814,6 +1858,9 @@
             filterBadge.classList.remove('hidden');
         } else if (activeOwnerFilter) {
             filterBadge.innerHTML = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-semibold">Temsilci: '+activeOwnerFilter+' <button onclick="window._filterByOwner(\''+encodeURIComponent(activeOwnerFilter)+'\')" class="ml-1 text-indigo-400 hover:text-indigo-700">&times;</button></span>';
+            filterBadge.classList.remove('hidden');
+        } else if (activeFirsatSahibiFilter) {
+            filterBadge.innerHTML = '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-semibold">Fırsat Sahibi: '+activeFirsatSahibiFilter+' <button onclick="window._filterByFirsatSahibi(\''+encodeURIComponent(activeFirsatSahibiFilter)+'\')" class="ml-1 text-amber-400 hover:text-amber-700">&times;</button></span>';
             filterBadge.classList.remove('hidden');
         } else {
             filterBadge.classList.add('hidden');
@@ -1877,7 +1924,7 @@
        EVENT LISTENERS
        ══════════════════════════════════ */
 
-    // Filter tabs
+    // Filter tabs — debounce ile hızlı art arda tıklamalarda tek dalga
     document.getElementById('filterTabs').addEventListener('click', function(e) {
         var btn = e.target.closest('.ftab');
         if (!btn) return;
@@ -1889,7 +1936,8 @@
         document.querySelectorAll('.funnel-card').forEach(function(c) {
             c.classList.remove('active-card', 'dimmed');
         });
-        refreshAll();
+        if (_tabDebounce) clearTimeout(_tabDebounce);
+        _tabDebounce = setTimeout(refreshAll, 120);
     });
 
     // Owner filter
@@ -1904,11 +1952,47 @@
     });
 
     /* ══════════════════════════════════
+       FIRSAT SAHIPLERI TOGGLE (gizle/göster)
+       ══════════════════════════════════ */
+    function applyFirsatSahibiVisibility() {
+        var hidden = localStorage.getItem('fa_hideFirsatSahibi') === '1';
+        var grid = document.getElementById('breakdownGrid');
+        var card = grid.querySelector('[data-breakdown-card="sahip"]');
+        var btnIcon = document.getElementById('toggleFirsatSahibiIcon');
+        var btnText = document.getElementById('toggleFirsatSahibiText');
+        if (hidden) {
+            card.style.display = 'none';
+            grid.className = 'grid grid-cols-3 gap-3 mb-6';
+            btnIcon.className = 'bi bi-eye';
+            btnText.textContent = 'Fırsat Sahipleri\'ni göster';
+            if (activeFirsatSahibiFilter) {
+                activeFirsatSahibiFilter = '';
+                refreshLowerSections();
+            }
+        } else {
+            card.style.display = '';
+            grid.className = 'grid grid-cols-4 gap-3 mb-6';
+            btnIcon.className = 'bi bi-eye-slash';
+            btnText.textContent = 'Fırsat Sahipleri\'ni gizle';
+        }
+    }
+
+    /* ══════════════════════════════════
        INIT
        ══════════════════════════════════ */
     document.addEventListener('DOMContentLoaded', function() {
+        var toggleBtn = document.getElementById('toggleFirsatSahibiBtn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                var current = localStorage.getItem('fa_hideFirsatSahibi') === '1';
+                localStorage.setItem('fa_hideFirsatSahibi', current ? '0' : '1');
+                applyFirsatSahibiVisibility();
+            });
+            applyFirsatSahibiVisibility();
+        }
+        // Owner options sayfa ömrü boyunca tek defa yüklenir (tarih-bağımsız)
+        loadOwnerOptions();
         refreshAll();
-
     });
 
 })();

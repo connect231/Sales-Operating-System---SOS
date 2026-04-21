@@ -128,12 +128,6 @@ namespace SOS.Services
                     "  Aktif BIT NOT NULL DEFAULT 1" +
                     ")");
 
-                // Filtered unique index — aynı fatura için sadece 1 aktif tahakkuk
-                await ExecuteSqlAsync(
-                    "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_TBLSOS_FATURA_TAHAKKUK_FaturaNo_Aktif') " +
-                    "CREATE UNIQUE INDEX UX_TBLSOS_FATURA_TAHAKKUK_FaturaNo_Aktif " +
-                    "ON TBLSOS_FATURA_TAHAKKUK (FaturaNo) WHERE Aktif = 1");
-
                 // ── TBLSOS_FATURA_TAHAKKUK: SapReferansNo kolonu ekleme (SAP bazlı tahakkuk) ──
                 // Her adım ayrı çalışmalı — SQL Server tek batch'te henüz eklenmemiş kolonu parse edemez
                 await ExecuteSqlAsync(

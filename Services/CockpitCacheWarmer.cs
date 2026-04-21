@@ -118,6 +118,8 @@ public class CockpitCacheWarmer : BackgroundService
 
                 await Task.WhenAll(fixedTasks);
 
+                // NOT: FirsatAnaliz preload artık FirsatAnalizStartupWarmer (HostedService) tarafından yapılır.
+
                 var elapsed = DateTime.UtcNow - startedAt;
                 _state.LastRefreshAt = DateTime.UtcNow;
                 _state.LastRefreshDurationMs = (int)elapsed.TotalMilliseconds;

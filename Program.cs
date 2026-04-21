@@ -57,7 +57,11 @@ builder.Services.AddScoped<ITahakkukService, TahakkukService>();
 builder.Services.AddScoped<ICockpitDataService, CockpitDataService>();
 // Cockpit cache warmer — app startup'tan sonra her 4 dakikada cache'i DB'den yeniler
 builder.Services.AddSingleton<CockpitCacheWarmerState>();
-builder.Services.AddHostedService<CockpitCacheWarmer>();
+// DEV (localhost): 34 SP paralel preload bu makinede DB'yi boğuyor, lazy-cache yeterli
+// builder.Services.AddHostedService<CockpitCacheWarmer>();
+// FirsatAnaliz startup warmer — SQL page cache + 5 kritik endpoint (Bu Ay) preload, bir kez çalışır.
+// Cold call 147s maliyetini arka plana iter; kullanıcı login sırasında ısınır.
+builder.Services.AddHostedService<FirsatAnalizStartupWarmer>();
 // Performance Optimization: Response Compression
 builder.Services.AddResponseCompression(options =>
 {
