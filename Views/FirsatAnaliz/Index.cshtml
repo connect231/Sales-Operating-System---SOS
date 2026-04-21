@@ -693,6 +693,15 @@
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
+    // Server-side preload — ilk açılışta AJAX beklemeden kartlar dolabilsin
+    window.__faInitial = {
+        kpiCore: @Html.Raw(ViewBag.InitialKpiCore != null ? System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialKpiCore) : "null"),
+        summary: @Html.Raw(ViewBag.InitialSummary != null ? System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialSummary) : "null"),
+        funnelF2: @Html.Raw(ViewBag.InitialFunnelF2 != null ? System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialFunnelF2) : "null"),
+        funnelF3: @Html.Raw(ViewBag.InitialFunnelF3 != null ? System.Text.Json.JsonSerializer.Serialize(ViewBag.InitialFunnelF3) : "null")
+    };
+</script>
+<script>
 (function() {
     'use strict';
 
@@ -769,10 +778,25 @@
        PERFORMANS: request guard + client cache + abort
        ══════════════════════════════════ */
     var _reqSeq = 0;                      // her refreshAll'a artan id (race guard)
-    var _currentAbort = null;             // in-flight fetch'leri toptan iptal
+    // _currentAbort kaldırıldı: cascade abort cold-start'ta breakdown'ları silent kesiyordu.
+    // Stale race guard sadece _reqSeq check ile sağlanıyor; eski refresh'in response'u render edilmez.
     var _clientCache = new Map();         // url → { data, ts }
     var CLIENT_TTL = 30000;               // 30 sn stale-while-revalidate
     var _tabDebounce = null;
+
+    // Server-side preload consumer — ilk fetch yerine inline veriyi kullan (0ms)
+    function consumeInitial(type, funnel) {
+        var init = window.__faInitial;
+        if (!init) return null;
+        if (activeFilter !== 'month') return null;  // Sadece default "Bu Ay" açılışı için
+        if (activeProductFilter || activeCustomerFilter || activeOwnerFilter || activeFirsatSahibiFilter) return null;
+        var d = null;
+        if (type === 'kpiCore' && init.kpiCore)      { d = init.kpiCore;  init.kpiCore = null; }
+        else if (type === 'summary' && init.summary) { d = init.summary;  init.summary = null; }
+        else if (type === 'funnel' && funnel === 2 && init.funnelF2) { d = init.funnelF2; init.funnelF2 = null; }
+        else if (type === 'funnel' && funnel === 3 && init.funnelF3) { d = init.funnelF3; init.funnelF3 = null; }
+        return d;
+    }
 
     function cachedFetch(url, opts) {
         var now = Date.now();
@@ -799,11 +823,27 @@
         activeOwnerFilter = '';
         activeFirsatSahibiFilter = '';
     }
+    // Optimistic UI: click anında aktif halka göster, fetch dönmeden görsel feedback
+    function highlightBreakdown(containerId, selectedText, activeCss) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        Array.prototype.forEach.call(el.children, function(row) {
+            if (!row.classList || !row.className.indexOf) return;
+            // cursor-pointer'lı satırlar (divider değil, footer değil)
+            if (row.className.indexOf('cursor-pointer') === -1) return;
+            // Önce tüm active css'leri temizle (ring + bg variantları)
+            ['bg-indigo-50','ring-indigo-200','bg-amber-50','ring-amber-200','bg-emerald-50','ring-emerald-200','bg-violet-50','ring-violet-200','ring-1'].forEach(function(c){ row.classList.remove(c); });
+            if (selectedText && row.textContent && row.textContent.indexOf(selectedText) !== -1) {
+                activeCss.split(' ').forEach(function(c){ row.classList.add(c); });
+            }
+        });
+    }
     window._filterByProduct = function(urun) {
         urun = decodeURIComponent(urun);
         var wasActive = activeProductFilter === urun;
         _clearAllBreakdownFilters();
         if (!wasActive) activeProductFilter = urun;
+        highlightBreakdown('productBars', wasActive ? null : urun, 'bg-emerald-50 ring-1 ring-emerald-200');
         refreshLowerSections();
     };
     window._filterByCustomer = function(musteri) {
@@ -811,6 +851,7 @@
         var wasActive = activeCustomerFilter === musteri;
         _clearAllBreakdownFilters();
         if (!wasActive) activeCustomerFilter = musteri;
+        highlightBreakdown('customerBars', wasActive ? null : musteri, 'bg-violet-50 ring-1 ring-violet-200');
         refreshLowerSections();
     };
     window._filterByOwner = function(owner) {
@@ -818,6 +859,7 @@
         var wasActive = activeOwnerFilter === owner;
         _clearAllBreakdownFilters();
         if (!wasActive) activeOwnerFilter = owner;
+        highlightBreakdown('ownerList', wasActive ? null : owner, 'bg-indigo-50 ring-1 ring-indigo-200');
         refreshLowerSections();
     };
     window._filterByFirsatSahibi = function(sahibi) {
@@ -825,6 +867,7 @@
         var wasActive = activeFirsatSahibiFilter === sahibi;
         _clearAllBreakdownFilters();
         if (!wasActive) activeFirsatSahibiFilter = sahibi;
+        highlightBreakdown('firsatSahipleriList', wasActive ? null : sahibi, 'bg-amber-50 ring-1 ring-amber-200');
         refreshLowerSections();
     };
 
@@ -972,9 +1015,7 @@
        LOAD ALL
        ══════════════════════════════════ */
     async function refreshAll() {
-        // Önceki dalga in-flight ise iptal et — race'i öldür
-        if (_currentAbort) { try { _currentAbort.abort(); } catch (_) {} }
-        _currentAbort = new AbortController();
+        // Race guard sadece _reqSeq ile — AbortController paylaşımı cascade abort yaratıyordu
         var myReq = ++_reqSeq;
 
         // Skeleton: içerikleri SIFIRLAMA, sadece opacity'yi düşür (değerler ekranda kalsın)
@@ -1001,8 +1042,7 @@
     async function loadSalesCycle(reqId) {
         reqId = reqId || _reqSeq;
         try {
-            var signal = _currentAbort ? _currentAbort.signal : undefined;
-            var data = await cachedFetch('/FirsatAnaliz/GetSalesCycleData?' + getFilterParams(), { signal: signal });
+            var data = await cachedFetch('/FirsatAnaliz/GetSalesCycleData?' + getFilterParams());
             if (reqId !== _reqSeq) return;
             renderSalesCycle(data);
         } catch(e) { if (e.name !== 'AbortError') console.error('SalesCycle error:', e); }
@@ -1022,8 +1062,6 @@
     }
 
     async function refreshLowerSections() {
-        if (_currentAbort) { try { _currentAbort.abort(); } catch (_) {} }
-        _currentAbort = new AbortController();
         var myReq = ++_reqSeq;
         var funnel = activeFunnel > 0 ? activeFunnel : 2;
         await Promise.all([
@@ -1135,8 +1173,7 @@
             if (activeOwnerFilter)        bpParams += '&ownerName='    + encodeURIComponent(activeOwnerFilter);
             if (activeFirsatSahibiFilter) bpParams += '&firsatSahibi=' + encodeURIComponent(activeFirsatSahibiFilter);
 
-            var signal = _currentAbort ? _currentAbort.signal : undefined;
-            var data = await cachedFetch('/FirsatAnaliz/GetFunnelBreakdown?' + bpParams, { signal: signal });
+            var data = consumeInitial('funnel', funnel) || await cachedFetch('/FirsatAnaliz/GetFunnelBreakdown?' + bpParams);
 
             // Race guard: kullanıcı bu arada tab değiştirdiyse bu response'u atla
             if (reqId !== _reqSeq) { console.warn('[FA] funnel stale, reqId=', reqId, 'curSeq=', _reqSeq); return; }
@@ -1191,9 +1228,11 @@
         reqId = reqId || _reqSeq;
         try {
             // 1) Hafif core — kartlar hemen dolsun (KpiCore endpoint'i Task #9'da eklendi)
-            var signal = _currentAbort ? _currentAbort.signal : undefined;
-            var coreUrl = '/FirsatAnaliz/GetKpiCore?' + getFilterParams();
-            var core = await cachedFetch(coreUrl, { signal: signal });
+            var core = consumeInitial('kpiCore');
+            if (!core) {
+                var coreUrl = '/FirsatAnaliz/GetKpiCore?' + getFilterParams();
+                core = await cachedFetch(coreUrl);
+            }
             if (reqId !== _reqSeq) return;
 
             // Hızlı paint: 5 kartı core verisiyle doldur (animasyonlu countUp)
@@ -1231,8 +1270,7 @@
     async function loadKpisFull(reqId) {
         reqId = reqId || _reqSeq;
         try {
-            var signal = _currentAbort ? _currentAbort.signal : undefined;
-            var opp = await cachedFetch('/FirsatAnaliz/GetOpportunitySummary?' + getFilterParams(), { signal: signal });
+            var opp = consumeInitial('summary') || await cachedFetch('/FirsatAnaliz/GetOpportunitySummary?' + getFilterParams());
             if (reqId !== _reqSeq) return;
             var lbl = donemLabel();
 
