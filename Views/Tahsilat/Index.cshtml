@@ -1,0 +1,394 @@
+@{
+    ViewData["Title"] = "Tahsilat Analizi";
+    Layout = "_Layout";
+}
+
+<style>
+    .ta-card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; box-shadow:0 1px 2px rgba(15,23,42,.04); }
+    .ta-section-title { font-size:11px; font-weight:600; color:#475569; letter-spacing:.04em; text-transform:none; display:flex; align-items:center; gap:6px; }
+    .ta-num { font-variant-numeric: tabular-nums; }
+    .ta-grid-pulse { display:grid; grid-template-columns: 1.8fr repeat(4, minmax(0,1fr)); gap:14px; align-items:stretch; }
+    .ta-grid-mid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .ta-grid-trio { display:grid; grid-template-columns: 2fr 1fr; gap:16px; }
+    /* Tek tip sade kart */
+    .ta-pulse-card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; min-height:108px; }
+    .ta-pulse-label { font-size:11px; color:#64748b; font-weight:500; letter-spacing:.01em; }
+    .ta-pulse-value { font-size:22px; font-weight:700; color:#0f172a; letter-spacing:-.01em; line-height:1.15; margin-top:4px; }
+    .ta-pulse-sub   { font-size:10px; color:#94a3b8; margin-top:auto; }
+    .ta-pulse-pct   { font-size:10px; font-weight:600; color:#64748b; }
+    /* Ana toplam kartı — büyük, koyu */
+    .ta-pulse-main  { background:linear-gradient(135deg,#0f172a 0%,#1e293b 65%,#334155 100%); color:#fff; padding:18px 22px; border-radius:14px; display:flex; flex-direction:column; gap:8px; position:relative; overflow:hidden; }
+    .ta-pulse-main .ta-pulse-label { color:rgba(255,255,255,.65); font-size:11px; text-transform:none; letter-spacing:.04em; font-weight:600; }
+    .ta-pulse-main .ta-pulse-value { color:#fff; font-size:34px; line-height:1.1; font-weight:700; letter-spacing:-.02em; }
+    .ta-pulse-main .ta-pulse-sub   { color:rgba(255,255,255,.55); font-size:11px; margin-top:0; }
+    /* Toplam kartı altında uyarı bandı */
+    .ta-main-warn  { background:rgba(239,68,68,.16); border:1px solid rgba(252,165,165,.35); color:#fecaca; padding:7px 11px; border-radius:9px; font-size:11px; display:flex; align-items:center; gap:6px; margin-top:auto; }
+    .ta-main-warn b { color:#fff; font-weight:700; }
+    /* Vurgu renkleri — sadece sayıda küçük renk dokunuşu, kartlar nötr beyaz */
+    .ta-v-tahsil { color:#059669; }
+    .ta-v-soz    { color:#b45309; }
+    .ta-v-kalan  { color:#475569; }
+    .ta-v-tahmin { color:#0e7490; }
+    .ta-shimmer { background: linear-gradient(90deg,#f1f5f9 0%,#e2e8f0 50%,#f1f5f9 100%); background-size:200% 100%; animation: shimmer 1.4s ease-in-out infinite; border-radius:6px; height:14px; }
+    @@keyframes shimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+    .ta-row { border-bottom:1px solid #f1f5f9; }
+    .ta-tab-bar { display:flex; gap:4px; background:#f1f5f9; padding:4px; border-radius:10px; }
+    .ta-tab { padding:6px 12px; font-size:11px; font-weight:600; color:#64748b; border-radius:7px; cursor:pointer; transition:all .15s; }
+    .ta-tab.active { background:#fff; color:#0f172a; box-shadow:0 1px 2px rgba(15,23,42,.08); }
+    .ta-badge-excel { background:#f1f5f9; color:#64748b; font-size:9px; padding:1px 6px; border-radius:999px; font-weight:500; }
+    .ta-badge-hukuki { background:#fef2f2; color:#dc2626; font-size:9px; padding:1px 6px; border-radius:999px; font-weight:500; }
+    .ta-rep-row { display:grid; grid-template-columns: 1fr 90px 100px 80px; gap:10px; align-items:center; padding:6px 8px; border-bottom:1px solid #f1f5f9; font-size:11px; }
+    .ta-rep-bar { height:6px; border-radius:3px; background:#e2e8f0; overflow:hidden; }
+    .ta-rep-bar-fill { height:100%; border-radius:3px; }
+    .rep-row.rep-active { background:#dbeafe !important; }
+    .rep-row.rep-active td:first-child { border-left:3px solid #2563eb; padding-left:calc(0.75rem - 3px); }
+</style>
+
+<div class="px-6 pt-6 pb-10 max-w-[1800px] mx-auto">
+
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h1 class="text-[24px] font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+                <i class="bi bi-cash-coin text-emerald-600"></i> Tahsilat Analizi
+            </h1>
+            <p class="text-[13px] text-slate-500 mt-1">Bu ay tahsilat performansı, gecikmeler, ödeme sözleri ve temsilci sorumluluğu</p>
+        </div>
+        <div class="text-[10px] text-slate-400" id="taDateRange"></div>
+    </div>
+
+    <!-- ═══ BLOK 1 — Ana KPI'lar (Toplam büyük + 4 dilim) ═══ -->
+    <section class="mb-6">
+        <h2 class="ta-section-title mb-2"><i class="bi bi-activity"></i> Mayıs Ayı İtibarıyla</h2>
+        <div class="ta-grid-pulse">
+            <!-- Ana Toplam Kartı (büyük, koyu) -->
+            <div class="ta-pulse-main">
+                <div class="ta-pulse-label">Toplam Tahsilat <span class="text-[9px] opacity-60 font-normal">(hedef)</span></div>
+                <div class="ta-pulse-value ta-num" id="taPulseToplam">—</div>
+                <div class="ta-pulse-sub" id="taPulseToplamSub">tahsil + ay sonuna vade</div>
+                <div class="ta-main-warn">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Bunun <b id="taPulseGecmis">—</b> <span id="taPulseGecmisPct">(%0)</span>'i geçmişten gelen vade aşımı · <span id="taPulseGecmisSub" class="opacity-80">—</span></span>
+                </div>
+            </div>
+
+            <!-- Tahsil Edilen -->
+            <div class="ta-pulse-card">
+                <div class="ta-pulse-label">Tahsil Edilen</div>
+                <div class="ta-pulse-value ta-num ta-v-tahsil" id="taPulseTahsil">—</div>
+                <div class="ta-pulse-sub"><span id="taPulseTahsilSub">—</span> · <span class="ta-pulse-pct" id="taPulseTahsilPct">%0</span></div>
+            </div>
+
+            <!-- Söz Alınan -->
+            <div class="ta-pulse-card">
+                <div class="ta-pulse-label">Söz Alınan</div>
+                <div class="ta-pulse-value ta-num ta-v-soz" id="taPulseSoz">—</div>
+                <div class="ta-pulse-sub"><span id="taPulseSozSub">—</span> · <span class="ta-pulse-pct" id="taPulseSozPct">%0</span></div>
+            </div>
+
+            <!-- Kalan -->
+            <div class="ta-pulse-card">
+                <div class="ta-pulse-label">Kalan <span class="text-[9px] text-slate-400 font-normal">(söz yok)</span></div>
+                <div class="ta-pulse-value ta-num ta-v-kalan" id="taPulseKalan">—</div>
+                <div class="ta-pulse-sub">tahsil + söz dışı · <span class="ta-pulse-pct" id="taPulseKalanPct">%0</span></div>
+            </div>
+
+            <!-- Ay Sonu Tahmini Kapanış -->
+            <div class="ta-pulse-card">
+                <div class="ta-pulse-label">Ay Sonu Tahmini Kapanış</div>
+                <div class="ta-pulse-value ta-num ta-v-tahmin" id="taPulseTahmin">—</div>
+                <div class="ta-pulse-sub">tahsil + söz alınan · <span class="ta-pulse-pct" id="taPulseTahminPct">%0</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══ BLOK 2 — Aylık Tahsilat Trendi (12 ay) ═══ -->
+    <section class="mb-6 ta-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="ta-section-title"><i class="bi bi-graph-up"></i> Aylık Tahsilat Trendi (son 12 ay)</h2>
+            <span class="text-[10px] text-slate-400" id="taTrendOzet"></span>
+        </div>
+        <div style="height:180px"><canvas id="taTrendChart"></canvas></div>
+    </section>
+
+    <!-- ═══ KATMAN 2 — Satış Temsilcisi Listesi (tıklanabilir, KPI ile aynı yapı) ═══ -->
+    <section class="mb-6 ta-card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="ta-section-title"><i class="bi bi-person-badge"></i> Satış Temsilcisi Bazında</h2>
+            <span class="text-[10px] text-slate-400">Satıra tıklayarak aşağıdaki faturaları filtreleyin</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-[11px]">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr class="text-[10px] text-slate-500 tracking-wider">
+                        <th class="text-left  py-2 px-3 font-semibold">Temsilci</th>
+                        <th class="text-right py-2 px-3 font-semibold">Toplam Tahsilat</th>
+                        <th class="text-right py-2 px-3 font-semibold text-emerald-700">Tahsil Edilen</th>
+                        <th class="text-right py-2 px-3 font-semibold text-amber-700">Söz Alınan</th>
+                        <th class="text-right py-2 px-3 font-semibold text-red-600">Geçmişten</th>
+                        <th class="text-right py-2 px-3 font-semibold text-slate-600">Kalan</th>
+                        <th class="text-right py-2 px-3 font-semibold">Fatura</th>
+                    </tr>
+                </thead>
+                <tbody id="taTemsilciList">
+                    <tr><td colspan="7" class="py-3 px-3"><div class="ta-shimmer"></div></td></tr>
+                    <tr><td colspan="7" class="py-3 px-3"><div class="ta-shimmer"></div></td></tr>
+                    <tr><td colspan="7" class="py-3 px-3"><div class="ta-shimmer"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ═══ KATMAN 3 — Fatura Detay Listesi (temsilciye göre filtrelenir) ═══ -->
+    <section class="mb-6 ta-card p-4">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h2 class="ta-section-title">
+                <i class="bi bi-list-ul text-slate-600"></i> Fatura Detayı
+                <span id="taActiveFilter" class="hidden ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium">
+                    <span id="taActiveFilterName"></span>
+                    <button onclick="taClearFilter()" class="ml-1 text-blue-700 hover:text-blue-900">×</button>
+                </span>
+            </h2>
+            <span class="text-[10px] text-slate-400" id="taFaturaOzet"></span>
+        </div>
+        <div class="overflow-y-auto max-h-[520px]" id="taFaturaTable">
+            <div class="ta-shimmer mb-1.5"></div><div class="ta-shimmer mb-1.5"></div><div class="ta-shimmer mb-1.5"></div>
+        </div>
+    </section>
+
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        // Formatters
+        const taFmtN = new Intl.NumberFormat('tr-TR');
+        const taEsc  = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        const taAbbr = v => { v = Number(v)||0; if (Math.abs(v)>=1e9) return (v/1e9).toFixed(1).replace('.',',')+'Mr'; if (Math.abs(v)>=1e6) return (v/1e6).toFixed(1).replace('.',',')+'M'; if (Math.abs(v)>=1e3) return Math.round(v/1e3)+'K'; return Math.round(v).toLocaleString('tr-TR'); };
+
+        // Initial — bütün blokları yükle (tek payload: /Tahsilat/Data)
+        (async () => {
+            const today = new Date();
+            const ayAdi = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][today.getMonth()];
+            document.getElementById('taDateRange').textContent = `${ayAdi} ${today.getFullYear()} · ${today.toLocaleDateString('tr-TR')} itibarıyla`;
+
+            let data;
+            try {
+                const r = await fetch('/Tahsilat/Data');
+                data = await r.json();
+            } catch (e) {
+                console.error('Tahsilat data fetch hatası:', e);
+                return;
+            }
+
+            // ═══ KATMAN 1 — Ana KPI'lar ═══
+            const p = data.pulse;
+            const fmtPct = v => '%' + Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+            // Toplam (büyük)
+            document.getElementById('taPulseToplam').textContent = '₺' + taFmtN.format(Math.round(p.toplamTahsilat));
+            document.getElementById('taPulseToplamSub').textContent = taFmtN.format(p.toplamAdet) + ' fatura · ay sonuna kadar tahsil edilmesi gereken';
+
+            // Toplam içindeki "Geçmişten gelen" uyarısı
+            document.getElementById('taPulseGecmis').textContent = '₺' + taFmtN.format(Math.round(p.gecmisTahsilat));
+            document.getElementById('taPulseGecmisPct').textContent = '(' + fmtPct(p.gecmisPct) + ')';
+            document.getElementById('taPulseGecmisSub').textContent = taFmtN.format(p.gecmisAdet) + ' fatura';
+
+            // Tahsil Edilen
+            document.getElementById('taPulseTahsil').textContent = '₺' + taFmtN.format(Math.round(p.tahsilEdilen));
+            document.getElementById('taPulseTahsilSub').textContent = taFmtN.format(p.tahsilAdet) + ' fatura · gerçekleşen';
+            document.getElementById('taPulseTahsilPct').textContent = fmtPct(p.tahsilPct);
+
+            // Söz Alınan
+            document.getElementById('taPulseSoz').textContent = '₺' + taFmtN.format(Math.round(p.sozAlinan));
+            document.getElementById('taPulseSozSub').textContent = taFmtN.format(p.sozAdet) + ' fatura · bu ay sözlü';
+            document.getElementById('taPulseSozPct').textContent = fmtPct(p.sozPct);
+
+            // Kalan
+            document.getElementById('taPulseKalan').textContent = '₺' + taFmtN.format(Math.round(p.kalan));
+            document.getElementById('taPulseKalanPct').textContent = fmtPct(p.kalanPct);
+
+            // Ay Sonu Tahmini Kapanış (Tahsil + Söz Alınan)
+            document.getElementById('taPulseTahmin').textContent = '₺' + taFmtN.format(Math.round(p.aySonuTahmin));
+            document.getElementById('taPulseTahminPct').textContent = fmtPct(p.aySonuPct);
+
+            // ═══ BLOK 2 — Aylık Trend (Cockpit stili line chart, 2 seri) ═══
+            const trend = data.trend || [];
+            const cv = document.getElementById('taTrendChart');
+            if (cv && trend.length) {
+                const ctx2d = cv.getContext('2d');
+                // Gradient fill (yeşil tahsilat area)
+                const grad1 = ctx2d.createLinearGradient(0, 0, 0, cv.height || 200);
+                grad1.addColorStop(0, 'rgba(16,185,129,0.32)');
+                grad1.addColorStop(1, 'rgba(16,185,129,0.02)');
+                // Hedef line için ince gradient (görsel hafif)
+                const grad2 = ctx2d.createLinearGradient(0, 0, 0, cv.height || 200);
+                grad2.addColorStop(0, 'rgba(239,68,68,0.10)');
+                grad2.addColorStop(1, 'rgba(239,68,68,0.00)');
+                new Chart(cv, {
+                    type: 'line',
+                    data: {
+                        labels: trend.map(x => x.ay),
+                        datasets: [
+                            {
+                                label: 'Vadeli Tahsilat',
+                                data: trend.map(x => x.tutar),
+                                borderColor: '#10b981',
+                                backgroundColor: grad1,
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2.2,
+                                pointBackgroundColor: '#10b981',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 1.5,
+                                pointRadius: 3,
+                                pointHoverRadius: 6
+                            },
+                            {
+                                label: 'Yapması Gereken',
+                                data: trend.map(x => x.hedef),
+                                borderColor: '#ef4444',
+                                backgroundColor: grad2,
+                                fill: false,
+                                tension: 0.4,
+                                borderWidth: 2,
+                                borderDash: [5, 4],
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#ef4444',
+                                pointBorderWidth: 2,
+                                pointRadius: 3,
+                                pointHoverRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        animation: { duration: 600, easing: 'easeOutQuart' },
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { display: true, position: 'top', align: 'end', labels: { font: { family:'Inter', size: 10 }, boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+                            tooltip: {
+                                backgroundColor: 'rgba(15,23,42,0.94)',
+                                titleFont: { family: 'Inter', size: 12, weight: '600' },
+                                bodyFont:  { family: 'Inter', size: 11 },
+                                padding: 12,
+                                cornerRadius: 10,
+                                displayColors: false,
+                                callbacks: {
+                                    label: c => c.dataset.label + ': ₺' + taFmtN.format(Math.round(c.parsed.y)),
+                                    afterBody: items => {
+                                        if (!items.length) return '';
+                                        const idx = items[0].dataIndex;
+                                        const row = trend[idx] || {};
+                                        const matched = Number(row.tutar || 0);
+                                        const hedef   = Number(row.hedef || 0);
+                                        const gec     = Number(row.gecTahsilat || 0);
+                                        const lines = [];
+                                        if (hedef > 0) lines.push('Vadeli gerçekleşme: %' + (matched/hedef*100).toLocaleString('tr-TR', {maximumFractionDigits:1}));
+                                        if (gec > 0)   lines.push('Geç tahsilat (önceki ay vadeli): ₺' + taFmtN.format(Math.round(gec)));
+                                        return lines.join('\n');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                border: { display: false },
+                                ticks: { font: { family: 'Inter', size: 9 }, color: '#94a3b8', padding: 3, maxRotation: 0 }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(15,23,42,0.05)', borderDash: [3, 3] },
+                                border: { display: false },
+                                ticks: { font: { family: 'Inter', size: 9 }, color: '#94a3b8', padding: 4, callback: v => '₺' + taAbbr(v) }
+                            }
+                        }
+                    }
+                });
+            }
+            const trendToplam = trend.reduce((s, x) => s + Number(x.tutar||0), 0);
+            const trendHedef  = trend.reduce((s, x) => s + Number(x.hedef||0), 0);
+            const trendAdet   = trend.reduce((s, x) => s + Number(x.adet||0), 0);
+            const ovOran = trendHedef > 0 ? (trendToplam/trendHedef*100).toLocaleString('tr-TR', {maximumFractionDigits:1}) : '0';
+            document.getElementById('taTrendOzet').innerHTML = `Tahsilat ₺${taFmtN.format(Math.round(trendToplam))} / Hedef ₺${taFmtN.format(Math.round(trendHedef))} · <span class="text-emerald-700 font-semibold">%${ovOran}</span>`;
+
+            // ═══ KATMAN 2 — Satış Temsilcisi Tablosu (endpoint'ten 4 metrik) ═══
+            let _allFaturalar = [];
+            let _aktifTemsilci = null;
+
+            const repList = (data.temsilciler || []);
+            const repTbody = document.getElementById('taTemsilciList');
+            const pctFmt = (v, tot) => tot > 0 ? '%' + (v/tot*100).toLocaleString('tr-TR', {maximumFractionDigits:1}) : '%0';
+            repTbody.innerHTML = repList.length ? repList.map(r => `
+                <tr class="rep-row border-b border-slate-50 cursor-pointer hover:bg-blue-50/30 transition-colors" data-rep="${taEsc(r.ad)}" onclick="taSelectRep('${taEsc(r.ad).replace(/'/g, "\\'")}')">
+                    <td class="py-2 px-3 text-slate-700 font-medium">${taEsc(r.ad)}</td>
+                    <td class="py-2 px-3 text-right text-slate-900 font-semibold ta-num">₺${taFmtN.format(Math.round(r.toplam))}</td>
+                    <td class="py-2 px-3 text-right text-emerald-700 font-semibold ta-num">
+                        ${r.tahsil > 0 ? '₺' + taFmtN.format(Math.round(r.tahsil)) + ' <span class="text-[9px] text-emerald-600/70 font-normal">'+pctFmt(r.tahsil, r.toplam)+'</span>' : '<span class="text-slate-300">—</span>'}
+                    </td>
+                    <td class="py-2 px-3 text-right text-amber-700 ta-num">
+                        ${r.soz > 0 ? '₺' + taFmtN.format(Math.round(r.soz)) + ' <span class="text-[9px] text-amber-600/70 font-normal">'+pctFmt(r.soz, r.toplam)+'</span>' : '<span class="text-slate-300">—</span>'}
+                    </td>
+                    <td class="py-2 px-3 text-right text-red-600 font-semibold ta-num">
+                        ${r.gecmis > 0 ? '₺' + taFmtN.format(Math.round(r.gecmis)) + ' <span class="text-[9px] text-red-500/70 font-normal">'+pctFmt(r.gecmis, r.toplam)+'</span>' : '<span class="text-slate-300">—</span>'}
+                    </td>
+                    <td class="py-2 px-3 text-right text-slate-600 ta-num">
+                        ${r.kalan > 0 ? '₺' + taFmtN.format(Math.round(r.kalan)) + ' <span class="text-[9px] text-slate-400 font-normal">'+pctFmt(r.kalan, r.toplam)+'</span>' : '<span class="text-slate-300">—</span>'}
+                    </td>
+                    <td class="py-2 px-3 text-right text-slate-500 ta-num">${r.adet}</td>
+                </tr>`).join('') : '<tr><td colspan="7" class="py-4 text-center text-slate-400">Veri yok</td></tr>';
+
+            // ═══ KATMAN 3 — Fatura detay (vadesi geçmiş + sözlü olanlar) ═══
+            try {
+                const vgr = await fetch('/Cockpit/VadesiGecmisDetay');
+                const vgj = await vgr.json();
+                _allFaturalar = (vgj.rows || []).map(r => Object.assign({}, r, {
+                    satisRepKey: (r.satisRep && r.satisRep !== '—') ? r.satisRep : '(Atanmamış)'
+                }));
+
+                window.taSelectRep = function(adi) {
+                    _aktifTemsilci = (_aktifTemsilci === adi) ? null : adi;
+                    document.querySelectorAll('#taTemsilciList tr.rep-row').forEach(tr => {
+                        tr.classList.toggle('rep-active', tr.dataset.rep === _aktifTemsilci);
+                    });
+                    renderFaturalar();
+                    const f = document.getElementById('taActiveFilter');
+                    if (_aktifTemsilci) {
+                        f.classList.remove('hidden');
+                        document.getElementById('taActiveFilterName').textContent = _aktifTemsilci;
+                    } else {
+                        f.classList.add('hidden');
+                    }
+                };
+                window.taClearFilter = function() { window.taSelectRep(null); };
+
+                // ═══ Fatura detay render (temsilci filtreli) ═══
+                function renderFaturalar() {
+                    const list = _aktifTemsilci ? _allFaturalar.filter(r => r.satisRepKey === _aktifTemsilci) : _allFaturalar;
+                    const toplamTutar = list.reduce((s, r) => s + Number(r.bakiye || 0), 0);
+                    document.getElementById('taFaturaOzet').textContent = `${list.length} fatura · ₺${taFmtN.format(Math.round(toplamTutar))}`;
+                    const cont = document.getElementById('taFaturaTable');
+                    if (!list.length) { cont.innerHTML = '<p class="text-slate-400 text-center py-6">Bu temsilciye ait fatura yok</p>'; return; }
+                    let h = '<table class="w-full text-[11px]"><thead class="sticky top-0 bg-white z-10"><tr class="border-b border-slate-200 text-[10px] text-slate-400 tracking-wider"><th class="text-left py-2 px-2">Müşteri</th><th class="text-left py-2 px-2">Temsilci</th><th class="text-left py-2 px-2">Fatura No</th><th class="text-center py-2 px-2">Vade</th><th class="text-center py-2 px-2">Söz</th><th class="text-right py-2 px-2">Yaş</th><th class="text-right py-2 px-2">Bakiye</th></tr></thead><tbody>';
+                    h += list.map(r => {
+                        const sozBadge = r.sozTarihi
+                            ? `<span class="text-[10px] ${r.sozeGun < 0 ? 'text-red-600 font-semibold' : r.sozeGun <= 7 ? 'text-amber-600 font-semibold' : 'text-emerald-700'}">${r.sozTarihi}</span>`
+                            : '<span class="text-slate-300">—</span>';
+                        return `<tr class="border-b border-slate-50 hover:bg-amber-50/20">
+                            <td class="py-1.5 px-2 text-slate-700 max-w-[260px] truncate">${taEsc(r.musteri || '—')}${r.musteriKaynak === 'excel' ? ' <span class="ta-badge-excel">Excel</span>' : ''}${r.hukuki ? ' <span class="ta-badge-hukuki">Hukuki</span>' : ''}</td>
+                            <td class="py-1.5 px-2 text-slate-500 text-[10px] max-w-[140px] truncate">${taEsc(r.satisRep || '—')}</td>
+                            <td class="py-1.5 px-2 text-[10px] text-slate-500">${taEsc(r.faturaNo)}</td>
+                            <td class="py-1.5 px-2 text-center text-[10px] text-slate-500">${r.vadeTarihi || '—'}</td>
+                            <td class="py-1.5 px-2 text-center">${sozBadge}</td>
+                            <td class="py-1.5 px-2 text-right text-[10px] ${r.yas >= 90 ? 'text-red-700 font-bold' : r.yas >= 60 ? 'text-red-500' : r.yas >= 30 ? 'text-amber-600' : 'text-slate-500'}">${r.yas} gün</td>
+                            <td class="py-1.5 px-2 text-right font-semibold text-red-600 ta-num">₺${taFmtN.format(Math.round(r.bakiye))}</td>
+                        </tr>`;
+                    }).join('');
+                    h += '</tbody></table>';
+                    cont.innerHTML = h;
+                }
+                renderFaturalar();
+            } catch (e) { console.error('Tahsilat liste hatası:', e); }
+        })();
+    </script>
+}

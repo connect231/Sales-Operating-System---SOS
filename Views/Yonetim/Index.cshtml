@@ -1,0 +1,205 @@
+@model List<SOS.Models.MsK.TBLSOS_ADMIN_KULLANICI>
+@{
+    ViewData["Title"] = "Admin Yönetimi";
+}
+
+<style>
+    .yon-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
+    }
+
+    .yon-tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+    .yon-tbl thead { background: #f8fafc; }
+    .yon-tbl th {
+        text-align: left;
+        padding: 10px 14px;
+        font-size: 10px; font-weight: 700;
+        color: #64748b; letter-spacing: .04em;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .yon-tbl td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #0f172a;
+    }
+    .yon-tbl tbody tr:hover { background: #f8fafc; }
+    .yon-tbl tbody tr:last-child td { border-bottom: 0; }
+
+    .pasif { opacity: .55; }
+    .pasif td { color: #94a3b8; }
+
+    .yon-input {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 12px;
+        background: #fff;
+        font-family: inherit;
+        color: #0f172a;
+        outline: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .yon-input:focus {
+        border-color: #94a3b8;
+        box-shadow: 0 0 0 3px rgba(148, 163, 184, .12);
+    }
+    .yon-input::placeholder { color: #cbd5e1; }
+
+    .yon-btn {
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 12px; font-weight: 600;
+        background: #0f172a;
+        color: #fff; border: 0;
+        cursor: pointer;
+        transition: background .15s ease, transform .1s ease;
+        font-family: inherit;
+    }
+    .yon-btn:hover { background: #1e293b; }
+    .yon-btn:active { transform: scale(.97); }
+    .yon-btn.outline { background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }
+    .yon-btn.outline:hover { border-color: #0f172a; }
+    .yon-btn.danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .yon-btn.danger:hover { background: #fee2e2; }
+    .yon-btn.sm { padding: 5px 10px; font-size: 10.5px; }
+
+    .pill {
+        display: inline-flex; align-items: center;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 10px; font-weight: 700;
+        letter-spacing: .04em;
+    }
+    .pill.aktif { background: #d1fae5; color: #065f46; }
+    .pill.pasif { background: #f1f5f9; color: #64748b; }
+
+    .toast {
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 12px; font-weight: 500;
+        margin-bottom: 14px;
+    }
+    .toast.ok { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+    .toast.err { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .empty { padding: 50px 20px; text-align: center; color: #94a3b8; font-size: 13px; }
+    .empty i { font-size: 32px; opacity: .4; display: block; margin-bottom: 10px; }
+</style>
+
+<div style="max-width: 980px; margin: 0 auto;">
+    <header class="mb-5">
+        <h1 class="text-[24px] font-bold text-[#0f172a] tracking-tight">Admin Yönetimi</h1>
+        <p class="text-[13px] text-[#64748b] mt-1">
+            Bu listedeki kullanıcılar tüm menülere erişebilir. Diğer kullanıcılar sadece <b>Cockpit</b> ve <b>Fırsat Analizi</b> ekranlarını görür.
+        </p>
+    </header>
+
+    @if (TempData["Mesaj"] != null)
+    {
+        <div class="toast ok"><i class="bi bi-check-circle-fill mr-1"></i>@TempData["Mesaj"]</div>
+    }
+    @if (TempData["Hata"] != null)
+    {
+        <div class="toast err"><i class="bi bi-exclamation-circle-fill mr-1"></i>@TempData["Hata"]</div>
+    }
+
+    <!-- Yeni admin ekleme -->
+    <div class="yon-card p-5 mb-5">
+        <h2 class="text-[14px] font-bold text-[#0f172a] mb-3">
+            <i class="bi bi-person-plus-fill text-emerald-600 mr-1"></i> Yeni admin ekle
+        </h2>
+        <form asp-action="Ekle" method="post" class="flex items-center gap-2 flex-wrap">
+            @Html.AntiForgeryToken()
+            <input type="email" name="email" required class="yon-input flex-1" style="min-width:240px;"
+                   placeholder="ornek@univera.com.tr" />
+            <input type="text" name="adSoyad" class="yon-input flex-1" style="min-width:200px;"
+                   placeholder="Ad Soyad (isteğe bağlı)" />
+            <button type="submit" class="yon-btn">
+                <i class="bi bi-plus-lg mr-1"></i> Ekle
+            </button>
+        </form>
+        <p class="text-[10px] text-[#94a3b8] mt-2 italic">
+            Ekledikten sonra kullanıcının tekrar oturum açması gerekebilir (cache 5 dk içinde otomatik yenilenir).
+        </p>
+    </div>
+
+    <!-- Mevcut adminler -->
+    <div class="yon-card overflow-hidden">
+        <div class="px-5 py-3 border-b border-[#f1f5f9] flex items-center justify-between">
+            <h2 class="text-[14px] font-bold text-[#0f172a]">
+                <i class="bi bi-shield-lock-fill text-indigo-600 mr-1"></i>
+                Mevcut admin kullanıcıları
+            </h2>
+            <span class="text-[10px] text-[#94a3b8] font-medium">@Model.Count(a => a.Aktif) aktif · @Model.Count kayıt</span>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="empty">
+                <i class="bi bi-inbox"></i>
+                Henüz admin tanımı yok.
+            </div>
+        }
+        else
+        {
+            <table class="yon-tbl">
+                <thead>
+                    <tr>
+                        <th>E-posta</th>
+                        <th>Ad Soyad</th>
+                        <th>Durum</th>
+                        <th>Ekleyen</th>
+                        <th>Eklenme</th>
+                        <th style="text-align:right;">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr class="@(item.Aktif ? "" : "pasif")">
+                            <td><b>@item.Email</b></td>
+                            <td>@(item.AdSoyad ?? "—")</td>
+                            <td>
+                                @if (item.Aktif)
+                                {
+                                    <span class="pill aktif">Aktif</span>
+                                }
+                                else
+                                {
+                                    <span class="pill pasif">Pasif</span>
+                                }
+                            </td>
+                            <td class="text-[#94a3b8]">@(item.EkleyenEmail ?? "—")</td>
+                            <td class="text-[#94a3b8]">@item.EklenmeTarihi.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td style="text-align:right; white-space: nowrap;">
+                                <form asp-action="AktiflikDegistir" method="post" style="display:inline-block;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <input type="hidden" name="aktif" value="@((!item.Aktif).ToString().ToLower())" />
+                                    <button type="submit" class="yon-btn outline sm">
+                                        @(item.Aktif ? "Pasifleştir" : "Aktifleştir")
+                                    </button>
+                                </form>
+                                <form asp-action="Sil" method="post" style="display:inline-block;"
+                                      onsubmit="return confirm('@item.Email adresini silmek istediğinize emin misiniz?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="yon-btn danger sm">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <p class="text-[10px] text-[#94a3b8] text-center mt-4 italic">
+        Cockpit ve Fırsat Analizi sayfaları tüm kullanıcılara açıktır — bu listeye eklemeye gerek yok.
+    </p>
+</div>

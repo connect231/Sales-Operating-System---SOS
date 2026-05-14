@@ -9,10 +9,8 @@ public class AccountLoginModel
     [EmailAddress]
     public string Email { get; set; } = null!;
 
-    [Required]
-    [Display(Name = "Parola")]
-    [DataType(DataType.Password)]
-    public string Password { get; set; } = null!;
+    // DEV/PROD: Şifresiz email login — Password kaldırıldı.
+    public string Password { get; set; } = "";
 
     public bool BeniHatirla { get; set; } = true;
 

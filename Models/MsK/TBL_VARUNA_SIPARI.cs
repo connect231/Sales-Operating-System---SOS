@@ -123,5 +123,12 @@ public partial class TBL_VARUNA_SIPARI
     [StringLength(64)]
     [Unicode(false)]
     public string? AccountSAPOutReferenceCode { get; set; }
+
+    [Column(TypeName = "datetime")]
+    public DateTime? DeletedOn { get; set; }
+
+    [StringLength(128)]
+    [Unicode(false)]
+    public string? DeletedBy { get; set; }
 }
 

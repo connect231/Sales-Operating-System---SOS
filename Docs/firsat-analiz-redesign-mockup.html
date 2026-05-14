@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Fırsat Analizi — CEO Redesign Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { background: #f5f6f8; }
+
+  .hero-grad {
+    background: linear-gradient(135deg, #0b1220 0%, #151f38 50%, #1c2a4e 100%);
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(17,24,39,.04), 0 4px 14px rgba(17,24,39,.05);
+    border: 1px solid rgba(17,24,39,.04);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(17,24,39,.06), 0 8px 24px rgba(17,24,39,.08); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  }
+  .chip-cert { background: rgba(16,185,129,.12); color: #047857; }
+  .chip-prob { background: rgba(245,158,11,.14); color: #b45309; }
+  .chip-risk { background: rgba(239,68,68,.12); color: #b91c1c; }
+  .chip-info { background: rgba(59,130,246,.12); color: #1d4ed8; }
+  .chip-muted { background: rgba(15,23,42,.06); color: #475569; }
+
+  /* Unified card sub-box */
+  .subbox {
+    padding: 12px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #eef2f7;
+  }
+  .subbox-label { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+  .subbox-value { font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 4px; letter-spacing: -.01em; }
+  .subbox-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .subbox-accent { width: 4px; height: 4px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+  .pill {
+    padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 500;
+    color: #475569; cursor: pointer; transition: all .15s;
+  }
+  .pill:hover { background: rgba(15,23,42,.05); }
+  .pill-active { background: #0f172a; color: #fff; }
+  .pill-active:hover { background: #0f172a; }
+
+  .filter-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px 5px 12px; border-radius: 8px;
+    background: rgba(15,23,42,.06); font-size: 12px; font-weight: 500;
+    color: #1e293b;
+  }
+  .filter-tag .x { cursor: pointer; opacity: .5; }
+  .filter-tag .x:hover { opacity: 1; }
+
+  .progress-track { background: rgba(255,255,255,.12); border-radius: 999px; overflow: hidden; height: 10px; }
+  .progress-fill { height: 100%; border-radius: 999px; }
+  .progress-certain { background: linear-gradient(90deg, #10b981, #34d399); }
+  .progress-probable { background: linear-gradient(90deg, #f59e0b, #fbbf24); opacity: .9; }
+
+  .money { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .divider-v { width: 1px; background: rgba(255,255,255,.08); }
+
+  .scorecard-row:hover { background: rgba(15,23,42,.02); }
+  .bar { height: 6px; border-radius: 4px; background: rgba(15,23,42,.06); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+
+  .tempo-box {
+    background: linear-gradient(135deg, rgba(239,68,68,.12), rgba(239,68,68,.04));
+    border: 1px solid rgba(239,68,68,.2);
+  }
+
+  .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+  .kpi-sub { font-size: 12px; color: rgba(255,255,255,.6); font-weight: 500; }
+
+  /* Dark card (hero KPI cell) — matches light card structure */
+  .hero-cell {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 14px;
+    padding: 18px 18px 16px;
+    position: relative;
+  }
+  .hero-cell-value { font-size: 34px; font-weight: 700; letter-spacing: -.01em; line-height: 1; color: #fff; margin-top: 8px; }
+  .hero-cell-unit { font-size: 16px; font-weight: 600; color: rgba(255,255,255,.45); margin-left: 4px; }
+  .hero-cell-sub { font-size: 12px; color: rgba(255,255,255,.55); font-weight: 500; margin-top: 10px; }
+  .hero-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  }
+  .hero-chip-cert { background: rgba(16,185,129,.18); color: #6ee7b7; }
+  .hero-chip-prob { background: rgba(245,158,11,.2); color: #fcd34d; }
+  .hero-chip-muted { background: rgba(255,255,255,.08); color: rgba(255,255,255,.7); }
+  .hero-chip-hot { background: rgba(239,68,68,.18); color: #fca5a5; }
+
+  .donut {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: conic-gradient(#10b981 0 46.2%, #e5e7eb 46.2% 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .donut::after {
+    content: ''; width: 38px; height: 38px; border-radius: 50%; background: #fff;
+  }
+  .donut-label { position: absolute; font-size: 11px; font-weight: 700; color: #0f172a; }
+</style>
+</head>
+<body>
+
+<div class="max-w-[1440px] mx-auto px-8 py-6">
+
+  <!-- Header / Title / Filters -->
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <div class="flex items-center gap-3">
+        <h1 class="text-[28px] font-bold text-slate-900 tracking-tight">Fırsat Analizi</h1>
+        <span class="chip chip-info">CEO COCKPIT</span>
+      </div>
+      <p class="text-sm text-slate-500 mt-1">Ay sonu projeksiyonu · Fırsattan faturaya uçtan uca izleme</p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1 bg-white rounded-full p-1 shadow-sm border border-slate-200/80">
+        <span class="pill">Geçen ay</span>
+        <span class="pill pill-active">Bu ay</span>
+        <span class="pill">2. Çeyrek</span>
+        <span class="pill">YTD</span>
+        <span class="pill">Tümü</span>
+      </div>
+      <button class="ml-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+        Filtre
+      </button>
+    </div>
+  </div>
+
+  <!-- Active filters -->
+  <div class="flex items-center gap-2 mb-5">
+    <span class="text-xs text-slate-400 font-medium">AKTİF FİLTRELER:</span>
+    <span class="filter-tag">Dönem: Nisan 2026 <span class="x">✕</span></span>
+    <span class="filter-tag">Tüm satışçılar <span class="x">✕</span></span>
+    <span class="filter-tag">Tüm ürünler <span class="x">✕</span></span>
+    <span class="filter-tag">Kanal: Yenileme + Yeni <span class="x">✕</span></span>
+    <button class="text-xs text-slate-400 hover:text-slate-600 font-medium ml-1">Temizle</button>
+  </div>
+
+  <!-- ============================== -->
+  <!-- HERO ŞERİT — AY SONU PROJEKSİYONU -->
+  <!-- ============================== -->
+  <div class="hero-grad rounded-2xl p-7 mb-6 text-white relative overflow-hidden">
+    <!-- decorative -->
+    <div class="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl"></div>
+    <div class="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl"></div>
+
+    <!-- Top line: month + working days -->
+    <div class="flex items-center justify-between relative z-10 mb-5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <div class="text-[20px] font-bold tracking-tight">Ay Sonu Projeksiyonu</div>
+            <span class="hero-chip hero-chip-muted">NİSAN 2026</span>
+          </div>
+          <div class="text-[13px] text-white/60 mt-0.5">22 Nisan, Çarşamba · Gün <span class="font-semibold text-white/80">15/22</span> · Kalan <span class="font-semibold text-amber-300">7 iş günü</span></div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="hero-chip hero-chip-hot">HEDEFİN ALTINDA</span>
+      </div>
+    </div>
+
+    <!-- 4 EŞİT KART — aynı iskelet (alt 3 kart ile birebir hizalı) -->
+    <div class="grid grid-cols-4 gap-3 relative z-10">
+
+      <!-- HEDEF -->
+      <div class="hero-cell">
+        <div class="flex items-center justify-between">
+          <span class="kpi-label">Hedef</span>
+          <span class="hero-chip hero-chip-muted">AY</span>
+        </div>
+        <div class="hero-cell-value money">45.0<span class="hero-cell-unit">M ₺</span></div>
+        <div class="hero-cell-sub">Aylık hedef tutarı</div>
+      </div>
+
+      <!-- KESİNLEŞEN -->
+      <div class="hero-cell">
+        <div class="flex items-center justify-between">
+          <span class="kpi-label">Kesinleşen</span>
+          <span class="hero-chip hero-chip-cert">KESİN</span>
+        </div>
+        <div class="hero-cell-value money text-emerald-300">9.7<span class="hero-cell-unit">M ₺</span></div>
+        <div class="hero-cell-sub">Fatura 4.9M · Açık sipariş 4.8M</div>
+      </div>
+
+      <!-- BEKLEYEN (AĞIRLIKLI) -->
+      <div class="hero-cell">
+        <div class="flex items-center justify-between">
+          <span class="kpi-label">Bekleyen (Ağırlıklı)</span>
+          <span class="hero-chip hero-chip-prob">OLASI</span>
+        </div>
+        <div class="hero-cell-value money text-amber-300">11.1<span class="hero-cell-unit">M ₺</span></div>
+        <div class="hero-cell-sub">23.8M teklif × %46.7 kazanma</div>
+      </div>
+
+      <!-- TAHMİNİ KAPANIŞ -->
+      <div class="hero-cell" style="background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.1);">
+        <div class="flex items-center justify-between">
+          <span class="kpi-label">Tahmini Kapanış</span>
+          <span class="hero-chip hero-chip-muted">%46.2</span>
+        </div>
+        <div class="hero-cell-value money">20.8<span class="hero-cell-unit">M ₺</span></div>
+        <div class="hero-cell-sub">Kesin + Ağırlıklı bekleyen</div>
+      </div>
+    </div>
+
+    <!-- Progress bar (hedefe ulaşım) -->
+    <div class="mt-5 relative z-10">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-3 text-[12px]">
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="text-white/75">Kesin %21.6</span></span>
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="text-white/75">Ağırlıklı %24.6</span></span>
+          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white/20"></span><span class="text-white/50">Açık %53.8</span></span>
+        </div>
+        <div class="text-[12px] font-semibold text-white/90">Hedefe ulaşım · %46.2 / %100</div>
+      </div>
+      <div class="progress-track">
+        <div class="flex h-full">
+          <div class="progress-certain" style="width: 21.6%"></div>
+          <div class="progress-probable" style="width: 24.6%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tempo / Risk call-out -->
+    <div class="tempo-box rounded-xl p-4 mt-5 flex items-center justify-between relative z-10">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+          <svg class="w-5 h-5 text-red-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div>
+          <div class="text-[15px] font-semibold text-white">Hedefin altında — 24.2M ₺ açık</div>
+          <div class="text-sm text-white/70">Kalan 7 iş gününde <span class="font-semibold text-amber-300">günde 3.46M ₺</span> gerekli · Bu ay şu ana kadar ortalama <span class="font-semibold">1.38M ₺/gün</span></div>
+        </div>
+      </div>
+      <button class="px-4 py-2 bg-white text-slate-900 rounded-lg font-semibold text-sm hover:bg-slate-100 transition">Aksiyon Planı Oluştur →</button>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- 3 KART: FIRSAT · TEKLİF · SATIŞ -->
+  <!-- ============================== -->
+  <div class="grid grid-cols-3 gap-5 mb-6">
+
+    <!-- KART 1 — FIRSAT -->
+    <div class="card p-6">
+      <div class="flex items-start justify-between mb-5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+            <svg class="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          </div>
+          <div>
+            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Erken Huni</div>
+            <div class="text-[14px] font-semibold text-slate-900">Fırsat</div>
+          </div>
+        </div>
+        <span class="chip chip-muted">Bu ay · 70 adet</span>
+      </div>
+
+      <!-- BÜYÜK SAYI (TOPLAM) ÜSTTE -->
+      <div>
+        <div class="text-[34px] font-bold money text-slate-900 tracking-tight leading-none">25.5<span class="text-lg text-slate-400 ml-1 font-semibold">M ₺</span></div>
+        <div class="text-sm text-slate-500 mt-2">Aktif fırsat havuzu · Ort. kapanış <span class="font-semibold text-slate-700">35 gün</span></div>
+      </div>
+
+      <!-- Alt 2 kutu -->
+      <div class="grid grid-cols-2 gap-2 mt-5 pt-5 border-t border-slate-100">
+        <div class="subbox">
+          <div class="subbox-label"><span class="subbox-accent" style="background:#64748b"></span>Yeni (bu ay)</div>
+          <div class="subbox-value money">6.2<span class="text-xs text-slate-400 ml-0.5 font-semibold">M ₺</span></div>
+          <div class="subbox-sub">18 fırsat eklendi</div>
+        </div>
+        <div class="subbox">
+          <div class="subbox-label"><span class="subbox-accent" style="background:#64748b"></span>Dönüşüm</div>
+          <div class="subbox-value money">%46</div>
+          <div class="subbox-sub">Fırsat → Teklif</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KART 2 — TEKLİF -->
+    <div class="card p-6">
+      <div class="flex items-start justify-between mb-5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+            <svg class="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <div>
+            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Karar Aşaması</div>
+            <div class="text-[14px] font-semibold text-slate-900">Teklif</div>
+          </div>
+        </div>
+        <span class="chip chip-muted">Bu ay · 125 teklif</span>
+      </div>
+
+      <!-- BÜYÜK SAYI (TOPLAM) ÜSTTE -->
+      <div>
+        <div class="text-[34px] font-bold money text-slate-900 tracking-tight leading-none">38.0<span class="text-lg text-slate-400 ml-1 font-semibold">M ₺</span></div>
+        <div class="text-sm text-slate-500 mt-2">Toplam teklif · Ort. kazanma <span class="font-semibold text-slate-700">%46.7</span></div>
+      </div>
+
+      <!-- Alt 2 kutu: Beklemede / Kabul Edildi -->
+      <div class="grid grid-cols-2 gap-2 mt-5 pt-5 border-t border-slate-100">
+        <div class="subbox">
+          <div class="subbox-label"><span class="subbox-accent" style="background:#f59e0b"></span>Beklemede</div>
+          <div class="subbox-value money">33.2<span class="text-xs text-slate-400 ml-0.5 font-semibold">M ₺</span></div>
+          <div class="subbox-sub">117 teklif · takip</div>
+        </div>
+        <div class="subbox">
+          <div class="subbox-label"><span class="subbox-accent" style="background:#10b981"></span>Kabul Edildi</div>
+          <div class="subbox-value money">4.8<span class="text-xs text-slate-400 ml-0.5 font-semibold">M ₺</span></div>
+          <div class="subbox-sub">8 teklif · siparişe</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KART 3 — SATIŞ -->
+    <div class="card p-6">
+      <div class="flex items-start justify-between mb-5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+            <svg class="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <div>
+            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Gerçekleşen</div>
+            <div class="text-[14px] font-semibold text-slate-900">Satış (Fatura)</div>
+          </div>
+        </div>
+        <span class="chip chip-muted">Bu ay · 33 fatura</span>
+      </div>
+
+      <!-- BÜYÜK SAYI (TOPLAM) ÜSTTE -->
+      <div>
+        <div class="text-[34px] font-bold money text-slate-900 tracking-tight leading-none">4.9<span class="text-lg text-slate-400 ml-1 font-semibold">M ₺</span></div>
+        <div class="text-sm text-slate-500 mt-2">Toplam satış · <span class="font-semibold text-slate-700">+4.8M ₺</span> açık sipariş</div>
+      </div>
+
+      <!-- Alt 2 kutu: Yenileme / Yeni -->
+      <div class="grid grid-cols-2 gap-2 mt-5 pt-5 border-t border-slate-100">
+        <div class="subbox">
+          <div class="subbox-label"><span class="subbox-accent" style="background:#64748b"></span>Yenileme</div>
+          <div class="subbox-value money">2.1<span class="text-xs text-slate-400 ml-0.5 font-semibold">M ₺</span></div>
+          <div class="subbox-sub">14 fatura · %43</div>
+        </div>
+        <div class="subbox">
+          <div class="subbox-label"><span class="subbox-accent" style="background:#0f172a"></span>Yeni Satış</div>
+          <div class="subbox-value money">2.8<span class="text-xs text-slate-400 ml-0.5 font-semibold">M ₺</span></div>
+          <div class="subbox-sub">19 fatura · %57</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- HUNİ ANALİZİ — tek konsolide panel -->
+  <!-- ============================== -->
+  <div class="card p-6 mb-6">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 class="text-[17px] font-bold text-slate-900">Huni Analizi</h2>
+          <span class="chip chip-muted">Nisan 2026 · 80 deal</span>
+        </div>
+        <p class="text-sm text-slate-500 mt-0.5">Fırsattan faturaya dönüşüm, tutar ve hız</p>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Ortalama Kapanış</div>
+          <div class="text-[20px] font-bold money text-slate-900 mt-0.5">35.3 <span class="text-xs text-slate-400 font-medium">gün</span></div>
+        </div>
+        <div class="text-right">
+          <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Uçtan Uca Dönüşüm</div>
+          <div class="text-[20px] font-bold money text-slate-900 mt-0.5">%19.2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 AŞAMA — yatay funnel -->
+    <div class="grid grid-cols-4 gap-0 relative">
+
+      <!-- Stage 1: FIRSAT -->
+      <div class="px-5 py-2 relative">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+          <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Fırsat</span>
+        </div>
+        <div class="text-[30px] font-bold money text-slate-900 mt-3 leading-none tracking-tight">25.5<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+        <div class="text-sm text-slate-500 mt-1.5">70 fırsat</div>
+        <div class="mt-3 h-1.5 rounded-full bg-slate-900"></div>
+      </div>
+
+      <!-- Conversion arrow 1→2 -->
+      <div class="absolute left-1/4 top-2 -translate-x-1/2 -translate-y-1 z-10">
+        <div class="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600 whitespace-nowrap">↓ 1 gün · ↑%149 tutar</div>
+      </div>
+
+      <!-- Stage 2: TEKLİF -->
+      <div class="px-5 py-2 relative border-l border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-slate-700 text-white text-[10px] font-bold flex items-center justify-center">2</span>
+          <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Teklif</span>
+        </div>
+        <div class="text-[30px] font-bold money text-slate-900 mt-3 leading-none tracking-tight">38.0<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+        <div class="text-sm text-slate-500 mt-1.5">125 teklif</div>
+        <div class="mt-3 h-1.5 rounded-full bg-slate-700" style="width: 92%"></div>
+      </div>
+
+      <!-- Conversion arrow 2→3 -->
+      <div class="absolute left-2/4 top-2 -translate-x-1/2 -translate-y-1 z-10">
+        <div class="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-700 whitespace-nowrap">↓ 35 gün · ↓ %12.6 dönüşüm</div>
+      </div>
+
+      <!-- Stage 3: SİPARİŞ -->
+      <div class="px-5 py-2 relative border-l border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-slate-500 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+          <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Sipariş</span>
+        </div>
+        <div class="text-[30px] font-bold money text-slate-900 mt-3 leading-none tracking-tight">4.8<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+        <div class="text-sm text-slate-500 mt-1.5">8 sipariş</div>
+        <div class="mt-3 h-1.5 rounded-full bg-slate-500" style="width: 12%"></div>
+      </div>
+
+      <!-- Conversion arrow 3→4 -->
+      <div class="absolute left-3/4 top-2 -translate-x-1/2 -translate-y-1 z-10">
+        <div class="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700 whitespace-nowrap">↓ 0 gün · ↑%102 hızlı</div>
+      </div>
+
+      <!-- Stage 4: FATURA -->
+      <div class="px-5 py-2 relative border-l border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">✓</span>
+          <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Fatura</span>
+        </div>
+        <div class="text-[30px] font-bold money text-slate-900 mt-3 leading-none tracking-tight">4.9<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+        <div class="text-sm text-slate-500 mt-1.5">33 fatura</div>
+        <div class="mt-3 h-1.5 rounded-full bg-emerald-500" style="width: 13%"></div>
+      </div>
+    </div>
+
+    <!-- Hız metrikleri (alt şerit) -->
+    <div class="mt-7 pt-5 border-t border-slate-100 grid grid-cols-4 gap-4">
+      <div>
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">En Hızlı Kapanış</div>
+        <div class="flex items-baseline gap-1.5 mt-1">
+          <span class="text-[22px] font-bold money text-slate-900">0</span>
+          <span class="text-xs text-slate-500">gün</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Medyan</div>
+        <div class="flex items-baseline gap-1.5 mt-1">
+          <span class="text-[22px] font-bold money text-slate-900">17</span>
+          <span class="text-xs text-slate-500">gün</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">En Yavaş Kapanış</div>
+        <div class="flex items-baseline gap-1.5 mt-1">
+          <span class="text-[22px] font-bold money text-slate-900">253</span>
+          <span class="text-xs text-slate-500">gün</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Darboğaz</div>
+        <div class="flex items-baseline gap-1.5 mt-1">
+          <span class="text-[16px] font-bold text-amber-700">Teklif → Sipariş</span>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-0.5">35 gün · iyileştirilmeli</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- SATIŞÇI SCORECARD -->
+  <!-- ============================== -->
+  <div class="card p-6 mb-6">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 class="text-[17px] font-bold text-slate-900">Satışçı Scorecard</h2>
+          <span class="chip chip-info">Nisan 2026</span>
+        </div>
+        <p class="text-sm text-slate-500 mt-0.5">Kişi bazlı hedef / kapanan / taahhüt takibi</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">Sırala: Hedef %</button>
+        <button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-800">Detay →</button>
+      </div>
+    </div>
+
+    <table class="w-full">
+      <thead>
+        <tr class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+          <th class="text-left py-3 pl-2">Satışçı</th>
+          <th class="text-right">Hedef</th>
+          <th class="text-right">Kapanan</th>
+          <th class="text-right">Açık Sipariş</th>
+          <th class="text-right">Taahhüt</th>
+          <th class="text-right pr-2">Hedef %</th>
+          <th class="text-left pl-6 w-[200px]">İlerleme</th>
+        </tr>
+      </thead>
+      <tbody class="text-sm">
+        <tr class="scorecard-row border-b border-slate-50">
+          <td class="py-4 pl-2">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center text-xs font-bold">CY</div>
+              <div>
+                <div class="font-semibold text-slate-900">Can Yılmaz</div>
+                <div class="text-xs text-slate-500">12 fırsat · 8 teklif</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-right money text-slate-600">5.0M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">0.9M ₺</td>
+          <td class="text-right money text-slate-600">8.1M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">4.7M ₺</td>
+          <td class="text-right pr-2">
+            <span class="chip chip-cert">%94</span>
+          </td>
+          <td class="pl-6">
+            <div class="bar"><div class="bar-fill bg-emerald-500" style="width: 94%"></div></div>
+          </td>
+        </tr>
+        <tr class="scorecard-row border-b border-slate-50">
+          <td class="py-4 pl-2">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xs font-bold">AK</div>
+              <div>
+                <div class="font-semibold text-slate-900">Ayşe Kara</div>
+                <div class="text-xs text-slate-500">9 fırsat · 6 teklif</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-right money text-slate-600">6.0M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">1.8M ₺</td>
+          <td class="text-right money text-slate-600">3.2M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">3.3M ₺</td>
+          <td class="text-right pr-2">
+            <span class="chip chip-prob">%55</span>
+          </td>
+          <td class="pl-6">
+            <div class="bar"><div class="bar-fill bg-amber-500" style="width: 55%"></div></div>
+          </td>
+        </tr>
+        <tr class="scorecard-row border-b border-slate-50">
+          <td class="py-4 pl-2">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center text-xs font-bold">SB</div>
+              <div>
+                <div class="font-semibold text-slate-900">Semih Balaban</div>
+                <div class="text-xs text-slate-500">15 fırsat · 11 teklif</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-right money text-slate-600">8.0M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">2.1M ₺</td>
+          <td class="text-right money text-slate-600">4.8M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">4.3M ₺</td>
+          <td class="text-right pr-2">
+            <span class="chip chip-prob">%54</span>
+          </td>
+          <td class="pl-6">
+            <div class="bar"><div class="bar-fill bg-amber-500" style="width: 54%"></div></div>
+          </td>
+        </tr>
+        <tr class="scorecard-row border-b border-slate-50">
+          <td class="py-4 pl-2">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 text-white flex items-center justify-center text-xs font-bold">MÖ</div>
+              <div>
+                <div class="font-semibold text-slate-900">Mert Özdemir</div>
+                <div class="text-xs text-slate-500">8 fırsat · 5 teklif</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-right money text-slate-600">4.5M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">0.6M ₺</td>
+          <td class="text-right money text-slate-600">1.8M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">1.4M ₺</td>
+          <td class="text-right pr-2">
+            <span class="chip chip-risk">%31</span>
+          </td>
+          <td class="pl-6">
+            <div class="bar"><div class="bar-fill bg-red-500" style="width: 31%"></div></div>
+          </td>
+        </tr>
+        <tr class="scorecard-row">
+          <td class="py-4 pl-2">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 to-rose-600 text-white flex items-center justify-center text-xs font-bold">ED</div>
+              <div>
+                <div class="font-semibold text-slate-900">Elif Demir</div>
+                <div class="text-xs text-slate-500">11 fırsat · 4 teklif</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-right money text-slate-600">5.5M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">0.4M ₺</td>
+          <td class="text-right money text-slate-600">2.1M ₺</td>
+          <td class="text-right money font-semibold text-slate-900">1.5M ₺</td>
+          <td class="text-right pr-2">
+            <span class="chip chip-risk">%27</span>
+          </td>
+          <td class="pl-6">
+            <div class="bar"><div class="bar-fill bg-red-500" style="width: 27%"></div></div>
+          </td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="text-sm border-t-2 border-slate-100 font-semibold">
+          <td class="py-4 pl-2 text-slate-700">Toplam · 5 satışçı</td>
+          <td class="text-right money text-slate-900">29.0M ₺</td>
+          <td class="text-right money text-slate-900">5.8M ₺</td>
+          <td class="text-right money text-slate-900">20.0M ₺</td>
+          <td class="text-right money text-slate-900">15.2M ₺</td>
+          <td class="text-right pr-2"><span class="chip chip-prob">%52</span></td>
+          <td class="pl-6">
+            <div class="bar"><div class="bar-fill bg-amber-500" style="width: 52%"></div></div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="mt-4 p-3 rounded-lg bg-slate-50 border border-slate-100 flex items-start gap-3">
+      <svg class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <div class="text-xs text-slate-600 leading-relaxed">
+        <span class="font-semibold text-slate-800">Taahhüt:</span> Satışçının kendi verdiği ay sonu commitment. Sistem önerir, satışçı onaylar. Taahhüt ↔ gerçekleşme sapması haftalık review'da konuşulur.
+        <span class="font-semibold text-slate-800 ml-2">Açık sipariş:</span> Faturalanmamış ama onaylı siparişler (ay sonuna kadar fatura olması beklenen).
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== -->
+  <!-- Alt: Ürün / Müşteri / Kanal kırılımı -->
+  <!-- ============================== -->
+  <div class="grid grid-cols-3 gap-5">
+
+    <!-- Kanal: Yenileme vs Yeni -->
+    <div class="card p-5">
+      <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <span class="w-1 h-4 rounded-full bg-slate-400"></span>
+        Kanal Kırılımı
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <div class="flex items-center justify-between text-sm mb-1">
+            <span class="text-slate-700 font-medium">Yenileme</span>
+            <span class="font-bold money text-slate-900">2.1M ₺ <span class="text-xs text-slate-400 font-normal">(%43)</span></span>
+          </div>
+          <div class="bar"><div class="bar-fill bg-slate-400" style="width: 43%"></div></div>
+          <div class="text-xs text-slate-500 mt-1">14 fatura · 11 müşteri · Ort. 150K</div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between text-sm mb-1">
+            <span class="text-slate-700 font-medium">Yeni Satış</span>
+            <span class="font-bold money text-slate-900">2.8M ₺ <span class="text-xs text-slate-400 font-normal">(%57)</span></span>
+          </div>
+          <div class="bar"><div class="bar-fill bg-slate-800" style="width: 57%"></div></div>
+          <div class="text-xs text-slate-500 mt-1">19 fatura · 17 müşteri · Ort. 147K</div>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-slate-100">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-500">Churn riski (90 gün içinde bitecek)</span>
+          <span class="font-semibold text-red-600">3 müşteri · 890K ₺</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ürün -->
+    <div class="card p-5">
+      <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <span class="w-1 h-4 rounded-full bg-slate-400"></span>
+        Ürün Bazlı (Fatura)
+      </h3>
+      <div class="space-y-2.5">
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-700">Enroute</span>
+          <div class="flex items-center gap-2">
+            <div class="w-20 bar"><div class="bar-fill bg-slate-700" style="width: 100%"></div></div>
+            <span class="font-semibold money w-16 text-right text-slate-900">1.92M</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-700">Stokbar</span>
+          <div class="flex items-center gap-2">
+            <div class="w-20 bar"><div class="bar-fill bg-slate-600" style="width: 63%"></div></div>
+            <span class="font-semibold money w-16 text-right text-slate-900">1.21M</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-700">Quest</span>
+          <div class="flex items-center gap-2">
+            <div class="w-20 bar"><div class="bar-fill bg-slate-500" style="width: 41%"></div></div>
+            <span class="font-semibold money w-16 text-right text-slate-900">0.79M</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-700">Varuna</span>
+          <div class="flex items-center gap-2">
+            <div class="w-20 bar"><div class="bar-fill bg-slate-400" style="width: 28%"></div></div>
+            <span class="font-semibold money w-16 text-right text-slate-900">0.54M</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-700">Hosting</span>
+          <div class="flex items-center gap-2">
+            <div class="w-20 bar"><div class="bar-fill bg-slate-400" style="width: 23%"></div></div>
+            <span class="font-semibold money w-16 text-right text-slate-900">0.44M</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Müşteri -->
+    <div class="card p-5">
+      <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <span class="w-1 h-4 rounded-full bg-slate-400"></span>
+        Top 5 Müşteri
+      </h3>
+      <div class="space-y-2.5 text-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-700 truncate pr-2">BRİSA BRİDGESTONE</span>
+          <span class="font-semibold money">0.96M</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-700 truncate pr-2">KOÇ SİSTEM</span>
+          <span class="font-semibold money">0.74M</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-700 truncate pr-2">ENERJİSA ÜRETİM</span>
+          <span class="font-semibold money">0.51M</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-700 truncate pr-2">TURKCELL TEKNOLOJİ</span>
+          <span class="font-semibold money">0.43M</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-700 truncate pr-2">VAKIF EMEKLİLİK</span>
+          <span class="font-semibold money">0.38M</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span class="text-slate-500">Top 5 / Toplam</span>
+        <span class="font-semibold text-slate-700">%62.5 konsantrasyon</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer note -->
+  <div class="mt-6 text-center text-xs text-slate-400">
+    Son güncelleme: 22 Nisan 2026, 14:32 · Veri kaynağı: SP_COCKPIT_FATURA + VIEW_CP_EXCEL_FATURA + Varuna Closed siparişleri
+  </div>
+
+</div>
+</body>
+</html>

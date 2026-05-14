@@ -115,6 +115,11 @@
     .funnel-card.dimmed { opacity: 0.55; transform: none; }
     .funnel-card.dimmed:hover { opacity: 0.75; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
 
+    /* Teklif kartı alt-satır aktif göstergesi */
+    [data-teklif-sub] { position: relative; transition: background-color .18s ease; }
+    [data-teklif-sub="bekleme"].teklif-sub-active { background: #eff6ff !important; box-shadow: inset 2px 0 0 #3b82f6; }
+    [data-teklif-sub="kabul"].teklif-sub-active   { background: #ecfdf5 !important; box-shadow: inset 2px 0 0 #10b981; }
+
     /* Conversion badge */
     .conv-badge {
         display: inline-flex; align-items: center; justify-content: center;
@@ -257,6 +262,77 @@
         padding: 6px 8px; margin-top: 8px;
         font-size: 10px; color: #92400e; line-height: 1.4;
     }
+
+    /* ═══ HERO ROW — Birleşik panel (sol) + Hedef yan paneli (sağ) ═══
+       Sol: 3 KPI + Funnel zinciri (geniş)
+       Sağ: Hedef metric paneli (dikey, 280px sabit) */
+    .hero-row {
+        display: flex;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .hero-row > .fa-card { margin-bottom: 0; }
+    .hero-row > .fa-card.hero-main { flex: 1; min-width: 0; }
+    .hero-row > .fa-card.hero-aside {
+        width: 280px;
+        flex-shrink: 0;
+        position: relative;
+        padding: 16px 20px 18px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    #hedefStripe {
+        position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: #94a3b8; transition: background .25s ease;
+    }
+    .hero-aside-title {
+        font-size: 10px; font-weight: 700; color: #94a3b8;
+        letter-spacing: 0.08em;
+        margin-top: 2px;
+    }
+    .hero-aside-donut {
+        margin: 8px auto 14px;
+        position: relative;
+        width: 120px; height: 120px;
+    }
+    .hero-aside-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .hero-aside-donut svg circle {
+        transition: stroke-dasharray 1.1s cubic-bezier(.4,0,.2,1), stroke .25s ease;
+    }
+    .hero-aside-donut > span {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: 800; color: #0f172a;
+        font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+    }
+    .hero-aside-rows {
+        display: flex; flex-direction: column;
+        border-top: 1px solid #f1f5f9;
+    }
+    .hero-aside-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .hero-aside-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .hero-aside-row .label {
+        font-size: 10px; font-weight: 700; color: #94a3b8;
+        letter-spacing: 0.06em;
+    }
+    .hero-aside-row .value {
+        font-size: 14px; font-weight: 800; color: #0f172a;
+        font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+        white-space: nowrap;
+    }
+    .hero-aside-row .value.muted { color: #64748b; font-weight: 700; }
+    .hero-aside-row .value.danger { color: #dc2626; }
+    .hero-aside-row .suffix { font-size: 11px; font-weight: 600; color: #64748b; margin-left: 3px; }
+
+    @@media (max-width: 1023px) {
+        .hero-row { flex-direction: column; }
+        .hero-row > .fa-card.hero-aside { width: 100%; }
+    }
 </style>
 
 <div class="fa-dash" style="position:sticky; top:-32px; z-index:40; background:#f8fafc; margin:-32px 0 0; padding:16px 0 10px; box-shadow:0 8px 12px -8px rgba(15,23,42,0.08);">
@@ -267,99 +343,421 @@
             <h1 class="text-[22px] font-bold text-[#0f172a] tracking-tight">Fırsat Analizi</h1>
             <p class="text-[12px] text-[#94a3b8] mt-0.5 font-medium">Fırsattan Faturaya Uçtan Uca Dönüşüm İzleme</p>
         </div>
-        <div class="flex items-center gap-1 bg-[#f8fafc] rounded-xl p-1" id="filterTabs">
-            <button class="ftab" data-filter="lastmonth">Geçen ay</button>
-            <button class="ftab active" data-filter="month">Bu ay</button>
-            <button class="ftab" data-filter="q@((DateTime.Now.Month - 1) / 3 + 1)">@((DateTime.Now.Month - 1) / 3 + 1). Çeyrek</button>
-            <button class="ftab" data-filter="ytd">YTD</button>
-            <button class="ftab" data-filter="all">Tümü</button>
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 bg-[#f8fafc] rounded-xl px-2 py-1" id="filterTabs">
+                <span class="text-[12px] text-[#64748b] font-medium pl-1 pr-0.5 select-none">Filtre:</span>
+                <button class="ftab active" data-filter="month">Bu ay</button>
+                <button class="ftab" data-filter="lastmonth">Geçen ay</button>
+                <button class="ftab" data-filter="q1">1. Çeyrek</button>
+                <button class="ftab" data-filter="q2">2. Çeyrek</button>
+                <button class="ftab" data-filter="q3">3. Çeyrek</button>
+                <button class="ftab" data-filter="q4">4. Çeyrek</button>
+                <button class="ftab" data-filter="ytd">YTD</button>
+                <button class="ftab" data-filter="all">Tümü</button>
+            </div>
+            <button id="btnRefreshAll" type="button" title="Verileri yenile (cache'i atla)"
+                    class="flex items-center justify-center w-9 h-9 rounded-xl bg-[#f8fafc] hover:bg-white border border-transparent hover:border-[#e2e8f0] text-[#64748b] hover:text-[#0f172a] transition-all"
+                    aria-label="Verileri yenile">
+                <i class="bi bi-arrow-clockwise text-[15px]"></i>
+            </button>
+            <span id="dataAgeBadge" class="hidden text-[11px] text-[#94a3b8] font-medium ml-0.5"></span>
         </div>
     </div>
 
-    <!-- ═══ FUNNEL CARDS ═══ -->
-    <div class="flex flex-wrap items-stretch gap-2 mb-4" id="funnelRow">
 
-        <!-- 1: Tüm Fırsatlar -->
-        <div class="fa-card funnel-card fc-orange basis-[200px] flex-1 fade-up fade-up-d1" data-funnel="1" onclick="window._clickFunnel(1)">
-            <div class="flex items-start justify-between mb-3">
-                <span class="text-[11px] font-semibold text-[#64748b]">Tüm Fırsatlar <span id="dot1" class="kpi-status-dot"></span></span>
-                <div class="fc-icon"><i class="bi bi-layers"></i></div>
+    @* ═══ HEDEF KARNE — ⓘ ikon + yan panel CSS ═══ *@
+    <style>
+        .hk-info-btn {
+            background: rgba(14,165,233,.08); border: 0; color: #0ea5e9;
+            width: 22px; height: 22px; border-radius: 50%;
+            cursor: pointer; opacity: .85; transition: all .2s;
+            font-size: 12px; display: inline-flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .hk-info-btn:hover { opacity: 1; background: #0ea5e9; color: #fff; transform: scale(1.08); }
+        .hk-info-btn i { font-size: 13px; line-height: 1; }
+        .hk-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); backdrop-filter: blur(4px); z-index: 999; opacity: 0; pointer-events: none; transition: opacity .25s; }
+        .hk-overlay.open { opacity: 1; pointer-events: auto; }
+        .hk-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 480px; max-width: 92vw; background: #fff; z-index: 1000; box-shadow: -10px 0 40px rgba(15,23,42,.15); transform: translateX(100%); transition: transform .35s cubic-bezier(.4,0,.2,1); overflow-y: auto; }
+        .hk-panel.open { transform: translateX(0); }
+        .hk-panel-head { padding: 24px 28px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .hk-panel-title { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
+        .hk-panel-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; font-weight: 600; letter-spacing: .06em; }
+        .hk-panel-close { background: #f1f5f9; border: 0; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: #64748b; transition: all .2s; }
+        .hk-panel-close:hover { background: #e2e8f0; color: #0f172a; }
+        .hk-panel-body { padding: 20px 28px 32px; }
+        .hk-stat { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+        .hk-stat-l { font-size: 11px; color: #64748b; font-weight: 600; }
+        .hk-stat-v { font-size: 14px; color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .hk-bar { height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+        .hk-bar-fill { height: 100%; border-radius: 3px; width: 0; transition: width .9s cubic-bezier(.4,0,.2,1); }
+        .hk-bar-fill.green  { background: linear-gradient(90deg, #10b981, #059669); }
+        .hk-bar-fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+        .hk-bar-fill.red    { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .hk-bar-fill.neutral{ background: linear-gradient(90deg, #94a3b8, #64748b); }
+        .hk-mini-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
+        .hk-mini-table th { font-weight: 700; color: #94a3b8; font-size: 9px; letter-spacing: .05em; padding: 6px 4px; text-align: right; }
+        .hk-mini-table th:first-child, .hk-mini-table td:first-child { text-align: left; }
+        .hk-mini-table td { padding: 6px 4px; border-top: 1px solid #f1f5f9; font-variant-numeric: tabular-nums; text-align: right; color: #0f172a; }
+        .hk-perf-block { background: #f8fafc; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+        .hk-perf-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+        .hk-perf-label { font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: .04em; }
+        .hk-perf-pct { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+        .hk-perf-nums { font-size: 11px; color: #64748b; margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+        .hk-perf-nums b { color: #0f172a; font-weight: 700; }
+        .hk-section { margin-top: 24px; }
+        .hk-section-title { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 8px; letter-spacing: -0.01em; }
+        .hk-link { display: inline-flex; align-items: center; gap: 4px; color: #0ea5e9; font-size: 11px; font-weight: 700; text-decoration: none; margin-top: 16px; }
+        .hk-link:hover { text-decoration: underline; }
+    </style>
+
+    <div class="hk-overlay" id="hkOverlay" onclick="window._closeHedefKarne()"></div>
+    <aside class="hk-panel" id="hkPanel">
+        <div class="hk-panel-head">
+            <div>
+                <div class="hk-panel-sub" id="hkType"></div>
+                <div class="hk-panel-title" id="hkTitle">—</div>
             </div>
-            <p id="kpiVal1" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
-            <p id="kpiSub1" class="text-[13px] text-[#64748b] mt-2 font-semibold">--</p>
-            <div id="kpiNote1" class="hidden"></div><span id="kpiNoteText1" class="hidden"></span>
-            <div class="flex-1"></div>
-            <div id="kpiLost1" class="hidden">
-                <span id="kpiLost1Text" class="text-[10px] font-semibold text-red-500 leading-tight break-words"></span>
-            </div>
+            <button class="hk-panel-close" onclick="window._closeHedefKarne()"><i class="bi bi-x-lg"></i></button>
         </div>
+        <div class="hk-panel-body" id="hkBody"></div>
+    </aside>
 
-        <!-- 2: Dönem fırsat potansiyeli -->
-        <div class="fa-card funnel-card fc-violet basis-[200px] flex-1 fade-up fade-up-d2" data-funnel="2" onclick="window._clickFunnel(2)">
-            <div class="flex items-start justify-between mb-3">
-                <span id="kpiLabel2" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Fırsat</span>
+    <script>
+    (function(){
+        const fmtTLm = v => {
+            v = Number(v) || 0;
+            if (Math.abs(v) >= 1e9) return '₺' + (v/1e9).toFixed(1) + 'Mr';
+            if (Math.abs(v) >= 1e6) return '₺' + (v/1e6).toFixed(1) + 'M';
+            if (Math.abs(v) >= 1e3) return '₺' + (v/1e3).toFixed(0) + 'K';
+            return '₺' + Math.round(v);
+        };
+        const fmtPct = v => (Math.round((Number(v)||0)*10)/10).toLocaleString('tr-TR') + '%';
+        const renkClass = v => v >= 85 ? 'green' : v >= 70 ? 'yellow' : v > 0 ? 'red' : 'neutral';
+        const renkHex   = r => r === 'green' ? '#059669' : r === 'yellow' ? '#d97706' : r === 'red' ? '#dc2626' : '#94a3b8';
+
+        // activeFilter -> ay aralığı (1-based, inclusive)
+        function donemAyRange(filt) {
+            const now = new Date();
+            const m = now.getMonth() + 1;
+            switch ((filt || 'month').toLowerCase()) {
+                case 'lastmonth': { const d = new Date(now.getFullYear(), now.getMonth()-1, 1); return [d.getMonth()+1, d.getMonth()+1, _aylarLabel(d.getMonth()+1) + ' ' + d.getFullYear()]; }
+                case 'q1': return [1, 3, '1. Çeyrek'];
+                case 'q2': return [4, 6, '2. Çeyrek'];
+                case 'q3': return [7, 9, '3. Çeyrek'];
+                case 'q4': return [10, 12, '4. Çeyrek'];
+                case 'ytd': return [1, m, 'YTD'];
+                case 'all': return [1, 12, 'Tüm Yıl'];
+                case 'month':
+                default: return [m, m, _aylarLabel(m) + ' ' + now.getFullYear()];
+            }
+        }
+        function _aylarLabel(ay) {
+            return ['','Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][ay] || '';
+        }
+
+        function metricBlock(label, hedef, gerc, opts) {
+            opts = opts || {};
+            const pct = hedef > 0 ? gerc / hedef * 100 : 0;
+            const renk = renkClass(pct);
+            const barPct = Math.min(100, Math.max(0, pct));
+            const pctTxt = hedef > 0 ? fmtPct(pct) : '—';
+            return '<div class="hk-perf-block">' +
+                '<div class="hk-perf-head">' +
+                    '<span class="hk-perf-label">' + label + '</span>' +
+                    '<span class="hk-perf-pct" style="color:' + renkHex(renk) + ';">' + pctTxt + '</span>' +
+                '</div>' +
+                '<div class="hk-perf-nums"><b>' + fmtTLm(gerc) + '</b> / ' + fmtTLm(hedef) + '</div>' +
+                '<div class="hk-bar"><div class="hk-bar-fill ' + renk + '" data-pct="' + barPct + '"></div></div>' +
+            '</div>';
+        }
+
+        window._openHedefKarne = function(type, name) {
+            const ov = document.getElementById('hkOverlay');
+            const pn = document.getElementById('hkPanel');
+            const body = document.getElementById('hkBody');
+            const title = document.getElementById('hkTitle');
+            const sub = document.getElementById('hkType');
+            ov.classList.add('open'); pn.classList.add('open');
+            sub.innerText = type === 'temsilci' ? 'Satış Temsilcisi' : 'Ürün Hedefi';
+            title.innerText = decodeURIComponent(name);
+            body.innerHTML = '<div style="text-align:center;padding:48px;color:#94a3b8;font-size:12px;">Yükleniyor…</div>';
+
+            const url = type === 'temsilci'
+                ? '/Hedef/TemsilciByAd?ad=' + name
+                : '/Hedef/UrunDetay?urunAd=' + name;
+
+            fetch(url).then(r => r.json()).then(j => {
+                if (!j.ok) {
+                    body.innerHTML = '<div style="padding:24px;color:#94a3b8;font-size:12px;">Bu kaynak için hedef bulunmuyor.<br><span style="font-size:10px;color:#cbd5e1;">' + (j.error||'') + '</span></div>';
+                    return;
+                }
+                const d = j.data;
+                const filt = (typeof activeFilter !== 'undefined') ? activeFilter : 'month';
+                const range = donemAyRange(filt);
+                const donemMin = range[0], donemMax = range[1], donemLab = range[2];
+
+                // Seçili dönem toplamı (ay bazında)
+                let donHedef = 0, donGerc = 0, donHedYS = 0, donGerYS = 0, donHedYen = 0, donGerYen = 0;
+                (d.ayToplamlari||[]).forEach(a => {
+                    if (a.ay >= donemMin && a.ay <= donemMax) {
+                        donHedef  += Number(a.hedef) || 0;
+                        donGerc   += Number(a.gerceklesen) || 0;
+                        donHedYS  += Number(a.hedefYS) || 0;
+                        donGerYS  += Number(a.gerceklesenYS) || 0;
+                        donHedYen += Number(a.hedefYen) || 0;
+                        donGerYen += Number(a.gerceklesenYen) || 0;
+                    }
+                });
+
+                // Ürün × seçili dönem (UrunAyMatris üzerinden topla)
+                const urunDonem = {};  // urunId -> {urunAd, hedef, gerc}
+                (d.urunAyMatris||[]).forEach(c => {
+                    if (c.ay >= donemMin && c.ay <= donemMax) {
+                        if (!urunDonem[c.urunId]) urunDonem[c.urunId] = { urunAd: c.urunAd, hedef: 0, gerc: 0 };
+                        urunDonem[c.urunId].hedef += Number(c.hedef) || 0;
+                        urunDonem[c.urunId].gerc  += Number(c.gerceklesen) || 0;
+                    }
+                });
+
+                let html = '';
+
+                // 1) Yıllık özet (header)
+                html += '<div class="hk-stat"><span class="hk-stat-l">Yıllık Hedef</span><span class="hk-stat-v">' + fmtTLm(d.yillikHedef) + '</span></div>';
+
+                // 2) YTD
+                html += '<div style="margin-top:14px;">' + metricBlock('YTD Hedef vs Gerçekleşen', d.ytdHedef, d.ytdGerceklesen) + '</div>';
+
+                // 3) Seçili dönem
+                html += metricBlock(donemLab + ' · Hedef vs Gerç.', donHedef, donGerc);
+
+                if (type === 'temsilci') {
+                    // 4a) YS / Yenileme — Seçili dönem
+                    html += '<div class="hk-section-title" style="margin-top:18px;">Yeni Satış · Yenileme — ' + donemLab + '</div>';
+                    html += metricBlock('Yeni Satış', donHedYS, donGerYS);
+                    html += metricBlock('Yenileme',   donHedYen, donGerYen);
+
+                    // 4b) YS / Yenileme — Yıllık
+                    html += '<div class="hk-section-title" style="margin-top:18px;">Yeni Satış · Yenileme — Yıllık</div>';
+                    html += metricBlock('Yeni Satış', d.yillikHedefYS, d.gerceklesenYS);
+                    html += metricBlock('Yenileme',   d.yillikHedefYen, d.gerceklesenYen);
+
+                    // 5) Ürünler — Seçili dönem (Hedef + Gerç + %)
+                    html += '<div class="hk-section"><div class="hk-section-title">Ürünler · ' + donemLab + '</div><table class="hk-mini-table"><thead><tr><th>Ürün</th><th>Hedef</th><th>Gerç.</th><th>%</th></tr></thead><tbody>';
+                    Object.values(urunDonem).sort((a,b) => b.hedef - a.hedef).forEach(u => {
+                        const pct = u.hedef > 0 ? u.gerc / u.hedef * 100 : 0;
+                        const r = renkClass(pct);
+                        html += '<tr><td>' + u.urunAd + '</td><td>' + fmtTLm(u.hedef) + '</td><td><b>' + fmtTLm(u.gerc) + '</b></td><td style="color:' + renkHex(r) + ';font-weight:700;">' + (u.hedef>0?fmtPct(pct):'—') + '</td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+
+                    html += '<a href="/Hedef/Karne#temsilci=' + d.temsilciId + '" class="hk-link">Tüm hedefleri aç <i class="bi bi-arrow-right"></i></a>';
+                } else {
+                    // Ürün paneli — YS / Yenileme: Seçili Dönem + Yıllık (ayToplamlari ürün için de mevcut)
+                    html += '<div class="hk-section-title" style="margin-top:18px;">Yeni Satış · Yenileme — ' + donemLab + '</div>';
+                    html += metricBlock('Yeni Satış', donHedYS, donGerYS);
+                    html += metricBlock('Yenileme',   donHedYen, donGerYen);
+
+                    html += '<div class="hk-section-title" style="margin-top:18px;">Yeni Satış · Yenileme — Yıllık</div>';
+                    // gerceklesenYS/gerceklesenYen ürün modelinde yok → ayToplamlari toplamı kullan
+                    let yilGerYS = 0, yilGerYen = 0;
+                    (d.ayToplamlari||[]).forEach(a => {
+                        yilGerYS  += Number(a.gerceklesenYS) || 0;
+                        yilGerYen += Number(a.gerceklesenYen) || 0;
+                    });
+                    html += metricBlock('Yeni Satış', d.yillikHedefYS, yilGerYS);
+                    html += metricBlock('Yenileme',   d.yillikHedefYen, yilGerYen);
+
+                    if ((d.temsilciDagilimi||[]).length) {
+                        html += '<div class="hk-section"><div class="hk-section-title">Temsilci Dağılımı — Yıllık Hedef</div><table class="hk-mini-table"><thead><tr><th>Temsilci</th><th>YS</th><th>Yen</th><th>Top</th></tr></thead><tbody>';
+                        d.temsilciDagilimi.forEach(t => html += '<tr><td>' + t.ad + '</td><td>' + fmtTLm(t.hedefYS) + '</td><td>' + fmtTLm(t.hedefYen) + '</td><td><b>' + fmtTLm(t.yillikHedef) + '</b></td></tr>');
+                        html += '</tbody></table></div>';
+                    }
+                    html += '<div style="margin-top:12px;padding:10px 12px;background:#fef3c7;border-radius:8px;font-size:10px;color:#92400e;line-height:1.5;"><i class="bi bi-info-circle"></i> Ürün-bazlı gerçekleşen henüz kalem-seviyesinde hesaplanmıyor — temsilci ürün dağılımı yıllık hedef olarak gösteriliyor.</div>';
+                    html += '<a href="/Hedef/Karne" class="hk-link">Tüm hedefleri aç <i class="bi bi-arrow-right"></i></a>';
+                }
+
+                body.innerHTML = html;
+                requestAnimationFrame(() => {
+                    body.querySelectorAll('.hk-bar-fill').forEach(el => el.style.width = (el.dataset.pct || 0) + '%');
+                });
+            }).catch(err => {
+                body.innerHTML = '<div style="padding:24px;color:#dc2626;font-size:12px;">Bağlantı hatası: ' + err.message + '</div>';
+            });
+        };
+
+        window._closeHedefKarne = function() {
+            document.getElementById('hkOverlay').classList.remove('open');
+            document.getElementById('hkPanel').classList.remove('open');
+        };
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') window._closeHedefKarne(); });
+    })();
+    </script>
+
+    <!-- ═══ BİRLEŞİK PANEL: 3 Kart + Funnel Zinciri ═══ -->
+    <div class="hero-row mb-6">
+    <div class="fa-card hero-main p-2 fade-up">
+    <!-- ═══ 3 KART (Fırsat / Teklif / Satış) — eşit genişlik, 3-zone grid ═══ -->
+    <div class="grid grid-cols-1 md:grid-cols-3 items-stretch gap-1.5 mb-1.5" id="funnelRow">
+
+        <!-- 1: Fırsat (dönem içi, teklif verilmemiş) -->
+        <div class="funnel-card fc-violet fade-up fade-up-d1 flex flex-col" style="background:#fff; border:1px solid #eef2f6; border-radius:10px; padding:10px 14px 12px; min-height:150px;" data-funnel="2" onclick="window._clickFunnel(2)">
+            <!-- Zone 1: Header -->
+            <div class="flex items-center justify-between">
+                <span id="kpiLabel2" class="text-[12px] font-semibold text-[#64748b]">Bu Ay Fırsat</span>
                 <div class="fc-icon"><i class="bi bi-bullseye"></i></div>
             </div>
-            <p id="kpiVal2" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
-            <p id="kpiSub2a" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
-            <span id="kpiSub2" class="hidden"></span>
-            <div class="flex-1"></div>
-            <div id="kpiLost2" class="hidden">
-                <span id="kpiLost2Text" class="text-[10px] font-semibold text-red-500 leading-tight break-words"></span>
+            <!-- Zone 2: Body (centered big number + sub) -->
+            <div class="flex-1 flex flex-col items-center justify-center text-center">
+                <p id="kpiVal2" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+                <p id="kpiSub2a" class="text-[11px] text-[#94a3b8] mt-1.5 font-medium">--</p>
+                <span id="kpiSub2" class="hidden"></span>
             </div>
         </div>
 
-        <!-- 3: Donem teklif -->
-        <div class="fa-card funnel-card fc-blue basis-[200px] flex-1 fade-up fade-up-d3" data-funnel="3" onclick="window._clickFunnel(3)">
-            <div class="flex items-start justify-between mb-3">
-                <span id="kpiLabel3" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Teklif</span>
-                <div class="fc-icon"><i class="bi bi-file-earmark-text"></i></div>
+        <!-- 2: Teklif (BEKLEMEDE + KABUL EDİLDİ — stacked kompakt) -->
+        <div class="funnel-card fc-blue fade-up fade-up-d2 flex flex-col" id="teklifCard" data-funnel="3,4,34" style="background:#fff; border:1px solid #eef2f6; border-radius:10px; padding:10px 14px 12px; min-height:150px;">
+            <!-- Zone 1+2: Header + Body (kümülatif teklif tıklaması) -->
+            <div class="cursor-pointer flex flex-col flex-1" onclick="window._clickFunnel(34)">
+                <!-- Zone 1: Header -->
+                <div class="flex items-center justify-between">
+                    <span id="kpiLabel3" class="text-[12px] font-semibold text-[#64748b]">Bu Ay Teklif</span>
+                    <div class="fc-icon"><i class="bi bi-file-earmark-text"></i></div>
+                </div>
+<!-- Zone 2: Body (centered big number) -->
+                <div class="flex-1 flex flex-col items-center justify-center text-center">
+                    <p id="kpiValTeklifTotal" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+                </div>
             </div>
-            <p id="kpiVal3" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
-            <p id="kpiSub3" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
-            <div class="flex-1"></div>
-            <div id="kpiLost3" class="hidden">
-                <span id="kpiLost3Text" class="text-[10px] font-semibold text-red-500 leading-tight break-words"></span>
+            <!-- Zone 3: Footer (stacked rows — aynı Satış pattern'i) -->
+            <div class="mt-2 pt-2 border-t border-[#f1f5f9] space-y-1">
+                <div class="flex items-center justify-between cursor-pointer rounded-md px-1 py-0.5 -mx-1 transition-colors hover:bg-blue-50" data-teklif-sub="bekleme" onclick="event.stopPropagation(); window._clickFunnel(3)">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        <span class="text-[12px] text-[#334155] font-semibold">Beklemede</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="kpiSub3" class="text-[10px] text-[#94a3b8] font-medium">--</span>
+                        <span id="kpiVal3" class="text-[13px] font-bold text-[#0f172a]">--</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between cursor-pointer rounded-md px-1 py-0.5 -mx-1 transition-colors hover:bg-emerald-50" data-teklif-sub="kabul" onclick="event.stopPropagation(); window._clickFunnel(4)">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span class="text-[12px] text-[#334155] font-semibold">Kabul edildi</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="kpiSub4" class="text-[10px] text-[#94a3b8] font-medium">--</span>
+                        <span id="kpiVal4" class="text-[13px] font-bold text-[#0f172a]">--</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 4: Dönem sipariş -->
-        <div class="fa-card funnel-card fc-cyan basis-[200px] flex-1 fade-up fade-up-d4" data-funnel="4" onclick="window._clickFunnel(4)">
-            <div class="flex items-start justify-between mb-3">
-                <span id="kpiLabel4" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Sipariş</span>
-                <div class="fc-icon"><i class="bi bi-cart-check"></i></div>
-            </div>
-            <p id="kpiVal4" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
-            <p id="kpiSub4" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
-            <div id="kpiLost4" class="hidden mt-1.5">
-                <p id="kpiLost4Text" class="text-[10px] text-amber-600 leading-tight"></p>
-            </div>
-        </div>
-
-        <!-- 5: Dönem satış faturası -->
-        <div class="fa-card funnel-card fc-green basis-[200px] flex-1 fade-up fade-up-d5" data-funnel="5" onclick="window._clickFunnel(5)">
-            <div class="flex items-start justify-between mb-3">
-                <span id="kpiLabel5" class="text-[11px] font-semibold text-[#64748b]">Bu Ay Satış Faturası</span>
+        <!-- 3: Satış (fatura) — Yenileme + Yeni Satış -->
+        <div class="funnel-card fc-green fade-up fade-up-d3 flex flex-col" style="background:#fff; border:1px solid #eef2f6; border-radius:10px; padding:10px 14px 12px; min-height:168px;" data-funnel="5" onclick="window._clickFunnel(5)">
+            <!-- Zone 1: Header -->
+            <div class="flex items-center justify-between">
+                <span id="kpiLabel5" class="text-[12px] font-semibold text-[#64748b]">Bu Ay Satış</span>
                 <div class="fc-icon"><i class="bi bi-receipt"></i></div>
             </div>
-            <p id="kpiVal5" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
-            <p id="kpiSub5" class="text-[11px] text-[#94a3b8] mt-2 font-medium">--</p>
+            <!-- Zone 2: Body (centered big number + sub) -->
+            <div class="flex-1 flex flex-col items-center justify-center text-center">
+                <p id="kpiVal5" class="text-[22px] font-extrabold text-[#0f172a] leading-none tracking-tight">--</p>
+                <p id="kpiSub5" class="text-[11px] text-[#94a3b8] mt-1.5 font-medium">--</p>
+            </div>
+            <!-- Zone 3: Footer (Yenileme / Yeni Satış) -->
+            <div class="mt-2 pt-2 border-t border-[#f1f5f9] space-y-1">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span class="text-[12px] text-[#334155] font-semibold">Yenileme</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="kpiSatisYenilemeAdet" class="text-[10px] text-[#94a3b8] font-medium">0</span>
+                        <span id="kpiSatisYenilemeTutar" class="text-[13px] font-bold text-[#0f172a]">—</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        <span class="text-[12px] text-[#334155] font-semibold">Yeni Satış</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="kpiSatisYeniAdet" class="text-[10px] text-[#94a3b8] font-medium">0</span>
+                        <span id="kpiSatisYeniTutar" class="text-[13px] font-bold text-[#0f172a]">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gizli (JS referansları için) -->
+        <div id="hiddenLegacyRefs" class="hidden">
+            <span id="kpiVal1"></span><span id="kpiSub1"></span><span id="dot1"></span>
+            <span id="kpiNote1"></span><span id="kpiNoteText1"></span>
+            <span id="kpiLost1"></span><span id="kpiLost1Text"></span>
+            <span id="kpiLost2" class="hidden"></span><span id="kpiLost2Text"></span>
+            <span id="kpiLost3" class="hidden"></span><span id="kpiLost3Text"></span>
+            <span id="kpiLost4" class="hidden"></span><span id="kpiLost4Text"></span>
+            <span id="kpiLabel4"></span>
+            <span id="kpiSatisDigerRow" class="hidden"><span id="kpiSatisDigerAdet"></span><span id="kpiSatisDigerTutar"></span></span>
         </div>
 
     </div>
 
-    <!-- ═══ FUNNEL EXPAND PANEL — tek trigger, timeline zincir ═══ -->
-    <div class="fnl-single-trigger" id="funnelSingleTrigger" onclick="toggleFunnelExpand(0)">
-        <div class="fnl-st-line"></div>
-        <div class="fnl-st-pill">
-            <span>Funnel zincirini gör</span>
-            <i class="bi bi-chevron-down fnl-chev"></i>
+
+    <!-- ═══ FUNNEL ZİNCİRİ ═══ -->
+    <div id="funnelInlinePanel" class="fade-up" style="padding: 8px 6px 4px; border-top: 1px solid #eef2f6;">
+        <div id="funnelExpandContent"></div>
+
+        <!-- ── Sub-funnel: Yenileme + Yeni Satış (collapsible, alt alta) ── -->
+        <div class="sub-funnel-section">
+            <div id="subFunnelTrigger" class="sub-funnel-trigger" onclick="window.toggleSubFunnel()" role="button" tabindex="0" aria-expanded="false" aria-controls="subFunnelPanel">
+                <span class="sub-funnel-caret">▶</span>
+                <span>Yenileme &amp; Yeni Satış</span>
+                <span class="sub-funnel-hint">dönüşüm oranlarını gör</span>
+            </div>
+            <div id="subFunnelPanel" class="sub-funnel-panel" aria-hidden="true">
+                <div id="subFunnelContentYen" style="margin-bottom: 14px;"></div>
+                <div id="subFunnelContentYs"></div>
+            </div>
         </div>
-        <div class="fnl-st-line"></div>
     </div>
-    <div id="funnelExpandPanel" class="fnl-expand-panel" aria-hidden="true">
-        <div id="funnelExpandContent" class="fnl-expand-inner"></div>
+    </div><!-- /Birleşik panel (sol) bitiş -->
+
+    <!-- ═══ HEDEF YAN PANELİ — sağ tarafta dikey ═══ -->
+    <div class="fa-card hero-aside fade-up">
+        <div id="hedefStripe"></div>
+        <div class="hero-aside-title" id="hedefDonemLabel">Bu Ay Hedefi</div>
+
+        <div class="hero-aside-donut">
+            <svg viewBox="0 0 120 120" aria-label="Hedef gerçekleşmesi">
+                <circle cx="60" cy="60" r="48" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+                <circle id="hedefBarBig" cx="60" cy="60" r="48" fill="none" stroke="#94a3b8" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 301.59"/>
+            </svg>
+            <span id="hedefPctBig">--</span>
+        </div>
+
+        <div id="hedefTempoBox" class="hero-aside-rows">
+            <div class="hero-aside-row">
+                <span class="label">Gerçekleşen</span>
+                <span id="hedefGerceklesen" class="value">--</span>
+            </div>
+            <div class="hero-aside-row">
+                <span class="label">Hedef</span>
+                <span id="hedefHedefTutar" class="value muted">--</span>
+            </div>
+            <div class="hero-aside-row">
+                <span class="label">Kalan</span>
+                <span class="value"><span id="hedefKalanGun">--</span><span class="suffix">iş günü</span></span>
+            </div>
+            <div class="hero-aside-row">
+                <span class="label">Günde gerekli</span>
+                <span id="hedefGunlukGerekli" class="value danger">--</span>
+            </div>
+        </div>
     </div>
+    </div><!-- /hero-row bitiş -->
 
     </div>
 
@@ -401,41 +799,114 @@
     .fnl-expand-inner { padding: 24px 28px; }
 
     /* ── Funnel pipeline — clean block flow ── */
-    .fnl-pipe-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
-    .fnl-pipe-title { font-size: 13px; font-weight: 700; color: #0f172a; }
+    .fnl-pipe-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+    .fnl-pipe-title { font-size: 12px; font-weight: 700; color: #0f172a; }
     .fnl-pipe-meta { font-size: 10px; color: #94a3b8; }
 
-    .fnl-pipe { display: flex; align-items: stretch; width: 100%; gap: 0; }
+    /* Funnel zinciri: TEK YATAY OK — chevron clip-path ile 3 aşama birleşik */
+    .fnl-pipe { display: flex; align-items: stretch; width: 100%; gap: 0; position: relative; padding: 2px 0; }
 
     .fnl-pipe-stage {
-        flex: 1 1 0; padding: 14px 8px 12px; text-align: center;
-        border-top: 3px solid var(--stage-color, #e2e8f0);
+        flex: 1 1 0; padding: 8px 24px 8px 26px; text-align: center;
+        background: #f8fafc;
+        clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
+        margin-right: -14px;
         transition: background .15s ease;
+        position: relative;
     }
-    .fnl-pipe-stage:hover { background: #fafbfc; }
-    .fnl-pipe-label { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
-    .fnl-pipe-tutar { font-size: 17px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; }
-    .fnl-pipe-adet  { font-size: 10px; color: #94a3b8; margin-top: 3px; font-weight: 500; }
+    .fnl-pipe-stage:first-child {
+        clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);
+        padding-left: 14px;
+    }
+    .fnl-pipe-stage:last-child {
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%);
+        padding-right: 14px;
+        margin-right: 0;
+    }
+    /* 3 aşama — kart renkleriyle uyumlu hafif tonlar */
+    .fnl-pipe-stage:nth-child(1) { background: #f5f3ff; }  /* Fırsat — violet-50 */
+    .fnl-pipe-stage:nth-child(2) { background: #eff6ff; }  /* Teklif — blue-50  */
+    .fnl-pipe-stage:nth-child(3) { background: #ecfdf5; }  /* Satış  — green-50 */
+    .fnl-pipe-stage:nth-child(1) .fnl-pipe-label { color: #7c3aed; }
+    .fnl-pipe-stage:nth-child(2) .fnl-pipe-label { color: #2563eb; }
+    .fnl-pipe-stage:nth-child(3) .fnl-pipe-label { color: #059669; }
+    .fnl-pipe-stage:hover { filter: brightness(0.97); }
 
+    .fnl-pipe-label { font-size: 10px; font-weight: 700; color: #64748b; letter-spacing: .4px; margin-bottom: 2px; }
+    .fnl-pipe-tutar { font-size: 16px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; line-height: 1.15; }
+    .fnl-pipe-adet  { font-size: 10px; color: #64748b; margin-top: 1px; font-weight: 500; }
+
+    /* Geçiş yüzdesi: aşamalar üzerine mutlak konumla (chevron uzantısıyla çakışan yerde) */
     .fnl-pipe-conv {
-        flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
-        padding: 0; width: 44px;
+        position: absolute; top: 50%; transform: translate(-50%, -50%);
+        z-index: 2; display: flex; align-items: center; gap: 3px;
     }
     .fnl-pipe-pct {
-        font-size: 12px; font-weight: 800;
-        padding: 3px 8px; border-radius: 5px;
-        white-space: nowrap;
+        font-size: 10px; font-weight: 700;
+        padding: 2px 6px; border-radius: 10px;
+        white-space: nowrap; background: #fff; border: 1px solid #cbd5e1; color: #475569;
+        box-shadow: 0 1px 2px rgba(15,23,42,.06);
     }
-    .fnl-pipe-pct.high { color: #059669; background: #f0fdf4; }
-    .fnl-pipe-pct.mid  { color: #d97706; background: #fffbeb; }
-    .fnl-pipe-pct.low  { color: #dc2626; background: #fef2f2; }
+    .fnl-pipe-pct.high, .fnl-pipe-pct.mid, .fnl-pipe-pct.low { color: #475569; background: #fff; border-color: #cbd5e1; }
+    .fnl-pipe-arrow { color: #64748b; font-size: 10px; line-height: 1; }
 
     .fnl-pipe-foot {
         display: flex; align-items: center; justify-content: space-between;
-        margin-top: 14px; padding-top: 10px; border-top: 1px solid #f1f5f9;
-        font-size: 13px; color: #64748b;
+        margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9;
+        font-size: 11px; color: #64748b;
     }
     .fnl-pipe-foot b { color: #0f172a; font-weight: 800; font-size: 14px; }
+
+    /* ── Sub-funnel (Yenileme / Yeni Satış) — collapsible + sekme ── */
+    .sub-funnel-section {
+        margin-top: 10px; border-top: 1px solid #eef2f6;
+    }
+    .sub-funnel-trigger {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 6px 8px;
+        cursor: pointer; user-select: none;
+        font-size: 12px; font-weight: 700; color: #475569;
+        transition: color .15s ease;
+    }
+    .sub-funnel-trigger:hover { color: #0f172a; }
+    .sub-funnel-trigger .sub-funnel-caret {
+        font-size: 11px; color: #94a3b8;
+        transition: transform .2s ease;
+    }
+    .sub-funnel-trigger.open .sub-funnel-caret { transform: rotate(90deg); color: #475569; }
+    .sub-funnel-trigger .sub-funnel-hint { font-size: 10.5px; font-weight: 500; color: #94a3b8; margin-left: 4px; }
+
+    .sub-funnel-panel {
+        max-height: 0; overflow: hidden;
+        opacity: 0;
+        transition: max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s ease;
+    }
+    .sub-funnel-panel.open {
+        max-height: 600px;
+        opacity: 1;
+    }
+
+    .sub-funnel-tabs {
+        display: inline-flex; gap: 2px;
+        background: #f1f5f9; padding: 3px; border-radius: 9px;
+        margin: 4px 0 10px;
+    }
+    .sub-funnel-tab {
+        padding: 6px 14px; font-size: 11.5px; font-weight: 600; color: #64748b;
+        background: transparent; border: 0; border-radius: 7px; cursor: pointer;
+        transition: all .2s ease;
+    }
+    .sub-funnel-tab.active {
+        background: #fff; color: #0f172a;
+        box-shadow: 0 1px 3px rgba(15,23,42,.06), 0 0 0 1px rgba(15,23,42,.04);
+    }
+    .sub-funnel-tab:not(.active):hover { color: #0f172a; }
+    .sub-funnel-tab .sub-funnel-tab-dot {
+        display: inline-block; width: 6px; height: 6px;
+        border-radius: 50%; margin-right: 5px; vertical-align: middle;
+    }
+    .sub-funnel-tab-dot.yen { background: #06b6d4; }
+    .sub-funnel-tab-dot.ys  { background: #8b5cf6; }
 </style>
 
 <div class="fa-dash">
@@ -443,119 +914,12 @@
     <!-- Geçen dönem gizli holder (JS referansları için) -->
     <div id="gecenAyBox" style="display:none;"><span id="gecenAyTutar"></span><span id="gecenAyTrend"></span></div>
 
-
-    <div class="fa-card mb-6 fade-up overflow-hidden" id="hedefPanel">
-        <!-- Başlık: Hedef Analizi + yüzde + bar yanyana -->
-        <div class="px-5 py-4" style="background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);">
-            <div class="flex items-center gap-2 mb-3">
-                <i class="bi bi-bullseye text-indigo-500" style="font-size:12px;"></i>
-                <span class="text-[13px] font-bold text-[#334155]">Hedef Analizi</span>
-                <span class="text-[9px] text-[#94a3b8] font-medium" id="hedefDonemLabel">Bu ay</span>
-            </div>
-            <div class="flex items-center gap-4">
-                <p id="hedefPctBig" class="text-[32px] font-extrabold leading-none tracking-tight" style="min-width:80px;">--</p>
-                <div class="flex-1">
-                    <div class="w-full h-3 rounded-full bg-white/80 overflow-hidden shadow-inner">
-                        <div id="hedefBarBig" class="h-full rounded-full transition-all" style="width:0%; transition-duration:1.5s;"></div>
-                    </div>
-                </div>
-                <div class="flex items-baseline gap-2 shrink-0">
-                    <span id="hedefGerceklesen" class="text-[20px] font-bold text-[#0f172a]">--</span>
-                    <span class="text-[14px] text-[#94a3b8] font-medium">/</span>
-                    <span id="hedefHedefTutar" class="text-[20px] font-bold text-[#64748b]">--</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Alt: 3 kolon -->
-        <div class="grid grid-cols-3 divide-x divide-[#f1f5f9]">
-            <!-- Satış Hızı -->
-            <div class="px-5 py-4" id="salesCycleCard">
-                <div class="flex items-center justify-between mb-3">
-                    <p class="text-[10px] font-bold text-[#94a3b8]">Satış Hızı</p>
-                    <div id="cycleDealCount" class="text-[9px] text-[#94a3b8] font-medium"></div>
-                </div>
-
-                <!-- Toplam süre -->
-                <div class="flex items-center justify-center gap-1.5 mb-3">
-                    <i class="bi bi-clock text-[#94a3b8]" style="font-size:11px;"></i>
-                    <span class="text-[10px] text-[#94a3b8]">Fırsat kapanış ort.</span>
-                    <span id="cycleMainNumber" class="text-[15px] font-extrabold text-[#0f172a]">—</span>
-                    <span class="text-[10px] text-[#94a3b8]">gün</span>
-                </div>
-
-                <!-- Segmented timeline bar -->
-                <div class="flex items-center gap-0 h-[8px] rounded-full overflow-hidden bg-[#f1f5f9] mb-1.5" id="cycleTimeline">
-                    <div id="segFirsatTeklif" class="h-full bg-violet-500 transition-all duration-1000 ease-out rounded-l-full" style="width:0%"></div>
-                    <div id="segTeklifSiparis" class="h-full bg-blue-500 transition-all duration-1000 ease-out" style="width:0%"></div>
-                    <div id="segSiparisFatura" class="h-full bg-emerald-500 transition-all duration-1000 ease-out rounded-r-full" style="width:0%"></div>
-                </div>
-                <div class="flex justify-between text-[8px] text-[#94a3b8] font-medium mb-3">
-                    <span>Fırsat</span><span>Teklif</span><span>Sipariş</span><span>Fatura</span>
-                </div>
-
-                <!-- 3 aşama satırları -->
-                <div class="space-y-1.5 mb-3">
-                    <div class="flex items-center justify-between py-1 px-2 rounded-md bg-violet-50/60">
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-violet-500"></div>
-                            <span class="text-[9px] font-medium text-[#475569]">Fırsat → Teklif</span>
-                        </div>
-                        <span id="cycleFirsatTeklif" class="text-[11px] font-bold text-violet-700">—</span>
-                    </div>
-                    <div class="flex items-center justify-between py-1 px-2 rounded-md bg-blue-50/60">
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                            <span class="text-[9px] font-medium text-[#475569]">Teklif → Sipariş</span>
-                        </div>
-                        <span id="cycleTeklifSiparis" class="text-[11px] font-bold text-blue-700">—</span>
-                    </div>
-                    <div class="flex items-center justify-between py-1 px-2 rounded-md bg-emerald-50/60">
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                            <span class="text-[9px] font-medium text-[#475569]">Sipariş → Fatura</span>
-                        </div>
-                        <span id="cycleSiparisFatura" class="text-[11px] font-bold text-emerald-700">—</span>
-                    </div>
-                </div>
-
-                <!-- Alt istatistikler -->
-                <div class="flex items-center justify-between pt-2 border-t border-[#f1f5f9]">
-                    <div class="text-center">
-                        <div class="text-[8px] text-[#94a3b8] uppercase tracking-wider">En hızlı</div>
-                        <div id="cycleMin" class="text-[11px] font-bold text-emerald-600">—</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-[8px] text-[#94a3b8] uppercase tracking-wider">Medyan</div>
-                        <div id="cycleMedian" class="text-[11px] font-bold text-[#0f172a]">—</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-[8px] text-[#94a3b8] uppercase tracking-wider">En yavaş</div>
-                        <div id="cycleMax" class="text-[11px] font-bold text-red-500">—</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Fırsat dönüşüm chart -->
-            <div class="px-5 py-4">
-                <p class="text-[10px] font-bold text-[#94a3b8] mb-3">Fırsat dönüşüm</p>
-                <div style="height:150px;">
-                    <canvas id="hedefChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Potansiyel analizi -->
-            <div class="px-5 py-4">
-                <p class="text-[10px] font-bold text-[#94a3b8] mb-3">Potansiyel analizi</p>
-                <div class="space-y-2" id="potansiyelArea"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══ FOUR COLUMN: Ürün + Satıcı + Fırsat Sahibi + Müşteri ═══ -->
-    <div class="flex items-center justify-end mb-2">
+    <!-- ═══ FOUR COLUMN: Ürün + Müşteri + Satış Temsilcisi + Fırsat Sahibi (sticky altı — yukarıya taşındı) ═══ -->
+    <div class="flex items-center justify-between gap-2 mb-2" id="breakdownToolbar">
+        <!-- Aktif filtre chip bar -->
+        <div id="activeFilterChips" class="flex items-center gap-2 flex-wrap min-h-[28px]"></div>
         <button id="toggleFirsatSahibiBtn"
-                class="text-[11px] text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded border border-slate-200 bg-white flex items-center gap-1.5">
+                class="text-[11px] text-slate-500 hover:text-slate-700 px-2.5 py-1 rounded border border-slate-200 bg-white flex items-center gap-1.5 flex-shrink-0">
             <i class="bi bi-eye-slash" id="toggleFirsatSahibiIcon" style="font-size:10px;"></i>
             <span id="toggleFirsatSahibiText">Fırsat Sahipleri'ni gizle</span>
         </button>
@@ -577,7 +941,22 @@
             </div>
         </div>
 
-        <!-- 2: Satıcı (Satış Temsilcisi) Bazlı -->
+        <!-- 2: Müşteri Bazlı -->
+        <div data-breakdown-card="musteri">
+            <div class="fa-card p-4 h-full">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                        <i class="bi bi-building text-violet-600" style="font-size:13px;"></i>
+                    </div>
+                    <h2 class="text-[13px] font-bold text-[#0f172a] tracking-tight">Müşteri Bazlı</h2>
+                </div>
+                <div id="customerBars" class="space-y-3 content-panel">
+                    <div class="sh w-full"></div><div class="sh w-3/4"></div><div class="sh w-1/2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3: Satıcı (Satış Temsilcisi) Bazlı -->
         <div data-breakdown-card="satici">
             <div class="fa-card p-4 h-full">
                 <div class="flex items-center gap-2 mb-4">
@@ -592,7 +971,7 @@
             </div>
         </div>
 
-        <!-- 3: Fırsat Sahipleri (gizlenebilir) -->
+        <!-- 4: Fırsat Sahipleri (gizlenebilir) -->
         <div data-breakdown-card="sahip">
             <div class="fa-card p-4 h-full">
                 <div class="flex items-center gap-2 mb-4">
@@ -606,22 +985,344 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- 4: Müşteri Bazlı -->
-        <div data-breakdown-card="musteri">
-            <div class="fa-card p-4 h-full">
-                <div class="flex items-center gap-2 mb-4">
-                    <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
-                        <i class="bi bi-building text-violet-600" style="font-size:13px;"></i>
-                    </div>
-                    <h2 class="text-[13px] font-bold text-[#0f172a] tracking-tight">Müşteri Bazlı</h2>
+
+    <!-- ═══ HEDEF ANALİZİ DETAY (default açık · Satış Hızı'nın üstünde) ═══ -->
+    <div class="fa-card mb-6 fade-up overflow-hidden" id="hedefDetayPanel">
+        <button type="button" id="hedefDetayToggle"
+                class="w-full flex items-center justify-between px-5 py-3 hover:bg-[#f8fafc] transition-colors"
+                aria-expanded="true">
+            <div class="flex items-center gap-2">
+                <i class="bi bi-bullseye text-indigo-500" style="font-size:13px;"></i>
+                <span class="text-[13px] font-bold text-[#334155]">Hedef Analizi Detay</span>
+                <span class="text-[10px] text-[#94a3b8] font-medium">Ürün · Satış Temsilcisi</span>
+            </div>
+            <i id="hedefDetayChevron" class="bi bi-chevron-down text-[#64748b] transition-transform" style="font-size:12px; transform: rotate(180deg);"></i>
+        </button>
+
+        <div id="hedefDetayBody" class="border-t border-[#f1f5f9]">
+            <div class="flex items-center justify-between gap-3 px-5 py-3 bg-white flex-wrap">
+                <div class="flex items-center gap-1 bg-[#f1f5f9] rounded-lg p-1">
+                    <button type="button" data-htab="satisci" class="hd-tab-btn active text-[11px] font-semibold px-3 py-1.5 rounded-md">Satış Temsilcisi</button>
+                    <button type="button" data-htab="urun" class="hd-tab-btn text-[11px] font-semibold px-3 py-1.5 rounded-md">Ürün</button>
                 </div>
-                <div id="customerBars" class="space-y-3 content-panel">
-                    <div class="sh w-full"></div><div class="sh w-3/4"></div><div class="sh w-1/2"></div>
+                <div class="flex items-center gap-2 text-[11px]">
+                    <span class="text-[#94a3b8] font-medium">Dönem:</span>
+                    <span id="hedefDetayDonemLabel" class="font-semibold text-[#475569]">—</span>
                 </div>
+            </div>
+
+            <div class="overflow-x-auto border-t border-[#f1f5f9]">
+                <table class="w-full text-[12px]" id="hedefDetayTable">
+                    <thead class="bg-[#f8fafc]">
+                        <tr class="border-b border-[#e2e8f0]">
+                            <th class="text-left px-4 py-2.5 font-semibold text-[#475569]">İsim</th>
+                            <th class="text-right px-3 py-2.5 font-semibold text-[#475569]">Hedef</th>
+                            <th class="text-right px-3 py-2.5 font-semibold text-[#475569]">Gerçekleşen</th>
+                            <th class="text-right px-3 py-2.5 font-semibold text-[#475569]">%</th>
+                            <th class="text-right px-3 py-2.5 font-semibold text-[#475569]">Açık Teklif</th>
+                            <th class="text-right px-3 py-2.5 font-semibold text-[#475569]">Tahmini Tutar</th>
+                            <th class="text-right px-3 py-2.5 font-semibold text-[#475569]">Tahmini %</th>
+                            <th class="text-left px-3 py-2.5 font-semibold text-[#475569] w-[220px]">İlerleme</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hedefDetayRows">
+                        <tr><td colspan="8" class="text-center py-10 text-[11px] text-[#94a3b8]">Yükleniyor…</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+
+    <!-- ═══ HEDEF DETAY — 3 kart yan yana: Satış Hızı (+ yaşlanmalar altında) | Fırsat dönüşüm | Potansiyel analizi ═══ -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+        <!-- Kart 1: Satış Hızı + altında Yaşlanan fırsat/teklif -->
+        <div class="fa-card fade-up overflow-hidden" id="hedefPanel">
+            <div class="px-5 py-3 border-b border-[#f1f5f9]">
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-bullseye text-indigo-500" style="font-size:12px;"></i>
+                    <span class="text-[13px] font-bold text-[#334155]">Satış Hızı</span>
+                </div>
+            </div>
+            <div class="px-5 py-4" id="salesCycleCard">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[10px] font-bold text-[#94a3b8]">Satış Hızı</p>
+                    <div id="cycleDealCount" class="text-[9px] text-[#94a3b8] font-medium"></div>
+                </div>
+                <div class="flex flex-col items-center justify-center pt-1 pb-2">
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <i class="bi bi-clock text-[#94a3b8]" style="font-size:12px;"></i>
+                        <span class="text-[11px] text-[#94a3b8]">Fırsat kapanış ort.</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="cycleMainNumber" class="text-[34px] font-extrabold text-[#0f172a] leading-none tracking-tight">—</span>
+                        <span class="text-[13px] text-[#94a3b8] font-medium">gün</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yaşlanan fırsatlar -->
+            <div class="px-5 py-3 border-t border-[#f1f5f9]">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[11px] font-bold text-[#334155]">Yaşlanan fırsatlar</p>
+                    <span class="text-[9px] text-[#94a3b8] font-medium">Açık · gün bazlı</span>
+                </div>
+                <div class="flex items-center justify-between py-1.5 border-b border-[#f1f5f9]">
+                    <span class="text-[10px] font-medium text-[#475569]">30-60 gün</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[9px] tabular-nums text-[#64748b]" id="agingFirsat30Tutar">—</span>
+                        <span class="text-[12px] font-bold text-[#0f172a] tabular-nums"><span id="agingFirsat30">—</span><span class="text-[9px] font-medium text-[#94a3b8] ml-1">fırsat</span></span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-1.5 border-b border-[#f1f5f9]">
+                    <span class="text-[10px] font-medium text-[#475569]">60-90 gün</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[9px] tabular-nums text-[#64748b]" id="agingFirsat60Tutar">—</span>
+                        <span class="text-[12px] font-bold text-amber-600 tabular-nums"><span id="agingFirsat60">—</span><span class="text-[9px] font-medium text-[#94a3b8] ml-1">fırsat</span></span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-1.5">
+                    <span class="text-[10px] font-medium text-[#475569]">90+ gün</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[9px] tabular-nums text-[#64748b]" id="agingFirsat90Tutar">—</span>
+                        <span class="text-[12px] font-bold text-red-600 tabular-nums"><span id="agingFirsat90">—</span><span class="text-[9px] font-medium text-[#94a3b8] ml-1">fırsat</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yaşlanan teklifler -->
+            <div class="px-5 py-3 border-t border-[#f1f5f9]">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[11px] font-bold text-[#334155]">Yaşlanan teklifler</p>
+                    <span class="text-[9px] text-[#94a3b8] font-medium">Beklemede · gün bazlı</span>
+                </div>
+                <div class="flex items-center justify-between py-1.5 border-b border-[#f1f5f9]">
+                    <span class="text-[10px] font-medium text-[#475569]">30-60 gün</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[9px] tabular-nums text-[#64748b]" id="agingTeklif30Tutar">—</span>
+                        <span class="text-[12px] font-bold text-[#0f172a] tabular-nums"><span id="agingTeklif30">—</span><span class="text-[9px] font-medium text-[#94a3b8] ml-1">teklif</span></span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-1.5 border-b border-[#f1f5f9]">
+                    <span class="text-[10px] font-medium text-[#475569]">60-90 gün</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[9px] tabular-nums text-[#64748b]" id="agingTeklif60Tutar">—</span>
+                        <span class="text-[12px] font-bold text-amber-600 tabular-nums"><span id="agingTeklif60">—</span><span class="text-[9px] font-medium text-[#94a3b8] ml-1">teklif</span></span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between py-1.5">
+                    <span class="text-[10px] font-medium text-[#475569]">90+ gün</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-[9px] tabular-nums text-[#64748b]" id="agingTeklif90Tutar">—</span>
+                        <span class="text-[12px] font-bold text-red-600 tabular-nums"><span id="agingTeklif90">—</span><span class="text-[9px] font-medium text-[#94a3b8] ml-1">teklif</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kart 2: Fırsat dönüşüm chart -->
+        <div class="fa-card fade-up overflow-hidden">
+            <div class="px-5 py-3 border-b border-[#f1f5f9]">
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-bar-chart text-blue-500" style="font-size:12px;"></i>
+                    <span class="text-[13px] font-bold text-[#334155]">Fırsat dönüşüm</span>
+                </div>
+            </div>
+            <div class="px-5 py-4">
+                <div style="height:200px;">
+                    <canvas id="hedefChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kart 3: Potansiyel analizi -->
+        <div class="fa-card fade-up overflow-hidden">
+            <div class="px-5 py-3 border-b border-[#f1f5f9]">
+                <div class="flex items-center gap-2">
+                    <i class="bi bi-graph-up-arrow text-violet-500" style="font-size:12px;"></i>
+                    <span class="text-[13px] font-bold text-[#334155]">Potansiyel analizi</span>
+                </div>
+            </div>
+            <div class="px-5 py-4">
+                <div class="space-y-2" id="potansiyelArea"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <style>
+        .hd-tab-btn { color: #64748b; transition: all 0.18s; border: none; background: transparent; cursor: pointer; }
+        .hd-tab-btn:hover { color: #334155; }
+        .hd-tab-btn.active { background: #ffffff; color: #4f46e5; box-shadow: 0 1px 2px rgba(15,23,42,0.06); }
+
+        /* Ürün alt satırları (YS / Yenileme kırılımı) */
+        .hd-sub-row td { background: #fcfdfe; color: #64748b; font-size: 11px; padding-top: 5px; padding-bottom: 5px; border-bottom: 1px solid #f5f7fa; }
+        .hd-sub-row td.sub-isim { padding-left: 36px; font-style: normal; }
+        .hd-sub-row .sub-label { display: inline-flex; align-items: center; gap: 6px; }
+        .hd-sub-row .sub-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+        .hd-sub-row .sub-dot.ys  { background: #3b82f6; }
+        .hd-sub-row .sub-dot.yen { background: #8b5cf6; }
+        .hd-sub-row .sub-mut { color: #cbd5e1; }
+    </style>
+
+    <script>
+        (function () {
+            const toggle = document.getElementById('hedefDetayToggle');
+            const body = document.getElementById('hedefDetayBody');
+            const chevron = document.getElementById('hedefDetayChevron');
+            const tbody = document.getElementById('hedefDetayRows');
+            const donemLabel = document.getElementById('hedefDetayDonemLabel');
+            if (!toggle || !body) return;
+
+            const DONEM_LABELS = {
+                month: 'Bu Ay', lastmonth: 'Geçen Ay',
+                q1: '1. Çeyrek', q2: '2. Çeyrek', q3: '3. Çeyrek', q4: '4. Çeyrek',
+                ytd: 'YTD', all: 'Tüm Yıl'
+            };
+
+            function fmtTL(v) {
+                if (v == null || isNaN(v)) return '—';
+                return '₺' + Math.round(v).toLocaleString('tr-TR');
+            }
+            function fmtPct(v) {
+                if (v == null || isNaN(v)) return '—';
+                return v.toFixed(0) + '%';
+            }
+            function activeTab() {
+                const a = document.querySelector('.hd-tab-btn.active');
+                return a ? a.dataset.htab : 'satisci';
+            }
+            function activeDonem() {
+                return (typeof window.activeFilter !== 'undefined' && window.activeFilter) || 'month';
+            }
+
+            function subRow(label, dotClass, hedef, gerc) {
+                const yuzde = hedef > 0 ? (gerc / hedef * 100) : 0;
+                return `<tr class="hd-sub-row">
+                    <td class="sub-isim"><span class="sub-label"><span class="sub-dot ${dotClass}"></span>${label}</span></td>
+                    <td class="text-right px-3">${fmtTL(hedef)}</td>
+                    <td class="text-right px-3 font-semibold text-[#475569]">${fmtTL(gerc)}</td>
+                    <td class="text-right px-3">${fmtPct(yuzde)}</td>
+                    <td class="text-right px-3 sub-mut">—</td>
+                    <td class="text-right px-3 sub-mut">—</td>
+                    <td class="text-right px-3 sub-mut">—</td>
+                    <td class="px-3 sub-mut">—</td>
+                </tr>`;
+            }
+
+            function renderRows(rows) {
+                if (!rows || !rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-[11px] text-[#94a3b8]">Bu dönem için kayıt yok</td></tr>';
+                    return;
+                }
+                const tab = activeTab();
+                // Sub-row'lar: ürün ve satışçı tab'larında her satırın altına Yeni Satış + Yenileme.
+                // 'yenileme' tab'ı zaten kendi başına 2 satır (YS/Yen toplam) — sub-row eklemiyoruz.
+                const showSubRows = (tab === 'urun' || tab === 'satisci');
+                let html = '';
+                let tH = 0, tG = 0, tT = 0, tA = 0;
+                rows.forEach(r => {
+                    tH += r.hedef || 0; tG += r.gerceklesen || 0;
+                    tA += r.acikTeklif || 0; tT += (r.gerceklesen || 0) + (r.acikTeklif || 0);
+                    const yuzde = r.hedef > 0 ? (r.gerceklesen / r.hedef * 100) : 0;
+                    const tahminiTutar = (r.gerceklesen || 0) + (r.acikTeklif || 0);
+                    const tahminiYuzde = r.hedef > 0 ? (tahminiTutar / r.hedef * 100) : 0;
+                    const wG = Math.min(100, yuzde);
+                    const wT = Math.min(100 - wG, Math.max(0, tahminiYuzde - yuzde));
+                    const asim = tahminiYuzde > 100 ? Math.round(tahminiYuzde - 100) : 0;
+                    html += `<tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc]">
+                        <td class="px-4 py-2.5 font-medium text-[#0f172a]">${r.isim || '—'}</td>
+                        <td class="text-right px-3 py-2.5 text-[#475569]">${fmtTL(r.hedef)}</td>
+                        <td class="text-right px-3 py-2.5 text-[#0f172a] font-semibold">${fmtTL(r.gerceklesen)}</td>
+                        <td class="text-right px-3 py-2.5 text-[#475569]">${fmtPct(yuzde)}</td>
+                        <td class="text-right px-3 py-2.5 text-[#475569]">${fmtTL(r.acikTeklif)}</td>
+                        <td class="text-right px-3 py-2.5 text-[#0f172a] font-semibold">${fmtTL(tahminiTutar)}</td>
+                        <td class="text-right px-3 py-2.5 text-[#4f46e5] font-bold">${fmtPct(tahminiYuzde)}${asim ? ` <span class="text-[9px] text-[#94a3b8] font-medium">+${asim}%</span>` : ''}</td>
+                        <td class="px-3 py-2.5">
+                            <div class="w-full h-2 rounded-full bg-[#f1f5f9] overflow-hidden flex">
+                                <div style="width:${wG}%; background:#4f46e5; transition:width .6s ease"></div>
+                                <div style="width:${wT}%; background:#4f46e5; opacity:.35; background-image:repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,.5) 3px, rgba(255,255,255,.5) 6px); transition:width .6s ease"></div>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                    // Ürün tab'ında alt satırlar: Yeni Satış + Yenileme (dönem aralığında)
+                    if (showSubRows) {
+                        html += subRow('Yeni Satış', 'ys',  r.hedefYS  || 0, r.gerceklesenYS  || 0);
+                        html += subRow('Yenileme',   'yen', r.hedefYen || 0, r.gerceklesenYen || 0);
+                    }
+                });
+                const tYuzde = tH > 0 ? tG / tH * 100 : 0;
+                const tTYuzde = tH > 0 ? tT / tH * 100 : 0;
+                const twG = Math.min(100, tYuzde);
+                const twT = Math.min(100 - twG, Math.max(0, tTYuzde - tYuzde));
+                html += `<tr class="border-t-2 border-[#e2e8f0] bg-[#f8fafc] font-bold sticky bottom-0">
+                    <td class="px-4 py-3 text-[#0f172a]">TOPLAM</td>
+                    <td class="text-right px-3 py-3 text-[#0f172a]">${fmtTL(tH)}</td>
+                    <td class="text-right px-3 py-3 text-[#0f172a]">${fmtTL(tG)}</td>
+                    <td class="text-right px-3 py-3 text-[#0f172a]">${fmtPct(tYuzde)}</td>
+                    <td class="text-right px-3 py-3 text-[#0f172a]">${fmtTL(tA)}</td>
+                    <td class="text-right px-3 py-3 text-[#0f172a]">${fmtTL(tT)}</td>
+                    <td class="text-right px-3 py-3 text-[#4f46e5]">${fmtPct(tTYuzde)}</td>
+                    <td class="px-3 py-3">
+                        <div class="w-full h-2 rounded-full bg-[#e2e8f0] overflow-hidden flex">
+                            <div style="width:${twG}%; background:#4f46e5"></div>
+                            <div style="width:${twT}%; background:#4f46e5; opacity:.35; background-image:repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,.5) 3px, rgba(255,255,255,.5) 6px)"></div>
+                        </div>
+                    </td>
+                </tr>`;
+                tbody.innerHTML = html;
+            }
+
+            let _loadSeq = 0;
+            window.loadHedefDetay = function () {
+                if (body.classList.contains('hidden')) return;
+                const tab = activeTab();
+                const donem = activeDonem();
+                if (donemLabel) donemLabel.textContent = DONEM_LABELS[donem] || donem;
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-[11px] text-[#94a3b8]">Yükleniyor…</td></tr>';
+                const seq = ++_loadSeq;
+                fetch('/Hedef/AnalizDetay?tab=' + encodeURIComponent(tab) + '&donem=' + encodeURIComponent(donem))
+                    .then(r => r.json())
+                    .then(j => {
+                        if (seq !== _loadSeq) return;
+                        if (!j.ok) {
+                            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-[11px] text-red-500">' + (j.error || 'Hata') + '</td></tr>';
+                            return;
+                        }
+                        renderRows(j.rows || []);
+                    })
+                    .catch(e => {
+                        if (seq !== _loadSeq) return;
+                        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-[11px] text-red-500">' + e.message + '</td></tr>';
+                    });
+            };
+
+            toggle.addEventListener('click', () => {
+                const opening = body.classList.contains('hidden');
+                body.classList.toggle('hidden');
+                toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+                chevron.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+                if (opening) window.loadHedefDetay();
+            });
+
+            document.querySelectorAll('.hd-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.hd-tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    window.loadHedefDetay();
+                });
+            });
+
+            // Default open: panel başlangıçta açık geliyor — ilk veri yüklemesini tetikle.
+            // setTimeout 0: activeFilter atamasının (~line 1434) önce çalışmasına izin verir.
+            if (!body.classList.contains('hidden')) {
+                setTimeout(() => window.loadHedefDetay(), 0);
+            }
+        })();
+    </script>
 
     <!-- ═══ AYLIK DAĞILIM ═══ -->
     <div class="flex gap-5 mb-6">
@@ -645,7 +1346,7 @@
 
     <!-- ═══ FIRSAT DETAY TABLOSU ═══ -->
     <div class="fa-card p-5">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
             <div class="flex items-center gap-2">
                 <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
                     <i class="bi bi-table text-slate-600" style="font-size:13px;"></i>
@@ -653,36 +1354,64 @@
                 <h2 class="text-[13px] font-bold text-[#0f172a] tracking-tight">Fırsat Detayları</h2>
                 <span id="activeFilterBadge" class="hidden ml-2"></span>
             </div>
-            <div class="flex items-center gap-2">
-                <select id="oppOwnerFilter" class="text-[11px] border border-[#e2e8f0] rounded-lg px-3 py-1.5 text-[#475569] bg-white" style="font-family:'DM Sans',sans-serif;">
-                    <option value="">Tüm Temsilciler</option>
+            <div class="flex items-center flex-wrap gap-2">
+                <select id="oppFirsatSahibiSelect" class="opp-kisi-select" aria-label="Fırsat Sahibi">
+                    <option value="">Tüm Fırsat Sahipleri</option>
                 </select>
-                <select id="oppStageFilter" class="text-[11px] border border-[#e2e8f0] rounded-lg px-3 py-1.5 text-[#475569] bg-white" style="font-family:'DM Sans',sans-serif;">
-                    <option value="">Tüm Aşamalar</option>
-                    <option value="Won">Won</option>
-                    <option value="Lost">Lost</option>
-                    <option value="Position">Position</option>
-                    <option value="Proposal">Proposal</option>
-                    <option value="Negotiation">Negotiation</option>
+                <select id="oppTemsilciSelect" class="opp-kisi-select" aria-label="Satış Temsilcisi">
+                    <option value="">Tüm Satış Temsilcileri</option>
                 </select>
             </div>
         </div>
+        <style>
+            .opp-sortable { cursor: pointer; user-select: none; transition: color .12s ease; }
+            .opp-sortable:hover { color: #475569; }
+            .opp-sortable.active { color: #0f172a; }
+            .opp-sort-arrow { display: inline-block; margin-left: 4px; font-size: 9px; opacity: .6; transition: opacity .12s ease; }
+            .opp-sortable.active .opp-sort-arrow { opacity: 1; }
+
+            .opp-kisi-select {
+                padding: 6px 28px 6px 12px;
+                border-radius: 999px;
+                border: 1px solid #e2e8f0;
+                background: #fff;
+                font-size: 11px;
+                font-weight: 600;
+                color: #475569;
+                font-family: inherit;
+                cursor: pointer;
+                max-width: 220px;
+                appearance: none;
+                background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2.5'><path stroke-linecap='round' stroke-linejoin='round' d='M6 9l6 6 6-6'/></svg>");
+                background-repeat: no-repeat;
+                background-position: right 8px center;
+                background-size: 12px;
+                transition: border-color .12s ease, color .12s ease, background-color .12s ease;
+            }
+            .opp-kisi-select:hover { border-color: #94a3b8; color: #0f172a; }
+            .opp-kisi-select:focus { outline: none; border-color: #0f172a; color: #0f172a; }
+            .opp-kisi-select.has-value {
+                background-color: #0f172a;
+                color: #fff;
+                border-color: #0f172a;
+                background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23fff' stroke-width='2.5'><path stroke-linecap='round' stroke-linejoin='round' d='M6 9l6 6 6-6'/></svg>");
+            }
+        </style>
         <div class="overflow-y-auto" style="max-height:400px;">
             <table class="w-full text-[11px]">
                 <thead>
                     <tr class="border-b border-[#eef2f6]">
-                        <th class="text-left py-2.5 px-2 font-semibold text-[#94a3b8]" style="width:24%">Fırsat Adı</th>
-                        <th class="text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Müşteri</th>
-                        <th class="text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Aşama</th>
-                        <th class="text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Temsilci</th>
-                        <th class="text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Tip</th>
-                        <th class="text-right py-2.5 px-2 font-semibold text-[#94a3b8]">Tutar</th>
-                        <th class="text-center py-2.5 px-2 font-semibold text-[#94a3b8]">Kapanış tarihi</th>
-                        <th class="text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Kaynak</th>
+                        <th data-sort-key="musteri" class="opp-sortable text-left py-2.5 px-2 font-semibold text-[#94a3b8]" style="width:24%">Müşteri<span class="opp-sort-arrow"></span></th>
+                        <th data-sort-key="name" class="opp-sortable text-left py-2.5 px-2 font-semibold text-[#94a3b8]" style="width:28%">Fırsat Adı<span class="opp-sort-arrow"></span></th>
+                        <th data-sort-key="temsilci" class="opp-sortable text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Temsilci<span class="opp-sort-arrow"></span></th>
+                        <th data-sort-key="kategori" class="opp-sortable text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Kategori<span class="opp-sort-arrow"></span></th>
+                        <th data-sort-key="teklif" class="opp-sortable text-left py-2.5 px-2 font-semibold text-[#94a3b8]">Teklif Durumu<span class="opp-sort-arrow"></span></th>
+                        <th data-sort-key="tutar" class="opp-sortable text-right py-2.5 px-2 font-semibold text-[#94a3b8]">Tutar<span class="opp-sort-arrow"></span></th>
+                        <th data-sort-key="kapanis" class="opp-sortable text-center py-2.5 px-2 font-semibold text-[#94a3b8]">Kapanış tarihi<span class="opp-sort-arrow"></span></th>
                     </tr>
                 </thead>
                 <tbody id="oppDetailBody">
-                    <tr><td colspan="8" class="text-center py-6 text-[#94a3b8]">Yükleniyor...</td></tr>
+                    <tr><td colspan="7" class="text-center py-6 text-[#94a3b8]">Yükleniyor...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -721,12 +1450,16 @@
 
     /* ── CountUp Animation ── */
     function countUp(el, target, duration, prefix, suffix) {
+        if (!el) return;
         prefix = prefix || '';
         suffix = suffix || '';
         duration = duration || 800;
         // Race guard: her çağrıda seq artar; eski step kendi seq'i güncel değilse çıkar
         var mySeq = (parseInt(el.dataset.cuSeq || '0', 10) + 1);
         el.dataset.cuSeq = String(mySeq);
+        // Güvenlik: final değeri hemen set et (rAF throttle/arka plan sekmesi durumunda bile görünür)
+        // Animasyon rAF ile 0'dan progresif override eder, kesintiye uğrarsa final zaten burada.
+        try { el.textContent = prefix + abbr(target); } catch(e) {}
         var start = performance.now();
         function step(now) {
             if (parseInt(el.dataset.cuSeq || '0', 10) !== mySeq) return; // üzerine yeni countUp geldi → iptal
@@ -766,9 +1499,10 @@
     /* ══════════════════════════════════
        STATE
        ══════════════════════════════════ */
-    var activeFilter = 'month';
+    var activeFilter = (window.activeFilter = 'month');
     var activeFunnel = 0; // 0 = none selected, 1-5 = funnel index
-    var oppOwnerVal = '';
+    var oppSortVal = 'kapanis'; // default sıralama: en yeni kapanış tarihi → en eskisine
+    var oppSortDir = 'desc';    // 'asc' | 'desc' — başlığa tıklayarak değişir
     var activeProductFilter = '';
     var activeCustomerFilter = '';
     var activeOwnerFilter = '';
@@ -788,6 +1522,7 @@
     function consumeInitial(type, funnel) {
         var init = window.__faInitial;
         if (!init) return null;
+        if (_forceNextFetch) return null;  // Kullanıcı "Yenile"ye bastı → initial cache'i atla
         if (activeFilter !== 'month') return null;  // Sadece default "Bu Ay" açılışı için
         if (activeProductFilter || activeCustomerFilter || activeOwnerFilter || activeFirsatSahibiFilter) return null;
         var d = null;
@@ -816,7 +1551,8 @@
     // Ama tahakkuk invalidate vs. için manuel çağrılabilir:
     window._clearClientCache = function() { _clientCache.clear(); };
 
-    // Ürün/Müşteri/Temsilci/Sahip tıklama filtreleri — birbirini dışlar (tek aktif)
+    // Ürün/Müşteri/Temsilci/Sahip tıklama filtreleri — BERABER çalışır (AND semantic).
+    // Aynı değere tekrar tıklamak o filtreyi kapatır (toggle). "Tümünü Temizle" chip ile sıfırlanır.
     function _clearAllBreakdownFilters() {
         activeProductFilter = '';
         activeCustomerFilter = '';
@@ -838,42 +1574,117 @@
             }
         });
     }
+    // Aktif filtre chip'lerini render et (toolbar'da "Filtreyi Sıfırla" + tek tek kaldırma)
+    function renderActiveFilterChips() {
+        var host = document.getElementById('activeFilterChips');
+        if (!host) return;
+        var filters = [
+            { type: 'urun',     label: 'Ürün',       value: activeProductFilter,      color: 'emerald', clear: function(){ activeProductFilter=''; highlightBreakdown('productBars', null, ''); } },
+            { type: 'musteri',  label: 'Müşteri',    value: activeCustomerFilter,     color: 'violet',  clear: function(){ activeCustomerFilter=''; highlightBreakdown('customerBars', null, ''); } },
+            { type: 'temsilci', label: 'Temsilci',   value: activeOwnerFilter,        color: 'indigo',  clear: function(){ activeOwnerFilter=''; highlightBreakdown('ownerList', null, ''); } },
+            { type: 'sahip',    label: 'Fırsat Sah.',value: activeFirsatSahibiFilter, color: 'amber',   clear: function(){ activeFirsatSahibiFilter=''; highlightBreakdown('firsatSahipleriList', null, ''); } }
+        ].filter(function(f){ return f.value; });
+        host.innerHTML = '';
+        if (!filters.length) return;
+        var frag = document.createDocumentFragment();
+        // Reset butonu
+        var reset = document.createElement('button');
+        reset.className = 'text-[11px] px-2.5 py-1 rounded-md bg-slate-800 text-white hover:bg-slate-900 flex items-center gap-1.5 font-medium';
+        reset.innerHTML = '<i class="bi bi-x-circle" style="font-size:11px;"></i><span>Filtreyi Sıfırla</span>';
+        reset.onclick = function() {
+            _clearAllBreakdownFilters();
+            ['productBars','customerBars','ownerList','firsatSahipleriList'].forEach(function(id){ highlightBreakdown(id, null, ''); });
+            renderActiveFilterChips();
+            refreshLowerSections();
+        };
+        frag.appendChild(reset);
+        // Her filtre için chip
+        filters.forEach(function(f) {
+            var chip = document.createElement('span');
+            var colorMap = {
+                emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                violet:  'bg-violet-50 text-violet-700 border-violet-200',
+                indigo:  'bg-indigo-50 text-indigo-700 border-indigo-200',
+                amber:   'bg-amber-50 text-amber-700 border-amber-200'
+            };
+            chip.className = 'text-[11px] px-2.5 py-1 rounded-md border ' + (colorMap[f.color]||'bg-slate-50') + ' flex items-center gap-1.5 font-medium';
+            var truncated = f.value.length > 30 ? f.value.substring(0, 28) + '…' : f.value;
+            chip.innerHTML = '<span class="opacity-60">' + f.label + ':</span><span>' + truncated + '</span><i class="bi bi-x-lg hover:opacity-60 cursor-pointer" style="font-size:9px;"></i>';
+            chip.querySelector('.bi-x-lg').onclick = function() { f.clear(); renderActiveFilterChips(); refreshLowerSections(); };
+            frag.appendChild(chip);
+        });
+        host.appendChild(frag);
+        if (typeof syncOppKisiDropdownSelection === 'function') syncOppKisiDropdownSelection();
+    }
     window._filterByProduct = function(urun) {
         urun = decodeURIComponent(urun);
         var wasActive = activeProductFilter === urun;
-        _clearAllBreakdownFilters();
-        if (!wasActive) activeProductFilter = urun;
+        activeProductFilter = wasActive ? '' : urun;
         highlightBreakdown('productBars', wasActive ? null : urun, 'bg-emerald-50 ring-1 ring-emerald-200');
+        renderActiveFilterChips();
         refreshLowerSections();
     };
     window._filterByCustomer = function(musteri) {
         musteri = decodeURIComponent(musteri);
         var wasActive = activeCustomerFilter === musteri;
-        _clearAllBreakdownFilters();
-        if (!wasActive) activeCustomerFilter = musteri;
+        activeCustomerFilter = wasActive ? '' : musteri;
         highlightBreakdown('customerBars', wasActive ? null : musteri, 'bg-violet-50 ring-1 ring-violet-200');
+        renderActiveFilterChips();
         refreshLowerSections();
     };
     window._filterByOwner = function(owner) {
         owner = decodeURIComponent(owner);
         var wasActive = activeOwnerFilter === owner;
-        _clearAllBreakdownFilters();
-        if (!wasActive) activeOwnerFilter = owner;
+        activeOwnerFilter = wasActive ? '' : owner;
         highlightBreakdown('ownerList', wasActive ? null : owner, 'bg-indigo-50 ring-1 ring-indigo-200');
+        renderActiveFilterChips();
+        if (typeof syncOppKisiDropdownSelection === 'function') syncOppKisiDropdownSelection();
         refreshLowerSections();
     };
     window._filterByFirsatSahibi = function(sahibi) {
         sahibi = decodeURIComponent(sahibi);
         var wasActive = activeFirsatSahibiFilter === sahibi;
-        _clearAllBreakdownFilters();
-        if (!wasActive) activeFirsatSahibiFilter = sahibi;
+        activeFirsatSahibiFilter = wasActive ? '' : sahibi;
         highlightBreakdown('firsatSahipleriList', wasActive ? null : sahibi, 'bg-amber-50 ring-1 ring-amber-200');
+        renderActiveFilterChips();
+        if (typeof syncOppKisiDropdownSelection === 'function') syncOppKisiDropdownSelection();
         refreshLowerSections();
     };
 
+    // ── Üst kişi dropdown'ları (Fırsat Detayları tablosu) ──
+    function populateOppKisiDropdowns(ownerRows, sahipRows) {
+        var temSel = document.getElementById('oppTemsilciSelect');
+        var sahSel = document.getElementById('oppFirsatSahibiSelect');
+        if (!temSel || !sahSel) return;
+        var trCol = new Intl.Collator('tr-TR', { sensitivity: 'base' });
+        var esc = function(s){ return String(s||'').replace(/[<>&"]/g,function(c){return ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c];}); };
+        var nameOf = function(r){ return (r && (r.adSoyad || r.AdSoyad) || '').trim(); };
+        var temNames = Array.from(new Set((ownerRows||[]).map(nameOf).filter(Boolean))).sort(trCol.compare);
+        var sahNames = Array.from(new Set((sahipRows||[]).map(nameOf).filter(Boolean))).sort(trCol.compare);
+        // Aktif değer listede yoksa eklenir (filtre sonrası breakdown daralabilir, kendi seçtiğin kaybolmasın)
+        if (activeOwnerFilter        && !temNames.includes(activeOwnerFilter))        temNames.unshift(activeOwnerFilter);
+        if (activeFirsatSahibiFilter && !sahNames.includes(activeFirsatSahibiFilter)) sahNames.unshift(activeFirsatSahibiFilter);
+        temSel.innerHTML = '<option value="">Tüm Satış Temsilcileri</option>' +
+            temNames.map(function(n){ return '<option value="'+esc(n)+'"'+(n===activeOwnerFilter?' selected':'')+'>'+esc(n)+'</option>'; }).join('');
+        sahSel.innerHTML = '<option value="">Tüm Fırsat Sahipleri</option>' +
+            sahNames.map(function(n){ return '<option value="'+esc(n)+'"'+(n===activeFirsatSahibiFilter?' selected':'')+'>'+esc(n)+'</option>'; }).join('');
+        temSel.classList.toggle('has-value', !!activeOwnerFilter);
+        sahSel.classList.toggle('has-value', !!activeFirsatSahibiFilter);
+    }
+
+    function syncOppKisiDropdownSelection() {
+        var temSel = document.getElementById('oppTemsilciSelect');
+        var sahSel = document.getElementById('oppFirsatSahibiSelect');
+        if (temSel) { temSel.value = activeOwnerFilter || ''; temSel.classList.toggle('has-value', !!activeOwnerFilter); }
+        if (sahSel) { sahSel.value = activeFirsatSahibiFilter || ''; sahSel.classList.toggle('has-value', !!activeFirsatSahibiFilter); }
+    }
+
+    // _forceNextFetch true ise getFilterParams URL'e &_force=1 ekler.
+    // refreshAll bu flag'i set eder → tüm yüklemeler force fetch → done sonra reset.
+    var _forceNextFetch = false;
     function getFilterParams() {
         var params = 'filter=' + encodeURIComponent(activeFilter) + '&_t=' + Date.now();
-        if (oppOwnerVal) params += '&owner=' + encodeURIComponent(oppOwnerVal);
+        if (_forceNextFetch) params += '&_force=1';
         return params;
     }
 
@@ -941,22 +1752,27 @@
         var opp = window._oppData;
         var donem = donemLabel();
 
-        var stages = [
-            { label:'Havuz',   adet: opp.tumFirsatAdet || 0,  tutar: opp.tumFirsatTutar || 0,  color:'#3b82f6' },
-            { label:'Fırsat',  adet: opp.fnlK2Adet || 0,      tutar: opp.fnlK2Tutar || 0,      color:'#6366f1' },
-            { label:'Teklif',  adet: opp.fnlK3Adet || 0,      tutar: opp.fnlK3Tutar || 0,      color:'#8b5cf6' },
-            { label:'Sipariş', adet: opp.fnlK4Adet || 0,      tutar: opp.fnlK4Tutar || 0,      color:'#f59e0b' },
-            { label:'Fatura',  adet: opp.fnlK5Adet || 0,      tutar: opp.fnlK5Tutar || 0,      color:'#10b981' }
-        ];
+        // 3 aşama: Fırsat → Teklif → Satış  (KÜMÜLATİF funnel — adı üstünde)
+        // K2..K5 backend'den kümülatif gelir (K2 ⊃ K3 ⊃ K4 ⊃ K5).
+        // Fırsat = K2 (tüm fırsatlar)
+        // Teklif = K3 (teklif aşamasına gelmiş herkes — satışa dönenler dahil)
+        // Satış  = K5 (kapanmış satışlar)
+        var firsatAdet = opp.fnlK2Adet || 0, firsatTutar = opp.fnlK2Tutar || 0;
+        var bekAdet    = opp.fnlK3Adet || 0, bekTutar    = opp.fnlK3Tutar || 0;
+        var kabAdet    = opp.fnlK4Adet || 0, kabTutar    = opp.fnlK4Tutar || 0;
+        var satisAdet  = opp.fnlK5Adet || 0, satisTutar  = opp.fnlK5Tutar || 0;
+        var teklifTotalAdet  = bekAdet;   // K3 (satış dahil)
+        var teklifTotalTutar = bekTutar;
 
         function pctClass(pct) {
             if (pct >= 50) return 'high';
             if (pct >= 15) return 'mid';
             return 'low';
         }
-
-        var k1 = stages[0].adet, k5 = stages[4].adet;
-        var totalConv = k1 > 0 ? (k5 / k1 * 100) : 0;
+        // Dönüşüm oranları TUTAR bazlı (₺) — adet bilgisi footer'da yedek olarak görünür
+        var pct2 = firsatTutar > 0 ? (teklifTotalTutar / firsatTutar * 100) : 0;
+        var pct3 = teklifTotalTutar > 0 ? (satisTutar / teklifTotalTutar * 100) : 0;
+        var totalConv = firsatTutar > 0 ? (satisTutar / firsatTutar * 100) : 0;
 
         var html = '';
         html += '<div class="fnl-pipe-header">';
@@ -965,30 +1781,132 @@
         html += '</div>';
         html += '<div class="fnl-pipe">';
 
-        for (var i = 0; i < stages.length; i++) {
-            var s = stages[i];
-            html += '<div class="fnl-pipe-stage" style="--stage-color:'+s.color+';">';
-            html += '  <div class="fnl-pipe-label">'+s.label+'</div>';
-            html += '  <div class="fnl-pipe-tutar">'+abbr(s.tutar)+'</div>';
-            html += '  <div class="fnl-pipe-adet">'+s.adet+' adet</div>';
-            html += '</div>';
+        // Fırsat
+        html += '<div class="fnl-pipe-stage">';
+        html += '  <div class="fnl-pipe-label">Fırsat</div>';
+        html += '  <div class="fnl-pipe-tutar">'+abbr(firsatTutar)+'</div>';
+        html += '  <div class="fnl-pipe-adet">'+firsatAdet+' adet</div>';
+        html += '</div>';
 
-            if (i < stages.length - 1) {
-                var next = stages[i+1];
-                var pct = s.adet > 0 ? (next.adet / s.adet * 100) : 0;
-                html += '<div class="fnl-pipe-conv">';
-                html += '  <span class="fnl-pipe-pct '+pctClass(pct)+'">%'+fmtPct.format(pct)+'</span>';
-                html += '</div>';
-            }
-        }
+        // Teklif — tek toplam (bekleme + kabul)
+        html += '<div class="fnl-pipe-stage">';
+        html += '  <div class="fnl-pipe-label">Teklif</div>';
+        html += '  <div class="fnl-pipe-tutar">'+abbr(teklifTotalTutar)+'</div>';
+        html += '  <div class="fnl-pipe-adet">'+teklifTotalAdet+' adet</div>';
+        html += '</div>';
+
+        // Satış
+        html += '<div class="fnl-pipe-stage">';
+        html += '  <div class="fnl-pipe-label">Satış</div>';
+        html += '  <div class="fnl-pipe-tutar">'+abbr(satisTutar)+'</div>';
+        html += '  <div class="fnl-pipe-adet">'+satisAdet+' adet</div>';
+        html += '</div>';
+
+        // Geçiş yüzdeleri — chevron sınırlarında absolute konumlu
+        html += '<div class="fnl-pipe-conv" style="left:33.33%">';
+        html += '  <span class="fnl-pipe-pct">%' + fmtPct.format(pct2) + '</span>';
+        html += '</div>';
+        html += '<div class="fnl-pipe-conv" style="left:66.67%">';
+        html += '  <span class="fnl-pipe-pct">%' + fmtPct.format(pct3) + '</span>';
+        html += '</div>';
+
         html += '</div>';
 
         html += '<div class="fnl-pipe-foot">';
-        html += '  <span>Uçtan uca dönüşüm: <b>%'+fmtPct.format(totalConv)+'</b> ('+k5+' / '+k1+')</span>';
-        html += '  <span>Adet bazlı</span>';
+        html += '  <span>Fırsat → Satış dönüşüm: <b>%'+fmtPct.format(totalConv)+'</b> ('+abbr(satisTutar)+' / '+abbr(firsatTutar)+')</span>';
+        html += '  <span>Tutar bazlı · '+satisAdet+' / '+firsatAdet+' adet</span>';
         html += '</div>';
 
         host.innerHTML = html;
+    }
+
+    /* ══════════════════════════════════
+       SUB-FUNNEL — Yenileme + Yeni Satış
+       Üst funnel altında collapsible 2 funnel, ALT ALTA gösterim.
+       Kaynak: _oppData.subFunnel (GetOpportunitySummary içinde hesaplanır)
+       Kanonik: Üst funnel'ın aynı kümülatif K5→K2 mantığı, DealType + DocCode partition.
+       Yen K2/K3/K5 + YS K2/K3/K5 = Üst fnlK2/K3/K5 (birebir matematik).
+       ══════════════════════════════════ */
+    var _subFunnelOpen = false;
+
+    window.toggleSubFunnel = function() {
+        var panel = document.getElementById('subFunnelPanel');
+        var trig  = document.getElementById('subFunnelTrigger');
+        if (!panel || !trig) return;
+        _subFunnelOpen = !_subFunnelOpen;
+        if (_subFunnelOpen) {
+            panel.classList.add('open');
+            panel.setAttribute('aria-hidden', 'false');
+            trig.classList.add('open');
+            trig.setAttribute('aria-expanded', 'true');
+            renderSubFunnel();
+        } else {
+            panel.classList.remove('open');
+            panel.setAttribute('aria-hidden', 'true');
+            trig.classList.remove('open');
+            trig.setAttribute('aria-expanded', 'false');
+        }
+    };
+
+    function renderOneSubFunnel(hostId, data, typeLbl) {
+        var host = document.getElementById(hostId);
+        if (!host) return;
+        var firsatAdet = data.fnlK2Adet || 0, firsatTutar = data.fnlK2Tutar || 0;
+        var teklifAdet = data.fnlK3Adet || 0, teklifTutar = data.fnlK3Tutar || 0;
+        var satisAdet  = data.fnlK5Adet || 0, satisTutar  = data.fnlK5Tutar || 0;
+
+        var pct2 = firsatTutar > 0 ? (teklifTutar / firsatTutar * 100) : 0;
+        var pct3 = teklifTutar > 0 ? (satisTutar / teklifTutar * 100) : 0;
+        var totalConv = firsatTutar > 0 ? (satisTutar / firsatTutar * 100) : 0;
+
+        var donem = donemLabel();
+        var html = '';
+        html += '<div class="fnl-pipe-header">';
+        html += '  <span class="fnl-pipe-title">' + typeLbl + ' zinciri</span>';
+        html += '  <span class="fnl-pipe-meta">' + donem + '</span>';
+        html += '</div>';
+        html += '<div class="fnl-pipe">';
+        html += '<div class="fnl-pipe-stage">';
+        html += '  <div class="fnl-pipe-label">Fırsat</div>';
+        html += '  <div class="fnl-pipe-tutar">'+abbr(firsatTutar)+'</div>';
+        html += '  <div class="fnl-pipe-adet">'+firsatAdet+' adet</div>';
+        html += '</div>';
+        html += '<div class="fnl-pipe-stage">';
+        html += '  <div class="fnl-pipe-label">Teklif</div>';
+        html += '  <div class="fnl-pipe-tutar">'+abbr(teklifTutar)+'</div>';
+        html += '  <div class="fnl-pipe-adet">'+teklifAdet+' adet</div>';
+        html += '</div>';
+        html += '<div class="fnl-pipe-stage">';
+        html += '  <div class="fnl-pipe-label">Satış</div>';
+        html += '  <div class="fnl-pipe-tutar">'+abbr(satisTutar)+'</div>';
+        html += '  <div class="fnl-pipe-adet">'+satisAdet+' adet</div>';
+        html += '</div>';
+        html += '<div class="fnl-pipe-conv" style="left:33.33%">';
+        html += '  <span class="fnl-pipe-pct">%' + fmtPct.format(pct2) + '</span>';
+        html += '</div>';
+        html += '<div class="fnl-pipe-conv" style="left:66.67%">';
+        html += '  <span class="fnl-pipe-pct">%' + fmtPct.format(pct3) + '</span>';
+        html += '</div>';
+        html += '</div>';
+        html += '<div class="fnl-pipe-foot">';
+        html += '  <span>' + typeLbl + ' Fırsat → Satış dönüşüm: <b>%'+fmtPct.format(totalConv)+'</b> ('+abbr(satisTutar)+' / '+abbr(firsatTutar)+')</span>';
+        html += '  <span>Tutar bazlı · '+satisAdet+' / '+firsatAdet+' adet</span>';
+        html += '</div>';
+        host.innerHTML = html;
+    }
+
+    function renderSubFunnel() {
+        var hostYen = document.getElementById('subFunnelContentYen');
+        var hostYs  = document.getElementById('subFunnelContentYs');
+        if (!hostYen || !hostYs) return;
+        if (!window._oppData || !window._oppData.subFunnel) {
+            hostYen.innerHTML = '<p style="color:#94a3b8; font-size:11px; padding:8px 4px;">Yükleniyor…</p>';
+            hostYs.innerHTML = '';
+            return;
+        }
+        var sub = window._oppData.subFunnel;
+        renderOneSubFunnel('subFunnelContentYen', sub.yenileme,  'Yenileme');
+        renderOneSubFunnel('subFunnelContentYs',  sub.yeniSatis, 'Yeni Satış');
     }
 
     // Funnel kart tıklama — tek handler
@@ -996,15 +1914,24 @@
     window._clickFunnel = function(idx) {
         if (_funnelLoading) return; // Çift tıklama engeli
         var cards = document.querySelectorAll(".funnel-card");
+        var subs = document.querySelectorAll('[data-teklif-sub]');
         if (activeFunnel === idx) {
             activeFunnel = 0;
             cards.forEach(function(c) { c.classList.remove("active-card","dimmed"); });
+            subs.forEach(function(s) { s.classList.remove("teklif-sub-active"); });
         } else {
             activeFunnel = idx;
             cards.forEach(function(c) {
-                var ci = parseInt(c.dataset.funnel);
-                if (ci === idx) { c.classList.add("active-card"); c.classList.remove("dimmed"); }
+                // data-funnel birden fazla değer tutabilir (ör. Teklif kartı "3,4") — herhangi biri eşleşirse active
+                var fs = (c.dataset.funnel || "").split(",").map(function(x){ return parseInt(x.trim()); });
+                if (fs.indexOf(idx) >= 0) { c.classList.add("active-card"); c.classList.remove("dimmed"); }
                 else { c.classList.remove("active-card"); c.classList.add("dimmed"); }
+            });
+            // Teklif alt satır aktif göstergesi
+            subs.forEach(function(s) {
+                var sub = s.dataset.teklifSub;
+                var isActive = (sub === "bekleme" && idx === 3) || (sub === "kabul" && idx === 4);
+                s.classList.toggle("teklif-sub-active", isActive);
             });
         }
         _funnelLoading = true;
@@ -1014,30 +1941,86 @@
     /* ══════════════════════════════════
        LOAD ALL
        ══════════════════════════════════ */
-    async function refreshAll() {
-        // Race guard sadece _reqSeq ile — AbortController paylaşımı cascade abort yaratıyordu
-        var myReq = ++_reqSeq;
+    // Son başarılı refreshAll zamanı — age badge + visibility auto-refresh için
+    var _lastRefreshAt = Date.now();
 
-        // Skeleton: içerikleri SIFIRLAMA, sadece opacity'yi düşür (değerler ekranda kalsın)
+    async function refreshAll(opts) {
+        opts = opts || {};
+        var myReq = ++_reqSeq;
+        var prevForce = _forceNextFetch;
+        if (opts.force) {
+            _forceNextFetch = true;
+            window._clearClientCache && window._clearClientCache();
+        }
+
         document.querySelectorAll('.content-panel').forEach(function(p){ p.classList.add('fading'); });
 
         try {
-            // Ana paint: KPI + funnel breakdown + opp detay
             await Promise.all([
                 loadKpis(myReq),
                 loadFunnelBreakdown(activeFunnel > 0 ? activeFunnel : 2, myReq),
-                loadOppDetail(1, myReq)
+                loadOppDetail(1, myReq),
+                loadSalesCycle(myReq),
+                loadAgingData(myReq)
             ]);
+            // Sub-funnel artık _oppData.subFunnel'dan geliyor; filter değişince loadKpis zaten yeni veri çeker
+            if (_subFunnelOpen) renderSubFunnel();
+            if (myReq === _reqSeq) {
+                _lastRefreshAt = Date.now();
+                updateDataAgeBadge();
+            }
         } finally {
             if (myReq === _reqSeq) {
                 document.querySelectorAll('.content-panel').forEach(function(p){ p.classList.remove('fading'); });
             }
+            // force flag'i sadece bu refreshAll için aktifti — sıfırla
+            _forceNextFetch = prevForce;
         }
-
-        // SalesCycle ana thread'ı bloklamasın — idle'da
-        var idle = window.requestIdleCallback || function(cb){ return setTimeout(cb, 120); };
-        idle(function(){ if (myReq === _reqSeq) loadSalesCycle(myReq); });
     }
+
+    // ──────────── Veri Tazeliği UX ────────────
+    // Age badge: son refresh'ten geçen süre (sürekli görünmez — sadece >2 dk eskiyse)
+    function updateDataAgeBadge() {
+        var badge = document.getElementById('dataAgeBadge');
+        if (!badge) return;
+        var ageSec = Math.floor((Date.now() - _lastRefreshAt) / 1000);
+        if (ageSec < 120) { badge.classList.add('hidden'); return; }
+        var txt;
+        if (ageSec < 60) txt = ageSec + ' sn önce';
+        else if (ageSec < 3600) txt = Math.floor(ageSec/60) + ' dk önce';
+        else txt = Math.floor(ageSec/3600) + ' sa önce';
+        badge.textContent = '· ' + txt;
+        badge.classList.remove('hidden');
+    }
+    setInterval(updateDataAgeBadge, 30000);
+
+    // Manuel "Yenile" butonu — force fetch + spin animation + clientCache temizle
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('btnRefreshAll');
+        if (!btn) return;
+        var icon = btn.querySelector('i');
+        btn.addEventListener('click', async function() {
+            if (btn.disabled) return;
+            btn.disabled = true;
+            icon && icon.classList.add('animate-spin');
+            try { await refreshAll({ force: true }); }
+            finally {
+                btn.disabled = false;
+                icon && icon.classList.remove('animate-spin');
+            }
+        });
+    });
+
+    // Sessiz auto-refresh: kullanıcı sekmeye geri döndüğünde son refresh >5 dk eskiyse arka planda tazele.
+    // Görsel feedback yok — sadece data güncellenir, kart değerleri smooth countUp ile değişir.
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState !== 'visible') return;
+        var ageMs = Date.now() - _lastRefreshAt;
+        if (ageMs > 5 * 60 * 1000) {
+            // Background fetch — opacity düşürmeden, butona dokunmadan
+            refreshAll({ force: true }).catch(function(){});
+        }
+    });
 
     async function loadSalesCycle(reqId) {
         reqId = reqId || _reqSeq;
@@ -1048,18 +2031,52 @@
         } catch(e) { if (e.name !== 'AbortError') console.error('SalesCycle error:', e); }
     }
 
-    async function loadFaturaKarti() {
+    async function loadAgingData(reqId) {
+        reqId = reqId || _reqSeq;
         try {
-            var f = await fetch('/FirsatAnaliz/GetFaturaKarti?' + getFilterParams()).then(function(r) { return r.json(); });
-            // Kart 5 güncelle
-            countUp(document.getElementById('kpiVal5'), f.kapaliSiparisTutar, 500);
-            document.getElementById('kpiSub5').textContent = f.kapaliSiparisAdet + ' faturalanan sipariş';
-            // Hedef panelini fatura verisiyle güncelle
-            window._faturaData = f;
-            if (window._hedefTutar && window._hedefTutar > 0) updateHedefWithFatura(f);
-            if (_funnelExpanded > 0) renderFunnelExpand();
-        } catch(e) { console.error('FaturaKarti error:', e); }
+            // Aging filter'dan bağımsız — sadece person filtresini ilet
+            var personParam = '';
+            try { var u = new URLSearchParams(getFilterParams()); if (u.get('person')) personParam = '?person=' + encodeURIComponent(u.get('person')); } catch(_) {}
+            var data = await cachedFetch('/FirsatAnaliz/GetAgingData' + personParam);
+            if (reqId !== _reqSeq) return;
+            renderAging(data);
+        } catch(e) { if (e.name !== 'AbortError') console.error('Aging error:', e); }
     }
+
+    function renderAging(data) {
+        if (!data) return;
+        var setText = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+        var fmtAdet = function(n) { return (Number(n)||0).toLocaleString('tr-TR'); };
+        var fmtTutar = function(v) {
+            v = Number(v) || 0;
+            if (Math.abs(v) >= 1e9) return '₺' + (v/1e9).toFixed(1) + 'Mr';
+            if (Math.abs(v) >= 1e6) return '₺' + (v/1e6).toFixed(1) + 'M';
+            if (Math.abs(v) >= 1e3) return '₺' + (v/1e3).toFixed(0) + 'K';
+            return '₺' + Math.round(v);
+        };
+        // Fırsat
+        if (data.firsat) {
+            setText('agingFirsat30', fmtAdet(data.firsat.g30 && data.firsat.g30.adet));
+            setText('agingFirsat30Tutar', fmtTutar(data.firsat.g30 && data.firsat.g30.tutar));
+            setText('agingFirsat60', fmtAdet(data.firsat.g60 && data.firsat.g60.adet));
+            setText('agingFirsat60Tutar', fmtTutar(data.firsat.g60 && data.firsat.g60.tutar));
+            setText('agingFirsat90', fmtAdet(data.firsat.g90 && data.firsat.g90.adet));
+            setText('agingFirsat90Tutar', fmtTutar(data.firsat.g90 && data.firsat.g90.tutar));
+        }
+        // Teklif
+        if (data.teklif) {
+            setText('agingTeklif30', fmtAdet(data.teklif.g30 && data.teklif.g30.adet));
+            setText('agingTeklif30Tutar', fmtTutar(data.teklif.g30 && data.teklif.g30.tutar));
+            setText('agingTeklif60', fmtAdet(data.teklif.g60 && data.teklif.g60.adet));
+            setText('agingTeklif60Tutar', fmtTutar(data.teklif.g60 && data.teklif.g60.tutar));
+            setText('agingTeklif90', fmtAdet(data.teklif.g90 && data.teklif.g90.adet));
+            setText('agingTeklif90Tutar', fmtTutar(data.teklif.g90 && data.teklif.g90.tutar));
+        }
+    }
+
+    // loadFaturaKarti kaldırıldı: hiç çağrılmıyordu (dead code).
+    // Kart 5 (Faturalanan) verisi loadKpis (GetKpiCore) ve loadKpisFull (GetOpportunitySummary)
+    // tarafından zaten dolduruluyor — ayrı GetFaturaKarti AJAX'a ihtiyaç yoktu.
 
     async function refreshLowerSections() {
         var myReq = ++_reqSeq;
@@ -1093,54 +2110,129 @@
         }
 
         rows.forEach(function(r, i) {
+            var label = (type === 'product') ? r.urun : (type === 'customer' ? r.musteri : r.adSoyad);
+            var isDiger = (label === 'Diğer') && r.detay && r.detay.length > 0;
             var div = document.createElement('div');
             if (type === 'owner') {
                 var isActive = activeOwnerFilter === r.adSoyad;
-                div.className = 'flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer transition-colors ' +
-                                (isActive ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'hover:bg-[#f8fafc]');
-                div.setAttribute('onclick', "window._filterByOwner('" + encodeURIComponent(r.adSoyad) + "')");
-                div.innerHTML = medalHtml(i + 1) +
-                    '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#0f172a] truncate">' + r.adSoyad +
-                    '</p><p class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</p></div>' +
-                    '<div class="text-right"><p class="text-[13px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</p></div>';
+                div.className = 'flex items-center gap-3 py-2.5 px-2 rounded-lg ' + (isDiger ? 'cursor-pointer hover:bg-slate-50' : 'cursor-pointer transition-colors group ') +
+                                (isActive ? ' bg-indigo-50 ring-1 ring-indigo-200' : (isDiger ? '' : ' hover:bg-[#f8fafc]'));
+                if (isDiger) {
+                    div.setAttribute('data-diger-row','1');
+                    div.innerHTML = '<span class="text-[11px] font-bold text-[#94a3b8] w-5 text-center">#' + (i + 1) + '</span>' +
+                        '<i class="bi bi-chevron-right diger-chevron text-[#94a3b8]" style="font-size:10px;transition:transform .15s ease;"></i>' +
+                        '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#475569]">Diğer ' +
+                        '<span class="text-[10px] font-normal text-[#94a3b8]">(' + r.detay.length + ' kişi)</span></p>' +
+                        '<p class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</p></div>' +
+                        '<div class="text-right"><p class="text-[13px] font-bold text-[#475569]">' + abbr(r.tutar) + '</p></div>';
+                } else {
+                    div.setAttribute('onclick', "window._filterByOwner('" + encodeURIComponent(r.adSoyad) + "')");
+                    div.innerHTML = medalHtml(i + 1) +
+                        '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#0f172a] truncate">' + r.adSoyad +
+                        '</p><p class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</p></div>' +
+                        '<div class="text-right"><p class="text-[13px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</p></div>' +
+                        '<button class="hk-info-btn" title="Hedef detayı" onclick="event.stopPropagation();window._openHedefKarne(\'temsilci\',\'' + encodeURIComponent(r.adSoyad) + '\')"><i class="bi bi-info-circle"></i></button>';
+                }
             } else if (type === 'firsat') {
                 var clr = avatarColors[(i + 3) % avatarColors.length];
                 var isA = activeFirsatSahibiFilter === r.adSoyad;
                 div.className = 'flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer transition-colors ' +
-                                (isA ? 'bg-amber-50 ring-1 ring-amber-200' : 'hover:bg-[#f8fafc]');
-                div.setAttribute('onclick', "window._filterByFirsatSahibi('" + encodeURIComponent(r.adSoyad) + "')");
-                div.innerHTML = '<span class="text-[11px] font-bold text-[#94a3b8] w-5 text-center">#' + (i + 1) + '</span>' +
-                    '<div class="avatar-circle" style="background:' + clr + ';">' + initials(r.adSoyad) + '</div>' +
-                    '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#0f172a] truncate">' + r.adSoyad +
-                    '</p><span class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</span></div>' +
-                    '<div class="text-right"><p class="text-[13px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</p></div>';
+                                (isA ? 'bg-amber-50 ring-1 ring-amber-200' : (isDiger ? 'hover:bg-slate-50' : 'hover:bg-[#f8fafc]'));
+                if (isDiger) {
+                    div.setAttribute('data-diger-row','1');
+                    div.innerHTML = '<span class="text-[11px] font-bold text-[#94a3b8] w-5 text-center">#' + (i + 1) + '</span>' +
+                        '<i class="bi bi-chevron-right diger-chevron text-[#94a3b8]" style="font-size:10px;transition:transform .15s ease;"></i>' +
+                        '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#475569]">Diğer ' +
+                        '<span class="text-[10px] font-normal text-[#94a3b8]">(' + r.detay.length + ' kişi)</span></p>' +
+                        '<span class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</span></div>' +
+                        '<div class="text-right"><p class="text-[13px] font-bold text-[#475569]">' + abbr(r.tutar) + '</p></div>';
+                } else {
+                    div.setAttribute('onclick', "window._filterByFirsatSahibi('" + encodeURIComponent(r.adSoyad) + "')");
+                    div.innerHTML = '<span class="text-[11px] font-bold text-[#94a3b8] w-5 text-center">#' + (i + 1) + '</span>' +
+                        '<div class="avatar-circle" style="background:' + clr + ';">' + initials(r.adSoyad) + '</div>' +
+                        '<div class="flex-1 min-w-0"><p class="text-[12px] font-semibold text-[#0f172a] truncate">' + r.adSoyad +
+                        '</p><span class="text-[10px] text-[#94a3b8]">' + r.adet + ' adet</span></div>' +
+                        '<div class="text-right"><p class="text-[13px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</p></div>';
+                }
             } else if (type === 'product') {
                 var pct = Math.max((r.tutar / maxTutar) * 100, 3);
                 var isP = activeProductFilter === r.urun;
-                div.className = 'cursor-pointer rounded-lg px-1 py-0.5 -mx-1 transition-colors ' +
+                div.className = 'cursor-pointer rounded-lg px-1 py-0.5 -mx-1 transition-colors group ' +
                                 (isP ? 'bg-emerald-50 ring-1 ring-emerald-200' : 'hover:bg-emerald-50/50');
-                div.setAttribute('onclick', "window._filterByProduct('" + encodeURIComponent(r.urun) + "')");
-                div.innerHTML = '<div class="flex items-center justify-between mb-1">' +
-                    '<span class="text-[11px] font-semibold text-[#334155]">' + r.urun + '</span>' +
-                    '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</span></div>' +
-                    '<div class="pbar-track"><div class="pbar-fill" style="width:' + pct +
-                    '%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>';
+                if (isDiger) {
+                    div.setAttribute('data-diger-row','1');
+                    div.innerHTML = '<div class="flex items-center justify-between mb-1 gap-2">' +
+                        '<span class="text-[11px] font-semibold text-[#475569] flex items-center gap-1.5">' +
+                        '<i class="bi bi-chevron-right diger-chevron" style="font-size:10px;transition:transform .15s ease;"></i>' +
+                        'Diğer <span class="text-[10px] font-normal text-[#94a3b8]">(' + r.detay.length + ')</span></span>' +
+                        '<span class="text-[11px] font-bold text-[#475569]">' + abbr(r.tutar) + '</span>' +
+                        '</div>' +
+                        '<div class="pbar-track"><div class="pbar-fill" style="width:' + pct +
+                        '%; background: linear-gradient(90deg, #94a3b8, #cbd5e1);"></div></div>';
+                } else {
+                    div.setAttribute('onclick', "window._filterByProduct('" + encodeURIComponent(r.urun) + "')");
+                    div.innerHTML = '<div class="flex items-center justify-between mb-1 gap-2">' +
+                        '<span class="text-[11px] font-semibold text-[#334155]">' + r.urun + '</span>' +
+                        '<div class="flex items-center gap-1.5">' +
+                        '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</span>' +
+                        '<button class="hk-info-btn" title="Hedef detayı" onclick="event.stopPropagation();window._openHedefKarne(\'urun\',\'' + encodeURIComponent(r.urun) + '\')"><i class="bi bi-info-circle"></i></button>' +
+                        '</div></div>' +
+                        '<div class="pbar-track"><div class="pbar-fill" style="width:' + pct +
+                        '%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>';
+                }
             } else { /* customer */
                 var cp = Math.max((r.tutar / maxTutar) * 100, 3);
                 var isC = activeCustomerFilter === r.musteri;
                 div.className = 'cursor-pointer rounded-lg px-1 py-0.5 -mx-1 transition-colors ' +
                                 (isC ? 'bg-violet-50 ring-1 ring-violet-200' : 'hover:bg-violet-50/50');
-                div.setAttribute('onclick', "window._filterByCustomer('" + encodeURIComponent(r.musteri) + "')");
-                div.innerHTML = '<div class="flex items-center justify-between mb-1">' +
-                    '<span class="text-[11px] font-semibold text-[#334155] truncate max-w-[200px]">' + (r.musteri || '--') + '</span>' +
-                    '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</span></div>' +
-                    '<div class="pbar-track"><div class="pbar-fill" style="width:' + cp +
-                    '%; background: linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>';
+                if (isDiger) {
+                    div.setAttribute('data-diger-row','1');
+                    div.innerHTML = '<div class="flex items-center justify-between mb-1">' +
+                        '<span class="text-[11px] font-semibold text-[#475569] flex items-center gap-1.5">' +
+                        '<i class="bi bi-chevron-right diger-chevron" style="font-size:10px;transition:transform .15s ease;"></i>' +
+                        'Diğer <span class="text-[10px] font-normal text-[#94a3b8]">(' + r.detay.length + ' müşteri)</span></span>' +
+                        '<span class="text-[11px] font-bold text-[#475569]">' + abbr(r.tutar) + '</span></div>' +
+                        '<div class="pbar-track"><div class="pbar-fill" style="width:' + cp +
+                        '%; background: linear-gradient(90deg, #94a3b8, #cbd5e1);"></div></div>';
+                } else {
+                    div.setAttribute('onclick', "window._filterByCustomer('" + encodeURIComponent(r.musteri) + "')");
+                    div.innerHTML = '<div class="flex items-center justify-between mb-1">' +
+                        '<span class="text-[11px] font-semibold text-[#334155] truncate max-w-[200px]">' + (r.musteri || '--') + '</span>' +
+                        '<span class="text-[11px] font-bold text-[#0f172a]">' + abbr(r.tutar) + '</span></div>' +
+                        '<div class="pbar-track"><div class="pbar-fill" style="width:' + cp +
+                        '%; background: linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>';
+                }
             }
             frag.appendChild(div);
+
+            // Diğer satırının altına detay listesi (default kapalı)
+            if (isDiger) {
+                var detayWrap = document.createElement('div');
+                detayWrap.className = 'diger-detay-wrap';
+                detayWrap.style.cssText = 'display:none;padding:6px 8px 6px 28px;border-left:2px solid #e2e8f0;margin:4px 0 8px 10px;';
+                var detayHtml = '';
+                r.detay.forEach(function(d) {
+                    var dLabel = (type === 'product') ? d.urun : (type === 'customer' ? d.musteri : d.adSoyad);
+                    detayHtml += '<div class="flex items-center justify-between py-1 text-[11px]">' +
+                        '<span class="text-[#475569] truncate max-w-[220px]" title="' + (dLabel || '--') + '">' + (dLabel || '--') + '</span>' +
+                        '<span class="text-[#0f172a] font-semibold whitespace-nowrap ml-2">' + abbr(d.tutar) + '<span class="text-[#94a3b8] font-normal ml-1">· ' + (d.adet || 0) + '</span></span>' +
+                        '</div>';
+                });
+                detayWrap.innerHTML = detayHtml;
+                frag.appendChild(detayWrap);
+
+                div.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    var open = detayWrap.style.display !== 'none';
+                    detayWrap.style.display = open ? 'none' : 'block';
+                    var chev = div.querySelector('.diger-chevron');
+                    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+                });
+            }
+
             totalTutar += r.tutar || 0;
             totalAdet  += r.adet  || 0;
-            if (i < rows.length - 1 && (type === 'owner' || type === 'firsat')) {
+            if (i < rows.length - 1 && (type === 'owner' || type === 'firsat') && !isDiger) {
                 var divider = document.createElement('div');
                 divider.className = 'divider';
                 frag.appendChild(divider);
@@ -1190,6 +2282,9 @@
             renderBreakdownList('firsatSahipleriList', data.firsatSahipleriBreakdown, 'firsat');
             renderBreakdownList('productBars',         data.productBreakdown,         'product');
             renderBreakdownList('customerBars',        data.customerBreakdown,        'customer');
+
+            // Üst dropdown'ları breakdown verisinden besle (sadece adı al, tutarı değil)
+            populateOppKisiDropdowns(data.ownerBreakdown, data.firsatSahipleriBreakdown);
         } catch(e) {
             if (e.name === 'AbortError') {
                 // Abort sonrası UI stuck olmasın: fading'i kaldır, kullanıcı bir sonraki veriyi bekliyor olsun
@@ -1250,6 +2345,8 @@
             document.getElementById('kpiSub3').textContent = core.exTeklifAdet + ' fırsat · Teklif aşamasında';
             countUp(document.getElementById('kpiVal4'), core.exSiparisTutar, 500);
             document.getElementById('kpiSub4').textContent = core.exSiparisAdet + ' fırsat · Sipariş aşamasında';
+            // Teklif kartı üst toplam (Beklemede + Kabul edildi)
+            countUp(document.getElementById('kpiValTeklifTotal'), (core.exTeklifTutar||0) + (core.exSiparisTutar||0), 500);
             countUp(document.getElementById('kpiVal5'), core.kapaliSiparisTutar, 500);
             document.getElementById('kpiSub5').textContent = core.kapaliSiparisAdet + ' faturalanan sipariş';
 
@@ -1297,40 +2394,46 @@
             // Card 4: rafine
             countUp(document.getElementById('kpiVal4'), opp.exSiparisTutar, 300);
             document.getElementById('kpiSub4').textContent = opp.exSiparisAdet + ' fırsat · Sipariş aşamasında';
-            // Card 2: Footer — teklif aşamasına geçenler + kaybedilen
+            // Teklif kartı üst toplam (rafine)
+            countUp(document.getElementById('kpiValTeklifTotal'), (opp.exTeklifTutar||0) + (opp.exSiparisTutar||0), 300);
+            // Card 2 (Fırsat): sadece "X kaybedilen hariç"
             var lost2 = document.getElementById('kpiLost2');
-            var parts2 = [];
-            if (opp.teklifeGecen > 0) parts2.push(opp.teklifeGecen + ' teklif aşamasına geçmiş');
-            if (opp.donemLostAdet > 0) parts2.push(opp.donemLostAdet + ' kaybedilen hariç');
-            if (parts2.length > 0) {
-                document.getElementById('kpiLost2Text').innerHTML = '<i class="bi bi-info-circle-fill" style="font-size:11px;margin-right:4px;"></i>' + parts2.join(' · ');
+            if (opp.donemLostAdet > 0) {
+                document.getElementById('kpiLost2Text').innerHTML = '<i class="bi bi-info-circle-fill" style="font-size:11px;margin-right:4px;"></i>' + opp.donemLostAdet + ' kaybedilen hariç';
                 lost2.classList.remove('hidden');
             } else lost2.classList.add('hidden');
 
-            // Card 3 — countUp zaten core'dan geldi
-            // Card 3: Footer — siparişe dönüşen + reddedilen
+            // Card 3 (Teklif): sadece "X reddedilen hariç"
             var lost3 = document.getElementById('kpiLost3');
-            var parts3 = [];
-            if (opp.sipariseGecen > 0) parts3.push(opp.sipariseGecen + ' siparişe dönüşmüş');
-            if (opp.lostTeklifAdet > 0) parts3.push(opp.lostTeklifAdet + ' reddedilen hariç');
-            if (parts3.length > 0) {
-                document.getElementById('kpiLost3Text').innerHTML = '<i class="bi bi-info-circle-fill" style="font-size:11px;margin-right:4px;"></i>' + parts3.join(' · ');
+            if (opp.lostTeklifAdet > 0) {
+                document.getElementById('kpiLost3Text').innerHTML = '<i class="bi bi-info-circle-fill" style="font-size:11px;margin-right:4px;"></i>' + opp.lostTeklifAdet + ' reddedilen hariç';
                 lost3.classList.remove('hidden');
             } else lost3.classList.add('hidden');
 
-            // Card 4 — countUp zaten core'dan geldi
-            // Card 4: Footer — faturaya dönüşen
+            // Card 4: Footer temizle (Bu Ay Sipariş ayrı kart değil — Teklif altında kabul edildi olarak gösteriliyor)
             var lost4 = document.getElementById('kpiLost4');
-            if (opp.faturayaGecen > 0) {
-                document.getElementById('kpiLost4Text').innerHTML = '<i class="bi bi-info-circle-fill" style="font-size:11px;margin-right:4px;"></i>' + opp.faturayaGecen + ' faturaya dönüşmüş';
-                lost4.classList.remove('hidden');
-            } else lost4.classList.add('hidden');
+            if (lost4) lost4.classList.add('hidden');
 
-            // Card 5 — core'daki countUp yeterli, sadece sub metni exFaturaAdet ile refine edilebilir
+            // Card 5 — kpiVal5 RE-UPDATE: initial state stale ise üst kart yanlış kalmasın
+            // (Önceki bug: kpiVal5 sadece loadKpis'te bir kez set ediliyordu, summary'den taze değer gelmiyordu)
+            countUp(document.getElementById('kpiVal5'), opp.kapaliSiparisTutar, 300);
             document.getElementById('kpiSub5').textContent = opp.exFaturaAdet + ' fırsat · Faturaya dönüştü';
+
+            // Satış kartı — DealType breakdown: Yenileme vs Yeni Satış (Diğer = Yeni Satış'a dahil)
+            var yT = opp.faturaYenilemeTutar || 0, yA = opp.faturaYenilemeAdet || 0;
+            var nT = (opp.faturaYeniSatisTutar || 0) + (opp.faturaDigerTutar || 0);
+            var nA = (opp.faturaYeniSatisAdet  || 0) + (opp.faturaDigerAdet  || 0);
+            document.getElementById('kpiSatisYenilemeAdet').textContent = yA + ' fatura';
+            document.getElementById('kpiSatisYenilemeTutar').textContent = abbr(yT);
+            document.getElementById('kpiSatisYeniAdet').textContent      = nA + ' fatura';
+            document.getElementById('kpiSatisYeniTutar').textContent     = abbr(nT);
 
             document.getElementById('kpiVal4').dataset.raw = opp.exSiparisTutar;
             window._oppData = opp;
+            // Sub-funnel panel açıksa filter değişimi sonrası yeni veriyi göster
+            if (_subFunnelOpen) renderSubFunnel();
+            // Üst funnel zincirini de yeniden çiz (renderFunnelExpand _oppData kullanır)
+            if (typeof renderFunnelExpand === 'function') renderFunnelExpand();
             window._hedefTutar = opp.hedefTutar || 0;
             // Fatura verisi — exclusive fırsat adedi + SP fatura tutarı
             window._faturaData = { kapaliSiparisTutar: opp.kapaliSiparisTutar, kapaliSiparisAdet: opp.exFaturaAdet, gecenDonemFatura: opp.gecenDonemFatura };
@@ -1352,13 +2455,13 @@
                 });
 
                 // Dönem etiketi + hedef tutar (fatura bağımsız)
-                document.getElementById('hedefDonemLabel').textContent = lbl + ' hedef analizi';
+                document.getElementById('hedefDonemLabel').textContent = lbl + ' Hedefi';
                 document.getElementById('hedefHedefTutar').textContent = abbr(hedef);
             }
 
             // Aylık dağılım grafiği (fatura bağımsız)
             renderMonthlyChart(opp.aylikTrend || []);
-            if (_funnelExpanded > 0) renderFunnelExpand();
+            renderFunnelExpand(); // Funnel her zaman görünür
 
             // Hedef paneli + potansiyel + geçen dönem → fatura verisi gelince render edilecek (updateHedefWithFatura)
 
@@ -1377,25 +2480,49 @@
         function pctColor(v) { return v >= 100 ? 'text-emerald-600' : v >= 85 ? 'text-amber-600' : 'text-red-500'; }
         function safeHtml(id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; }
 
-        // Kart 5 hedef renk
-        var card5 = document.querySelector('[data-funnel="5"]');
-        if (card5) {
-            card5.classList.remove('kpi-border-green','kpi-border-amber','kpi-border-red');
-            card5.classList.add(faturaPct >= 100 ? 'kpi-border-green' : faturaPct >= 85 ? 'kpi-border-amber' : 'kpi-border-red');
+        // Hedef kartı stripe rengi (Satış kartı yerine artık ayrı Hedef kartında)
+        var hedefStripe = document.getElementById('hedefStripe');
+        if (hedefStripe) {
+            hedefStripe.style.background = faturaPct >= 100 ? '#10b981' : faturaPct >= 85 ? '#f59e0b' : '#ef4444';
         }
 
         // Büyük yüzde + progress bar
         var el = document.getElementById('hedefPctBig');
-        if (el) { el.textContent = '%' + fmtPct.format(faturaPct); el.style.color = faturaPct >= 100 ? '#22d3a0' : faturaPct >= 85 ? '#f59e0b' : '#f87171'; }
+        if (el) { el.textContent = '%' + fmtPct.format(faturaPct); }
         var bar = document.getElementById('hedefBarBig');
         if (bar) {
             setTimeout(function() {
-                bar.style.width = Math.min(faturaPct, 100) + '%';
-                bar.style.background = faturaPct >= 100 ? '#22d3a0' : faturaPct >= 85 ? '#f59e0b' : '#f87171';
+                var circ = 301.59; // 2π × r (r=48)
+                var dash = Math.min(faturaPct, 100) / 100 * circ;
+                bar.setAttribute('stroke-dasharray', dash + ' ' + circ);
+                bar.setAttribute('stroke', faturaPct >= 100 ? '#10b981' : faturaPct >= 85 ? '#f59e0b' : '#ef4444');
             }, 200);
         }
         var ge = document.getElementById('hedefGerceklesen');
         if (ge) ge.textContent = abbr(fatVal);
+
+        // Kalan iş günü + günlük gerekli (sadece "Bu Ay" filtresi için anlamlı)
+        (function() {
+            var tempoBox = document.getElementById('hedefTempoBox');
+            if (!tempoBox) return;
+            if (activeFilter && activeFilter !== 'month') { tempoBox.classList.add('hidden'); return; }
+            var now = new Date();
+            var ayBasi = new Date(now.getFullYear(), now.getMonth(), 1);
+            var aySonu = new Date(now.getFullYear(), now.getMonth()+1, 0);
+            // 2026 TR resmi tatilleri (minimum liste; güncellenebilir)
+            var tatiller = new Set(['2026-01-01','2026-04-23','2026-05-01','2026-05-19','2026-05-27','2026-05-28','2026-05-29','2026-05-30','2026-07-15','2026-08-30','2026-10-29','2027-01-01']);
+            function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+            function isIsg(d){ var g=d.getDay(); if(g===0||g===6) return false; return !tatiller.has(ymd(d)); }
+            // Yarından ay sonuna kadar iş günü (bugün dahil değil)
+            var kalan = 0;
+            var cur = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
+            while (cur <= aySonu) { if (isIsg(cur)) kalan++; cur.setDate(cur.getDate()+1); }
+            var kalanTutar = Math.max(0, hedef - fatVal);
+            var gunluk = kalan > 0 ? kalanTutar / kalan : 0;
+            document.getElementById('hedefKalanGun').textContent = kalan;
+            document.getElementById('hedefGunlukGerekli').textContent = kalan > 0 ? abbr(gunluk) : '—';
+            tempoBox.classList.remove('hidden');
+        })();
 
         // Geçen dönem karşılaştırma
         var gecenFat = f.gecenDonemFatura || 0;
@@ -1428,7 +2555,9 @@
             var potPct = (toplamPotansiyel / hedef) * 100;
             var ortOlasilik = opp.ortOlasilik || 0;
 
-            var teklifAdet = opp.exTeklifAdet || 0;
+            // Yüksek olasılıklı teklif sayısı (≥%90) — agirlikliPotansiyel artık bu dilim üzerinden
+            var yuksekTeklifAdet = opp.agirlikliPotansiyelAdet || 0;
+            var yuksekTeklifTutar = opp.yuksekOlasilikliTutar || 0;
             var sipAdet = opp.exSiparisAdet || 0;
             var fatAdet = opp.kapaliSiparisAdet || 0;
 
@@ -1436,8 +2565,7 @@
             ph += '<div class="px-3 py-2.5 rounded-lg bg-violet-50/50 border border-violet-100">';
             ph += '<p class="text-[10px] font-bold text-violet-700">Teklif potansiyeli</p>';
             ph += '<p class="text-[18px] font-extrabold text-violet-700">' + abbr(teklifPotansiyel) + '</p>';
-            ph += '<p class="text-[9px] text-violet-600">' + teklifAdet + ' aktif teklifin tutarı, fırsat olasılıklarıyla ağırlıklandırılmış</p>';
-            ph += '<p class="text-[9px] text-violet-500 mt-0.5">Ortalama kazanma olasılığı: %' + fmtPct.format(ortOlasilik) + '</p>';
+            ph += '<p class="text-[9px] text-violet-600">≥%90 olasılıklı <b>' + yuksekTeklifAdet + ' teklif</b> · ham tutar ' + abbr(yuksekTeklifTutar) + '</p>';
             ph += '</div>';
             var potClr = potPct >= 100 ? 'bg-emerald-50 border-emerald-200' : potPct >= 85 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
             var potTxtClr = potPct >= 100 ? 'text-emerald-700' : potPct >= 85 ? 'text-amber-700' : 'text-red-700';
@@ -1757,19 +2885,19 @@
     function renderSalesCycle(data) {
         var mainEl = document.getElementById('cycleMainNumber');
         if (!mainEl) return;
+        var dealEl = document.getElementById('cycleDealCount');
+        var setText = function(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; };
+        var setWidth = function(id, w) { var el = document.getElementById(id); if (el) el.style.width = w; };
 
         var reset = function() {
             mainEl.textContent = '—';
-            document.getElementById('cycleDealCount').textContent = 'Veri yok';
-            document.getElementById('cycleFirsatTeklif').textContent = '—';
-            document.getElementById('cycleTeklifSiparis').textContent = '—';
-            document.getElementById('cycleSiparisFatura').textContent = '—';
-            document.getElementById('cycleMin').textContent = '—';
-            document.getElementById('cycleMedian').textContent = '—';
-            document.getElementById('cycleMax').textContent = '—';
-            document.getElementById('segFirsatTeklif').style.width = '0%';
-            document.getElementById('segTeklifSiparis').style.width = '0%';
-            document.getElementById('segSiparisFatura').style.width = '0%';
+            if (dealEl) dealEl.textContent = 'Veri yok';
+            setText('cycleFirsatTeklif', '—');
+            setText('cycleTeklifSiparis', '—');
+            setText('cycleSiparisFatura', '—');
+            setWidth('segFirsatTeklif', '0%');
+            setWidth('segTeklifSiparis', '0%');
+            setWidth('segSiparisFatura', '0%');
         };
 
         if (!data || (data.toplamKapanan === 0 && data.firsatKapanisAdet === 0)) { reset(); return; }
@@ -1781,29 +2909,24 @@
         void mainEl.offsetWidth;
         mainEl.classList.add('num-pulse');
         var dealCount = data.firsatKapanisAdet || data.toplamKapanan || 0;
-        document.getElementById('cycleDealCount').textContent = dealCount + ' deal';
+        if (dealEl) dealEl.textContent = dealCount + ' deal';
 
-        // 3 aşama süreleri
+        // 3 aşama süreleri (eski layout — DOM yoksa atla)
         var ft = data.ortFirsatTeklif || 0;
-        document.getElementById('cycleFirsatTeklif').textContent = ft > 0 ? ft.toFixed(0) + ' gün' : '—';
-        document.getElementById('cycleTeklifSiparis').textContent = data.ortTeklifSiparis.toFixed(0) + ' gün';
-        document.getElementById('cycleSiparisFatura').textContent = data.ortSiparisFatura.toFixed(0) + ' gün';
+        setText('cycleFirsatTeklif', ft > 0 ? ft.toFixed(0) + ' gün' : '—');
+        setText('cycleTeklifSiparis', data.ortTeklifSiparis.toFixed(0) + ' gün');
+        setText('cycleSiparisFatura', data.ortSiparisFatura.toFixed(0) + ' gün');
 
-        // Segmented timeline bar: oransal genişlik
+        // Segmented timeline bar: oransal genişlik (eski layout — DOM yoksa atla)
         var total = ft + data.ortTeklifSiparis + data.ortSiparisFatura;
         if (total > 0) {
             setTimeout(function() {
                 var pct = function(v) { return Math.max(Math.round(v / total * 100), v > 0 ? 4 : 0) + '%'; };
-                document.getElementById('segFirsatTeklif').style.width = pct(ft);
-                document.getElementById('segTeklifSiparis').style.width = pct(data.ortTeklifSiparis);
-                document.getElementById('segSiparisFatura').style.width = pct(data.ortSiparisFatura);
+                setWidth('segFirsatTeklif', pct(ft));
+                setWidth('segTeklifSiparis', pct(data.ortTeklifSiparis));
+                setWidth('segSiparisFatura', pct(data.ortSiparisFatura));
             }, 200);
         }
-
-        // Alt istatistikler
-        document.getElementById('cycleMin').textContent = data.minDongu + ' gün';
-        document.getElementById('cycleMedian').textContent = data.medyanToplamDongu.toFixed(0) + ' gün';
-        document.getElementById('cycleMax').textContent = data.maxDongu + ' gün';
     }
 
 
@@ -1858,33 +2981,22 @@
     }
 
     /* ══════════════════════════════════
-       OWNER FILTER OPTIONS
-       ══════════════════════════════════ */
-    async function loadOwnerOptions() {
-        try {
-            var data = await fetch('/FirsatAnaliz/GetOwnerFilterOptions').then(function(r) { return r.json(); });
-            var sel = document.getElementById('oppOwnerFilter');
-            sel.innerHTML = '<option value="">Tüm Temsilciler</option>';
-            data.forEach(function(o) {
-                sel.innerHTML += '<option value="' + o.ownerId + '">' + o.adSoyad + ' (' + o.adet + ')</option>';
-            });
-        } catch (e) { console.error('Owner options error:', e); }
-    }
-
-    /* ══════════════════════════════════
        OPPORTUNITY DETAIL TABLE
        ══════════════════════════════════ */
     async function loadOppDetail(page) {
-        var params = getFilterParams() + '&page=' + page + '&pageSize=15';
-        if (oppOwnerVal) params += '&owner=' + encodeURIComponent(oppOwnerVal);
-        var sf = document.getElementById('oppStageFilter');
-        if (sf && sf.value) params += '&stage=' + encodeURIComponent(sf.value);
+        var params = getFilterParams() + '&page=' + page + '&pageSize=30';
+        if (oppSortVal) params += '&sort=' + encodeURIComponent(oppSortVal);
+        if (oppSortDir) params += '&dir=' + encodeURIComponent(oppSortDir);
         if (activeCustomerFilter) params += '&customer=' + encodeURIComponent(activeCustomerFilter);
         if (activeProductFilter) params += '&product=' + encodeURIComponent(activeProductFilter);
         if (activeOwnerFilter) params += '&ownerName=' + encodeURIComponent(activeOwnerFilter);
         if (activeFirsatSahibiFilter) params += '&firsatSahibi=' + encodeURIComponent(activeFirsatSahibiFilter);
-        // Aktif funnel (Fırsat=2, Teklif=3, Sipariş=4, Fatura=5) → detay tablosu da breakdown ile aynı exclusive sete göre daralsın
-        if (activeFunnel > 1) params += '&funnel=' + activeFunnel;
+        // Aktif funnel → detay tablosu üst kartlarla aynı exclusive sete göre daralsın.
+        // Kullanıcı kademe seçmediyse (activeFunnel=0) default funnel=2 (kalan açık fırsat havuzu) — üst karttaki
+        // ownerBreakdown / productBreakdown ile birebir tutarlı; aksi halde detay Lost/Won dahil her şeyi
+        // gösterip üst kartlardan farklı dip toplam çıkarıyordu (kart-detay sapma bug'ı).
+        var detFunnel = activeFunnel > 0 ? activeFunnel : 2;
+        params += '&funnel=' + detFunnel;
 
         // Aktif filtre badge
         var filterBadge = document.getElementById('activeFilterBadge');
@@ -1908,35 +3020,51 @@
             var d = await fetch('/FirsatAnaliz/GetOpportunityDetail?' + params).then(function(r) { return r.json(); });
             var tbody = document.getElementById('oppDetailBody');
             if (!d.items || !d.items.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-[#94a3b8] text-[11px]">Veri Bulunamadı</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-[#94a3b8] text-[11px]">Veri Bulunamadı</td></tr>';
                 document.getElementById('oppPagination').innerHTML = '';
                 return;
             }
 
-            var stageMap = {
-                Won: 'bg-emerald-50 text-emerald-700',
-                Lost: 'bg-red-50 text-red-600',
-                Position: 'bg-blue-50 text-blue-700',
-                Negotiation: 'bg-amber-50 text-amber-700',
-                Proposal: 'bg-violet-50 text-violet-700',
-                Demo: 'bg-cyan-50 text-cyan-700',
-                ContractPending: 'bg-indigo-50 text-indigo-700',
-                InProgress: 'bg-sky-50 text-sky-700'
-            };
+            // Teklif durumu badge sınıfı (durumun rengi: yeşil = ileri, kırmızı = ret, gri = teklif yok / taslak)
+            function teklifBadgeClass(durum) {
+                switch (durum) {
+                    case 'Kabul Edildi':
+                    case 'Onaylandi':
+                    case 'Kismen Siparis':
+                        return 'bg-emerald-50 text-emerald-700';
+                    case 'Sunuldu':
+                        return 'bg-indigo-50 text-indigo-700';
+                    case 'Incelemede':
+                        return 'bg-amber-50 text-amber-700';
+                    case 'Reddedildi':
+                        return 'bg-red-50 text-red-700';
+                    case 'Kapatildi':
+                    case 'Taslak':
+                        return 'bg-slate-100 text-slate-600';
+                    case 'Yok':
+                        return 'bg-[#f1f5f9] text-[#94a3b8]';
+                    default:
+                        return 'bg-[#f1f5f9] text-[#64748b]';
+                }
+            }
 
             var h = '';
             d.items.forEach(function(item) {
-                var sc = Object.keys(stageMap).find(function(k) { return item.asama && item.asama.indexOf(k) >= 0; });
-                var badge = sc ? stageMap[sc] : 'bg-slate-100 text-slate-600';
+                var katBadge = item.kategori === 'Yenileme'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-indigo-50 text-indigo-700';
+                var tDurum = item.teklifDurumu || 'Yok';
+                var tAdet = item.teklifAdet || 0;
+                var tBadge = teklifBadgeClass(tDurum);
+                var tTitle = tAdet > 1 ? (tAdet + ' teklif · en son: ' + tDurum) : (tAdet === 1 ? 'En son teklif: ' + tDurum : 'Teklif yok');
                 h += '<tr class="border-t border-[#f8fafc] hover:bg-[#fafbfd] transition-colors">';
-                h += '<td class="py-2.5 px-2 text-[11px] text-[#334155] font-medium truncate max-w-[200px]" title="' + (item.name || '') + '">' + (item.name || '--') + '</td>';
-                h += '<td class="py-2.5 px-2 text-[11px] text-[#334155] truncate max-w-[160px]" title="' + (item.musteri || '') + '">' + (item.musteri || '--') + '</td>';
-                h += '<td class="py-2.5 px-2"><span class="stage-badge ' + badge + '">' + (item.asama || '--') + '</span></td>';
+                h += '<td class="py-2.5 px-2 text-[11px] text-[#334155] font-medium truncate max-w-[240px]" title="' + (item.musteri || '') + '">' + (item.musteri || '--') + '</td>';
+                h += '<td class="py-2.5 px-2 text-[11px] text-[#334155] truncate max-w-[260px]" title="' + (item.name || '') + '">' + (item.name || '--') + '</td>';
                 h += '<td class="py-2.5 px-2 text-[11px] text-[#64748b]">' + (item.satisTemsilcisi || '--') + '</td>';
-                h += '<td class="py-2.5 px-2 text-[11px] text-[#64748b]">' + (item.anlasmaTipi || '--') + '</td>';
+                h += '<td class="py-2.5 px-2"><span class="stage-badge ' + katBadge + '">' + (item.kategori || '--') + '</span></td>';
+                h += '<td class="py-2.5 px-2" title="' + tTitle + '"><span class="stage-badge ' + tBadge + '">' + tDurum + (tAdet > 1 ? ' · ' + tAdet : '') + '</span></td>';
                 h += '<td class="py-2.5 px-2 text-[11px] text-right font-semibold text-[#0f172a]">' + (item.tutar != null ? abbr(item.tutar) : '--') + '</td>';
                 h += '<td class="py-2.5 px-2 text-[11px] text-center text-[#64748b]">' + (item.kapanisTarihi || '--') + '</td>';
-                h += '<td class="py-2.5 px-2 text-[11px] text-[#94a3b8]">' + (item.kaynak || '--') + '</td>';
                 h += '</tr>';
             });
             tbody.innerHTML = h;
@@ -1968,26 +3096,69 @@
         if (!btn) return;
         document.querySelectorAll('.ftab').forEach(function(b) { b.classList.remove('active'); });
         btn.classList.add('active');
-        activeFilter = btn.dataset.filter;
+        activeFilter = (window.activeFilter = btn.dataset.filter);
         // Reset funnel selection on filter change
         activeFunnel = 0;
         document.querySelectorAll('.funnel-card').forEach(function(c) {
             c.classList.remove('active-card', 'dimmed');
         });
         if (_tabDebounce) clearTimeout(_tabDebounce);
-        _tabDebounce = setTimeout(refreshAll, 120);
+        _tabDebounce = setTimeout(function(){
+            refreshAll();
+            if (typeof window.loadHedefDetay === 'function') window.loadHedefDetay();
+        }, 120);
     });
 
-    // Owner filter
-    document.getElementById('oppOwnerFilter').addEventListener('change', function() {
-        oppOwnerVal = this.value;
-        loadOppDetail(1);
+    // Sort — başlığa tıklama: aynı başlık → yön toggle, farklı başlık → o key'e geç (varsayılan yön: tutar/kapanis desc, diğerleri asc)
+    function renderOppSortArrows() {
+        document.querySelectorAll('th[data-sort-key]').forEach(function(th) {
+            var arrow = th.querySelector('.opp-sort-arrow');
+            if (!arrow) return;
+            if (th.dataset.sortKey === oppSortVal) {
+                arrow.textContent = oppSortDir === 'asc' ? '▲' : '▼';
+                th.classList.add('active');
+            } else {
+                arrow.textContent = '';
+                th.classList.remove('active');
+            }
+        });
+    }
+    document.querySelectorAll('th[data-sort-key]').forEach(function(th) {
+        th.addEventListener('click', function() {
+            var key = th.dataset.sortKey;
+            if (oppSortVal === key) {
+                oppSortDir = oppSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                oppSortVal = key;
+                oppSortDir = (key === 'tutar' || key === 'kapanis') ? 'desc' : 'asc';
+            }
+            renderOppSortArrows();
+            loadOppDetail(1);
+        });
     });
+    renderOppSortArrows();
 
-    // Stage filter
-    document.getElementById('oppStageFilter').addEventListener('change', function() {
-        loadOppDetail(1);
-    });
+    // Üst kişi dropdown'ları — change'te activeOwnerFilter / activeFirsatSahibiFilter set + tabloyu yenile
+    var _oppTemSel = document.getElementById('oppTemsilciSelect');
+    var _oppSahSel = document.getElementById('oppFirsatSahibiSelect');
+    if (_oppTemSel) {
+        _oppTemSel.addEventListener('change', function(e) {
+            activeOwnerFilter = e.target.value || '';
+            e.target.classList.toggle('has-value', !!activeOwnerFilter);
+            highlightBreakdown('ownerList', activeOwnerFilter || null, 'bg-indigo-50 ring-1 ring-indigo-200');
+            renderActiveFilterChips();
+            refreshLowerSections();
+        });
+    }
+    if (_oppSahSel) {
+        _oppSahSel.addEventListener('change', function(e) {
+            activeFirsatSahibiFilter = e.target.value || '';
+            e.target.classList.toggle('has-value', !!activeFirsatSahibiFilter);
+            highlightBreakdown('firsatSahipleriList', activeFirsatSahibiFilter || null, 'bg-amber-50 ring-1 ring-amber-200');
+            renderActiveFilterChips();
+            refreshLowerSections();
+        });
+    }
 
     /* ══════════════════════════════════
        FIRSAT SAHIPLERI TOGGLE (gizle/göster)
@@ -2028,8 +3199,6 @@
             });
             applyFirsatSahibiVisibility();
         }
-        // Owner options sayfa ömrü boyunca tek defa yüklenir (tarih-bağımsız)
-        loadOwnerOptions();
         refreshAll();
     });
 

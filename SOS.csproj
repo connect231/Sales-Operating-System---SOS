@@ -38,6 +38,7 @@
     <Content Include="web.config" CopyToOutputDirectory="None" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Views\**\*.cshtml" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="wwwroot\**" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Services\SeedData\*.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

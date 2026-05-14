@@ -51,6 +51,16 @@ diagnostic_script_placeholder.txt
 
 # Publish output
 publish/
+publish_folder/
+*.zip
+
+# Runtime logs
+crash_log.txt
+output.log
+
+# Agent / editor local state
+.agent-ofis/
+.obsidian/
 
 # Backup files
 *.bak

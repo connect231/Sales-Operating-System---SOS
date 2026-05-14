@@ -17,6 +17,7 @@ public class CockpitCacheWarmerState
     public long FailureCount; // Interlocked field — property değil
     public string? LastError { get; set; }
     public DateTime? LastErrorAt { get; set; }
+    public int LastTaskFailures { get; set; } // son cycle'da kaç SP fail etti
 }
 
 /// <summary>
@@ -59,9 +60,12 @@ public class CockpitCacheWarmer : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MskDbContext>>();
                 var cache = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
+                var hedefService = scope.ServiceProvider.GetRequiredService<IHedefService>();
+                var taskFailures = 0;
 
                 // forceRefresh=true → cache bypass, DB'den taze data
-                await CockpitController.LoadAllCachedDataAsync(contextFactory, cache, forceRefresh: true);
+                // Bu kritik task — fail olursa cycle başarısız sayılır, exception fırlatılır
+                await CockpitController.LoadAllCachedDataAsync(contextFactory, cache, hedefService, forceRefresh: true);
 
                 // SP cache'lerini ısıt — sabit tarihli sorgular
                 var cockpitData = scope.ServiceProvider.GetRequiredService<ICockpitDataService>();
@@ -85,7 +89,8 @@ public class CockpitCacheWarmer : BackgroundService
                     cockpitData.GetTahsilatOzetAsync(gecenBas, gecenSon),
                     cockpitData.GetTahsilatOzetAsync(haftaBas, haftaSon),
                     cockpitData.GetTahsilatOzetAsync(ayBas, aySon),
-                    cockpitData.GetTahsilatOzetAsync(ytdBas, today)
+                    // Tahsilat YTD payda: ay sonuna kadar (CockpitController ile aynı semantik)
+                    cockpitData.GetTahsilatOzetAsync(ytdBas, aySon)
                 };
 
                 // Tüm pill-nav filtre dönemlerini de ısıt — PreloadAllFilters anında dönebilsin
@@ -116,16 +121,51 @@ public class CockpitCacheWarmer : BackgroundService
                     fixedTasks.Add(cockpitData.GetFaturaOzetAsync(prevS, prevE));
                 }
 
-                await Task.WhenAll(fixedTasks);
+                // GetMonthlyBreakdown 12 ay × 2 SP = 24 paralel çağrı içerir.
+                // Endpoint'in kendi 5dk cache'ini ısıt — kullanıcı GetMonthlyBreakdown çağırırsa cache hit.
+                // Cold path 9s'den ~ms'ye düşer.
+                for (int m = 1; m <= 12; m++)
+                {
+                    var ms = new DateTime(year, m, 1);
+                    var me = new DateTime(year, m, DateTime.DaysInMonth(year, m), 23, 59, 59);
+                    fixedTasks.Add(cockpitData.GetFaturaOzetAsync(ms, me));
+                    fixedTasks.Add(cockpitData.GetTahsilatOzetAsync(ms, me));
+                }
+
+                // Her task'ı bağımsız bekle — biri timeout/hata atarsa diğerleri etkilenmesin
+                var wrapped = fixedTasks.Select(async t =>
+                {
+                    try { await t; }
+                    catch (Exception ex)
+                    {
+                        Interlocked.Increment(ref taskFailures);
+                        _logger.LogWarning(ex, "CacheWarmer: bir SP refresh task'ı fail etti, diğerleri devam ediyor");
+                    }
+                });
+                await Task.WhenAll(wrapped);
+
+                // GetMonthlyBreakdown endpoint cache'ini ısıt — controller direkt çağrılır.
+                // SP'ler yukarıda preload edildi, bu çağrı sadece in-memory aggregate yapar.
+                try
+                {
+                    var cockpitController = ActivatorUtilities.CreateInstance<SOS.Controllers.CockpitController>(scope.ServiceProvider);
+                    await cockpitController.GetMonthlyBreakdown();
+                }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref taskFailures);
+                    _logger.LogWarning(ex, "CacheWarmer: GetMonthlyBreakdown preload fail (fatal değil)");
+                }
 
                 // NOT: FirsatAnaliz preload artık FirsatAnalizStartupWarmer (HostedService) tarafından yapılır.
 
                 var elapsed = DateTime.UtcNow - startedAt;
                 _state.LastRefreshAt = DateTime.UtcNow;
                 _state.LastRefreshDurationMs = (int)elapsed.TotalMilliseconds;
-                _state.RefreshCount++;
-                _logger.LogInformation("Cockpit cache refreshed in {ElapsedMs}ms (total refreshes: {Count})",
-                    _state.LastRefreshDurationMs, _state.RefreshCount);
+                _state.LastTaskFailures = taskFailures;
+                Interlocked.Increment(ref _state.RefreshCount);
+                _logger.LogInformation("Cockpit cache refreshed in {ElapsedMs}ms ({Failures} task fail, toplam refresh: {Count})",
+                    _state.LastRefreshDurationMs, taskFailures, _state.RefreshCount);
             }
             catch (OperationCanceledException)
             {

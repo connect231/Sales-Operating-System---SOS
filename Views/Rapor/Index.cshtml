@@ -1,0 +1,570 @@
+@{
+    ViewData["Title"] = "Raporlar";
+    Context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+    Context.Response.Headers["Pragma"] = "no-cache";
+}
+
+<style>
+    /* ═══ Rapor sayfası — Apple-quality, RIS tonu ═══ */
+    .rapor-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
+    }
+
+    .filter-chip {
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #475569;
+        cursor: pointer;
+        transition: all .15s ease;
+        font-family: inherit;
+    }
+    .filter-chip:hover { border-color: #94a3b8; color: #0f172a; }
+    .filter-chip.active {
+        background: #0f172a;
+        color: #fff;
+        border-color: #0f172a;
+    }
+    .filter-chip.active.kapanis-chip {
+        background: #b91c1c;
+        border-color: #b91c1c;
+    }
+
+    .ozet-mini {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .ozet-mini-card {
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+    }
+    .ozet-mini-card .lbl { font-size: 10px; font-weight: 600; color: #94a3b8; letter-spacing: .04em; }
+    .ozet-mini-card .val { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; margin-top: 6px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .ozet-mini-card .sub { font-size: 11px; color: #64748b; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .ozet-mini-card.amber { background: linear-gradient(135deg, #fffbeb 0%, #fff 100%); border-color: #fde68a; }
+    .ozet-mini-card.amber .val { color: #b45309; }
+    .ozet-mini-card.red { background: linear-gradient(135deg, #fef2f2 0%, #fff 100%); border-color: #fecaca; }
+    .ozet-mini-card.red .val { color: #b91c1c; }
+    .ozet-mini-card.emerald { background: linear-gradient(135deg, #ecfdf5 0%, #fff 100%); border-color: #a7f3d0; }
+    .ozet-mini-card.emerald .val { color: #047857; }
+
+    .rapor-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    .rapor-table thead {
+        position: sticky;
+        top: 0;
+        background: #f8fafc;
+        z-index: 5;
+    }
+    .rapor-table th {
+        text-align: left;
+        padding: 10px 12px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: .04em;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .rapor-table th:hover { color: #0f172a; }
+    .rapor-table th .sort-ind { display: inline-block; width: 12px; opacity: .5; }
+    .rapor-table th.sorted .sort-ind { opacity: 1; color: #0f172a; }
+
+    .rapor-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #0f172a;
+        vertical-align: middle;
+    }
+    .rapor-table tbody tr:hover { background: #f8fafc; }
+    .rapor-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .yas-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+    .yas-badge.g30 { background: #f1f5f9; color: #475569; }
+    .yas-badge.g60 { background: #fef3c7; color: #b45309; }
+    .yas-badge.g90 { background: #fee2e2; color: #b91c1c; }
+
+    .stage-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 600;
+        background: #eef2ff;
+        color: #4338ca;
+    }
+
+    .teklif-rozet {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 2px 8px; border-radius: 999px;
+        font-size: 10px; font-weight: 700;
+        background: #ecfdf5; color: #047857;
+    }
+    .teklif-rozet i { font-size: 9px; }
+    .teklif-yok { color: #cbd5e1; font-size: 11px; }
+
+    .expired-pill {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 1px 6px; border-radius: 4px;
+        font-size: 9px; font-weight: 700;
+        background: #fef2f2; color: #b91c1c;
+        margin-left: 6px; vertical-align: middle;
+    }
+
+    .icon-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 14px; border-radius: 10px; border: 1px solid #e2e8f0;
+        background: #fff; color: #0f172a; font-size: 12px; font-weight: 600;
+        cursor: pointer; transition: all .15s ease; font-family: inherit;
+    }
+    .icon-btn:hover { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .icon-btn i { font-size: 13px; }
+
+    .search-input {
+        padding: 8px 12px 8px 32px; border-radius: 10px; border: 1px solid #e2e8f0;
+        font-size: 12px; width: 280px; background: #fff;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'><circle cx='11' cy='11' r='7'/><path d='M21 21l-4.35-4.35'/></svg>");
+        background-repeat: no-repeat;
+        background-position: 10px center;
+        background-size: 14px;
+        font-family: inherit;
+        color: #0f172a;
+    }
+    .search-input:focus { outline: none; border-color: #94a3b8; }
+
+    .rapor-select {
+        padding: 6px 28px 6px 12px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        color: #475569;
+        font-family: inherit;
+        cursor: pointer;
+        max-width: 220px;
+        appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2.5'><path stroke-linecap='round' stroke-linejoin='round' d='M6 9l6 6 6-6'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 12px;
+        transition: border-color .12s ease, color .12s ease;
+    }
+    .rapor-select:hover { border-color: #94a3b8; color: #0f172a; }
+    .rapor-select:focus { outline: none; border-color: #0f172a; color: #0f172a; }
+    .rapor-select.has-value {
+        background-color: #0f172a;
+        color: #fff;
+        border-color: #0f172a;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23fff' stroke-width='2.5'><path stroke-linecap='round' stroke-linejoin='round' d='M6 9l6 6 6-6'/></svg>");
+    }
+
+    .empty-state { padding: 60px 20px; text-align: center; color: #94a3b8; font-size: 13px; }
+    .empty-state i { font-size: 32px; opacity: .5; display: block; margin-bottom: 12px; }
+
+    /* Skeleton loading — Apple-quality shimmer */
+    .skeleton-row td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .skeleton-bar {
+        display: inline-block;
+        height: 12px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+        background-size: 200% 100%;
+        animation: skeletonShimmer 1.4s ease-in-out infinite;
+        width: 70%;
+    }
+    @@keyframes skeletonShimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    .loading-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        font-size: 11px; font-weight: 600; color: #64748b;
+    }
+    .loading-pill::before {
+        content: ''; display: inline-block;
+        width: 12px; height: 12px;
+        border-radius: 50%;
+        border: 2px solid #cbd5e1;
+        border-top-color: #0f172a;
+        animation: loadingSpin .7s linear infinite;
+    }
+    @@keyframes loadingSpin { to { transform: rotate(360deg); } }
+
+    @@media (max-width: 1024px) {
+        .ozet-mini { grid-template-columns: repeat(2, 1fr); }
+    }
+    @@media (max-width: 640px) {
+        .ozet-mini { grid-template-columns: 1fr; }
+        .search-input { width: 100%; }
+    }
+</style>
+
+<div style="max-width: 1600px; margin: 0 auto;">
+    <header class="mb-5">
+        <h1 class="text-[24px] font-bold text-[#0f172a] tracking-tight">Açık Fırsatlar</h1>
+        <p class="text-[13px] text-[#64748b] mt-1">Tüm açık fırsatlar — fırsat yaşı, kapanış durumu ve teklif takibi</p>
+    </header>
+
+    <!-- Üst aksiyon barı -->
+    <div class="flex items-center justify-end flex-wrap gap-2 mb-5">
+        <input id="raporSearch" class="search-input" placeholder="Müşteri / temsilci / fırsat sahibi ara..." />
+        <button id="raporExportBtn" class="icon-btn" type="button">
+            <i class="bi bi-download"></i>
+            Excel
+        </button>
+    </div>
+
+    <!-- Filtre çubuğu -->
+    <div class="flex items-center flex-wrap gap-2 mb-4">
+        <span class="text-[11px] font-bold text-[#94a3b8] mr-1">Fırsat yaşı:</span>
+        <button class="filter-chip active" data-yas="0" type="button">Tümü</button>
+        <button class="filter-chip" data-yas="30" type="button">30+ gün</button>
+        <button class="filter-chip" data-yas="60" type="button">60+ gün</button>
+        <button class="filter-chip" data-yas="90" type="button">90+ gün</button>
+
+        <span class="text-[11px] font-bold text-[#94a3b8] ml-3 mr-1">Kapanış:</span>
+        <button class="filter-chip kapanis-chip" id="kapanisGectiChip" type="button" aria-pressed="false">Tahmini kapanışı geçenler</button>
+
+        <span class="text-[11px] font-bold text-[#94a3b8] ml-3 mr-1">Kişi:</span>
+        <select id="raporSahipFilter" class="rapor-select" aria-label="Fırsat Sahibi">
+            <option value="">Tüm Fırsat Sahipleri</option>
+        </select>
+        <select id="raporTemsilciFilter" class="rapor-select" aria-label="Satış Temsilcisi">
+            <option value="">Tüm Satış Temsilcileri</option>
+        </select>
+    </div>
+
+    <!-- Özet — 3 kart: toplam · kapanışı geçmiş · teklif olan -->
+    <div id="raporOzet" class="ozet-mini">
+        <div class="ozet-mini-card">
+            <div class="lbl">Toplam açık fırsat</div>
+            <div class="val" id="ozetToplamAdet">—</div>
+            <div class="sub" id="ozetToplamTutar">—</div>
+        </div>
+        <div class="ozet-mini-card red">
+            <div class="lbl">Tahmini kapanışı geçmiş</div>
+            <div class="val" id="ozetKapanisAdet">—</div>
+            <div class="sub" id="ozetKapanisTutar">—</div>
+        </div>
+        <div class="ozet-mini-card emerald">
+            <div class="lbl">Teklife dönmüş</div>
+            <div class="val" id="ozetTeklifAdet">—</div>
+            <div class="sub">fırsat</div>
+        </div>
+    </div>
+
+    <!-- Tablo -->
+    <div class="rapor-card overflow-hidden">
+        <div style="max-height: 620px; overflow-y: auto;">
+            <table class="rapor-table" id="raporTable">
+                <thead id="raporThead"></thead>
+                <tbody id="raporTbody"></tbody>
+            </table>
+        </div>
+        <div class="px-4 py-2 border-t border-[#f1f5f9] flex items-center justify-between text-[11px] text-[#64748b]">
+            <span id="raporSayac">— kayıt</span>
+            <span class="text-[10px] text-[#94a3b8]">Tarih: bugün</span>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function(){
+    'use strict';
+    const fmtTL = v => {
+        v = Number(v) || 0;
+        if (Math.abs(v) >= 1e9) return (v/1e9).toFixed(1).replace('.', ',') + ' Mr ₺';
+        if (Math.abs(v) >= 1e6) return (v/1e6).toFixed(1).replace('.', ',') + ' M ₺';
+        if (Math.abs(v) >= 1e3) return (v/1e3).toFixed(0) + 'K ₺';
+        return Math.round(v).toLocaleString('tr-TR') + ' ₺';
+    };
+    const fmtAdet = n => (Number(n)||0).toLocaleString('tr-TR');
+    const esc = s => String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+
+    let currentRows = [];
+    let sortKey = 'kapanisTarihi';
+    let sortDir = 'asc'; // küçükten büyüğe — en eski kapanış üstte
+    let activeMinYas = 0;          // 0 / 30 / 60 / 90
+    let activeKapanisGecti = false;
+    let activeKapanisOnceTarihi = ''; // ISO yyyy-MM-dd; popup "Detaylar" linkinden gelir
+    let activeSahip = '';
+    let activeTemsilci = '';
+
+    // URL query string ile başlangıç state'i (popup "Detaylar" linki, deep-link senaryoları)
+    (function readQuery(){
+        try {
+            var qs = new URLSearchParams(location.search);
+            if (qs.get('kapanisGecti') === 'true' || qs.get('kapanisGecti') === '1') activeKapanisGecti = true;
+            var m = parseInt(qs.get('minYas') || '', 10);
+            if ([30,60,90].indexOf(m) >= 0) activeMinYas = m;
+            if (qs.get('firsatSahibi')) activeSahip = qs.get('firsatSahibi');
+            if (qs.get('ownerName'))    activeTemsilci = qs.get('ownerName');
+            if (qs.get('kapanisOnceTarihi')) activeKapanisOnceTarihi = qs.get('kapanisOnceTarihi');
+        } catch(e) { /* URL parse hatası önemli değil */ }
+    })();
+
+    // Sütunlar — tek görünüm: Tahmini Kapanış | Sahibi | Temsilci | Müşteri | Fırsat | Aşama | Tutar | Fırsat Yaşı | Teklif | Olasılık
+    const cols = [
+        { key: 'kapanisTarihi',   label: 'Tahmini Kapanış' },
+        { key: 'firsatSahibi',    label: 'Fırsat Sahibi' },
+        { key: 'satisTemsilcisi', label: 'Satış Temsilcisi' },
+        { key: 'musteri',         label: 'Müşteri' },
+        { key: 'firsatAdi',       label: 'Fırsat Adı' },
+        { key: 'asama',           label: 'Aşama' },
+        { key: 'tutar',           label: 'Tutar', num: true },
+        { key: 'firsatYasi',      label: 'Fırsat Yaşı', num: true },
+        { key: 'teklifAdet',      label: 'Teklif', num: true },
+        { key: 'olasilik',        label: 'Olasılık %', num: true }
+    ];
+
+    function renderHead() {
+        const t = cols.map(col => {
+            const sorted = (col.key === sortKey);
+            const ind = sorted ? (sortDir === 'asc' ? '↑' : '↓') : '';
+            return `<th data-key="${col.key}" class="${col.num?'num':''} ${sorted?'sorted':''}">${col.label} <span class="sort-ind">${ind}</span></th>`;
+        }).join('');
+        document.getElementById('raporThead').innerHTML = '<tr>' + t + '</tr>';
+        document.querySelectorAll('#raporThead th').forEach(th => {
+            th.addEventListener('click', () => {
+                const k = th.getAttribute('data-key');
+                if (sortKey === k) sortDir = (sortDir === 'asc' ? 'desc' : 'asc');
+                else { sortKey = k; sortDir = (k === 'firsatYasi' || k === 'tutar' || k === 'olasilik' || k === 'teklifAdet' ? 'desc' : 'asc'); }
+                renderTable();
+            });
+        });
+    }
+
+    function yasBadge(g) {
+        const cls = g >= 90 ? 'g90' : g >= 30 ? 'g60' : 'g30';
+        return `<span class="yas-badge ${cls}">${g} gün</span>`;
+    }
+
+    function teklifCell(r) {
+        if (!r.teklifVar) return '<span class="teklif-yok">—</span>';
+        const adetLabel = r.teklifAdet > 1 ? r.teklifAdet + ' teklif' : '1 teklif';
+        return `<span class="teklif-rozet"><i class="bi bi-check-circle-fill"></i>${esc(adetLabel)}</span>`;
+    }
+
+    function kapanisCell(d, kapanisGecti) {
+        if (!d) return '<span class="text-[#cbd5e1]">—</span>';
+        const dt = new Date(d);
+        if (isNaN(dt)) return '';
+        const txt = ('0'+dt.getDate()).slice(-2) + '.' + ('0'+(dt.getMonth()+1)).slice(-2) + '.' + dt.getFullYear();
+        return kapanisGecti
+            ? `<span>${txt}</span><span class="expired-pill" title="Tahmini kapanış geçmiş"><i class="bi bi-exclamation-circle-fill"></i>geçti</span>`
+            : txt;
+    }
+
+    function renderTable() {
+        const search = (document.getElementById('raporSearch').value || '').toLowerCase().trim();
+        let rows = currentRows.slice();
+        if (activeSahip)    rows = rows.filter(r => (r.firsatSahibi||'') === activeSahip);
+        if (activeTemsilci) rows = rows.filter(r => (r.satisTemsilcisi||'') === activeTemsilci);
+        if (search) {
+            rows = rows.filter(r =>
+                (r.musteri||'').toLowerCase().includes(search) ||
+                (r.satisTemsilcisi||'').toLowerCase().includes(search) ||
+                (r.firsatSahibi||'').toLowerCase().includes(search) ||
+                (r.firsatAdi||'').toLowerCase().includes(search)
+            );
+        }
+        rows.sort((a,b) => {
+            let va = a[sortKey], vb = b[sortKey];
+            // Tarih kolonu: null tarihleri her durumda sona at
+            if (sortKey === 'kapanisTarihi') {
+                const aNull = !va, bNull = !vb;
+                if (aNull && !bNull) return 1;
+                if (!aNull && bNull) return -1;
+                if (aNull && bNull) return 0;
+                va = new Date(va).getTime();
+                vb = new Date(vb).getTime();
+            }
+            if (typeof va === 'string') va = va.toLowerCase();
+            if (typeof vb === 'string') vb = vb.toLowerCase();
+            if (va == null) return 1; if (vb == null) return -1;
+            if (va < vb) return sortDir === 'asc' ? -1 : 1;
+            if (va > vb) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        renderHead();
+
+        const tb = document.getElementById('raporTbody');
+        if (rows.length === 0) {
+            tb.innerHTML = `<tr><td colspan="${cols.length}"><div class="empty-state"><i class="bi bi-inbox"></i>Kayıt bulunamadı</div></td></tr>`;
+        } else {
+            tb.innerHTML = rows.map(r => `
+                <tr>
+                    <td>${kapanisCell(r.kapanisTarihi, r.kapanisGecti)}</td>
+                    <td>${esc(r.firsatSahibi)}</td>
+                    <td>${esc(r.satisTemsilcisi)}</td>
+                    <td>${esc(r.musteri)}</td>
+                    <td>${esc(r.firsatAdi)}</td>
+                    <td><span class="stage-badge">${esc(r.asama)}</span></td>
+                    <td class="num">${fmtTL(r.tutar)}</td>
+                    <td class="num">${yasBadge(r.firsatYasi)}</td>
+                    <td class="num">${teklifCell(r)}</td>
+                    <td class="num">${(Number(r.olasilik)||0).toFixed(0)}%</td>
+                </tr>
+            `).join('');
+        }
+        document.getElementById('raporSayac').textContent = `${rows.length} kayıt`;
+    }
+
+    function renderOzet(o) {
+        if (!o) return;
+        document.getElementById('ozetToplamAdet').textContent = fmtAdet(o.adet);
+        document.getElementById('ozetToplamTutar').textContent = fmtTL(o.tutar);
+        document.getElementById('ozetKapanisAdet').textContent = fmtAdet(o.kapanisGectiAdet);
+        document.getElementById('ozetKapanisTutar').textContent = fmtTL(o.kapanisGectiTutar);
+        document.getElementById('ozetTeklifAdet').textContent = fmtAdet(o.teklifVarAdet);
+    }
+
+    function populateKisiDropdowns() {
+        const sahipSel = document.getElementById('raporSahipFilter');
+        const temsilciSel = document.getElementById('raporTemsilciFilter');
+        const trCol = new Intl.Collator('tr-TR', { sensitivity: 'base' });
+        const sahipler = Array.from(new Set(currentRows.map(r => (r.firsatSahibi||'').trim()).filter(Boolean))).sort(trCol.compare);
+        const temsilciler = Array.from(new Set(currentRows.map(r => (r.satisTemsilcisi||'').trim()).filter(Boolean))).sort(trCol.compare);
+        if (activeSahip && !sahipler.includes(activeSahip)) activeSahip = '';
+        if (activeTemsilci && !temsilciler.includes(activeTemsilci)) activeTemsilci = '';
+        sahipSel.innerHTML = '<option value="">Tüm Fırsat Sahipleri</option>' +
+            sahipler.map(s => `<option value="${esc(s)}"${s===activeSahip?' selected':''}>${esc(s)}</option>`).join('');
+        temsilciSel.innerHTML = '<option value="">Tüm Satış Temsilcileri</option>' +
+            temsilciler.map(s => `<option value="${esc(s)}"${s===activeTemsilci?' selected':''}>${esc(s)}</option>`).join('');
+        sahipSel.classList.toggle('has-value', !!activeSahip);
+        temsilciSel.classList.toggle('has-value', !!activeTemsilci);
+    }
+
+    function buildQuery() {
+        const params = new URLSearchParams();
+        if (activeKapanisGecti)         params.set('kapanisGecti', 'true');
+        if (activeMinYas > 0)           params.set('minYas', String(activeMinYas));
+        if (activeKapanisOnceTarihi)    params.set('kapanisOnceTarihi', activeKapanisOnceTarihi);
+        const qs = params.toString();
+        return qs ? '?' + qs : '';
+    }
+
+    function renderSkeleton(rows) {
+        rows = rows || 8;
+        const tb = document.getElementById('raporTbody');
+        const cellWidths = ['68%','55%','50%','82%','78%','40%','55%','48%','45%','45%'];
+        let html = '';
+        for (let i = 0; i < rows; i++) {
+            html += '<tr class="skeleton-row">';
+            for (let c = 0; c < cols.length; c++) {
+                const w = cellWidths[c] || '60%';
+                html += `<td><span class="skeleton-bar" style="width:${w};"></span></td>`;
+            }
+            html += '</tr>';
+        }
+        tb.innerHTML = html;
+    }
+
+    async function loadData() {
+        const url = '/FirsatAnaliz/GetAcikFirsatlarDetay' + buildQuery();
+        document.getElementById('raporSayac').innerHTML = '<span class="loading-pill">Veriler hazırlanıyor…</span>';
+        renderSkeleton(8);
+        try {
+            const r = await fetch(url, { credentials: 'same-origin' }).then(x => x.json());
+            currentRows = r.kayitlar || [];
+            renderOzet(r.ozet);
+            populateKisiDropdowns();
+            renderTable();
+        } catch(e) {
+            document.getElementById('raporTbody').innerHTML = `<tr><td colspan="${cols.length}"><div class="empty-state"><i class="bi bi-exclamation-triangle"></i>Veri yüklenemedi</div></td></tr>`;
+            document.getElementById('raporSayac').textContent = 'Hata';
+            console.error(e);
+        }
+    }
+
+    // Yaş chip — exclusive
+    document.querySelectorAll('.filter-chip[data-yas]').forEach(chip => {
+        chip.addEventListener('click', () => {
+            document.querySelectorAll('.filter-chip[data-yas]').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            activeMinYas = parseInt(chip.dataset.yas, 10) || 0;
+            loadData();
+        });
+    });
+
+    // Kapanışı geçti toggle
+    document.getElementById('kapanisGectiChip').addEventListener('click', e => {
+        activeKapanisGecti = !activeKapanisGecti;
+        e.target.classList.toggle('active', activeKapanisGecti);
+        e.target.setAttribute('aria-pressed', activeKapanisGecti ? 'true' : 'false');
+        loadData();
+    });
+
+    // Kişi dropdown filtreleri (client-side)
+    document.getElementById('raporSahipFilter').addEventListener('change', e => {
+        activeSahip = e.target.value || '';
+        e.target.classList.toggle('has-value', !!activeSahip);
+        renderTable();
+    });
+    document.getElementById('raporTemsilciFilter').addEventListener('change', e => {
+        activeTemsilci = e.target.value || '';
+        e.target.classList.toggle('has-value', !!activeTemsilci);
+        renderTable();
+    });
+
+    // Arama (debounced)
+    let st;
+    document.getElementById('raporSearch').addEventListener('input', () => {
+        clearTimeout(st);
+        st = setTimeout(renderTable, 200);
+    });
+
+    // Excel indir — aktif filtreleri yansıtır
+    document.getElementById('raporExportBtn').addEventListener('click', () => {
+        window.location.href = '/FirsatAnaliz/ExportAcikFirsatlar' + buildQuery();
+    });
+
+    // URL'den gelen state'i UI'a yansıt (chip/toggle/dropdown ön-aktif)
+    (function syncInitialUi(){
+        try {
+            // Yaş chip'leri
+            document.querySelectorAll('.filter-chip[data-yas]').forEach(function(c){
+                c.classList.toggle('active', parseInt(c.dataset.yas, 10) === activeMinYas);
+            });
+            // Kapanışı geçti toggle
+            var kg = document.getElementById('kapanisGectiChip');
+            if (kg) {
+                kg.classList.toggle('active', activeKapanisGecti);
+                kg.setAttribute('aria-pressed', activeKapanisGecti ? 'true' : 'false');
+            }
+        } catch(e) {}
+    })();
+
+    // İlk yükleme
+    loadData();
+})();
+</script>
+}

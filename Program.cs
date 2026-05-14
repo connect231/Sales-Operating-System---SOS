@@ -50,18 +50,26 @@ builder.Services.AddScoped<IDatabaseMigrationService, DatabaseMigrationService>(
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IUrlEncryptionService, UrlEncryptionService>();
 builder.Services.AddScoped<ILogService, DbLogService>();
+builder.Services.AddScoped<ILoginAktiviteService, LoginAktiviteService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddResponseCaching();
 // Tahakkuk override servisi (Cockpit + FirsatAnaliz tarafından paylaşılır)
 builder.Services.AddScoped<ITahakkukService, TahakkukService>();
 builder.Services.AddScoped<ICockpitDataService, CockpitDataService>();
+// 2026 Hedef sistemi (600M senaryo) — bant + karne sayfası
+builder.Services.AddScoped<IHedefService, HedefService>();
+// SOS-özel admin yetkilendirme: TBLSOS_ADMIN_KULLANICI tablosundaki email'ler tüm menülere erişir
+builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 // Cockpit cache warmer — app startup'tan sonra her 4 dakikada cache'i DB'den yeniler
 builder.Services.AddSingleton<CockpitCacheWarmerState>();
 // DEV (localhost): 34 SP paralel preload bu makinede DB'yi boğuyor, lazy-cache yeterli
 // builder.Services.AddHostedService<CockpitCacheWarmer>();
 // FirsatAnaliz startup warmer — SQL page cache + 5 kritik endpoint (Bu Ay) preload, bir kez çalışır.
 // Cold call 147s maliyetini arka plana iter; kullanıcı login sırasında ısınır.
-builder.Services.AddHostedService<FirsatAnalizStartupWarmer>();
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<FirsatAnalizStartupWarmer>();
+}
 // Performance Optimization: Response Compression
 builder.Services.AddResponseCompression(options =>
 {
@@ -154,7 +162,7 @@ app.UseAuthorization();
 // Basic Content Security Policy
 app.Use(async (context, next) =>
 {
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self';";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self' https://cdn.jsdelivr.net;";
     await next();
 });
 

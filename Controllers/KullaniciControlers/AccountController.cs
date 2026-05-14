@@ -11,6 +11,7 @@ using SOS.DbData;
 using SOS.Models;
 using SOS.Models.Kullanici;
 using SOS.Models.Kullanici.Account;
+using SOS.Models.MsK;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace SOS.Controllers;
@@ -25,9 +26,10 @@ public class AccountController : Controller
     private readonly Services.ICompanyResolutionService _companyResolution;
     private readonly Services.IUrlEncryptionService _urlEncryption;
     private readonly Services.ILogService _logService;
+    private readonly Services.ILoginAktiviteService _loginAktivite;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, MskDbContext mskDb, Services.ICompanyResolutionService companyResolution, Services.IUrlEncryptionService urlEncryption, Services.ILogService logService, ILogger<AccountController> logger)
+    public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, IEmailService emailService, MskDbContext mskDb, Services.ICompanyResolutionService companyResolution, Services.IUrlEncryptionService urlEncryption, Services.ILogService logService, Services.ILoginAktiviteService loginAktivite, ILogger<AccountController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -36,6 +38,7 @@ public class AccountController : Controller
         _companyResolution = companyResolution;
         _urlEncryption = urlEncryption;
         _logService = logService;
+        _loginAktivite = loginAktivite;
         _logger = logger;
     }
     public ActionResult Create()
@@ -156,13 +159,9 @@ public class AccountController : Controller
     {
         try
         {
+            // Şifresiz email-only — sadece email doğrulanır.
             var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user == null) return Json(new { success = false, message = "Kullanıcı bulunamadı." });
-
-            // DEV MODE: Şifre kontrolü devre dışı
-            // PROD'da şu satırları aç:
-            // var check = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
-            // if (!check.Succeeded) return Json(new { success = false, message = "Hatalı şifre." });
+            if (user == null) return Json(new { success = false, message = "Bu e-posta sistemde kayıtlı değil." });
 
             // Get User Type
             var dbUser = await _mskDb.TBL_KULLANICIs.AsNoTracking().FirstOrDefaultAsync(u => u.LNGIDENTITYKOD == user.Id);
@@ -235,176 +234,192 @@ public class AccountController : Controller
                  return await RedirectToAuthorizedPage(user);
         }
 
-        // DEV MODE: Otomatik giriş — melih.bulut kullanıcısıyla sign-in yap
-        var adminUser = await _userManager.FindByNameAsync("melih.bulut")
-            ?? await _userManager.FindByEmailAsync("melih.bulut@univera.com.tr");
-        if (adminUser == null)
-        {
-            var newUser = new AppUser
-            {
-                UserName = "melih.bulut",
-                Email = "melih.bulut.dev@univera.com.tr",
-                EmailConfirmed = true
-            };
-            var createResult = await _userManager.CreateAsync(newUser, "Dev.2026!");
-            adminUser = createResult.Succeeded ? newUser : _userManager.Users.FirstOrDefault();
-        }
-        if (adminUser != null)
-        {
-            var claims = new List<Claim>();
-            var dbUser = await _mskDb.TBL_KULLANICIs.AsNoTracking()
-                .Where(x => x.LNGIDENTITYKOD == adminUser.Id)
-                .Select(x => new { x.TXTFIRMAADI, x.LNGKULLANICITIPI })
-                .FirstOrDefaultAsync();
-
-            if (dbUser != null)
-            {
-                if (!string.IsNullOrEmpty(dbUser.TXTFIRMAADI))
-                    claims.Add(new Claim("FirmaAdi", dbUser.TXTFIRMAADI));
-                claims.Add(new Claim("UserType", (dbUser.LNGKULLANICITIPI ?? 0).ToString()));
-            }
-
-            await _signInManager.SignInWithClaimsAsync(adminUser, false, claims);
-            return await RedirectToAuthorizedPage(adminUser);
-        }
-        // PROD'da üstteki DEV bloğunu kaldır, alttaki View'ı aç:
         return View();
     }
 
     [HttpPost]
     public async Task<ActionResult> Login(AccountLoginModel model, string? returnUrl, int? projectCode)
     {
-        if (ModelState.IsValid)
+        // Şifresiz email-only login — Password kontrol yok.
+        if (string.IsNullOrWhiteSpace(model?.Email))
         {
-            var user = await _userManager.FindByEmailAsync(model.Email);
+            TempData["Mesaj"] = "E-posta adresinizi giriniz";
+            return View(model);
+        }
 
-            if (user != null)
+        var email = model.Email.Trim();
+        var user = await _userManager.FindByEmailAsync(email)
+                   ?? await _userManager.FindByNameAsync(email);
+
+        if (user == null)
+        {
+            // TBL_KULLANICI'da TXTEMAIL ile aramayı da dene
+            var dbHit = await _mskDb.TBL_KULLANICIs.AsNoTracking()
+                .Where(x => x.TXTEMAIL == email && x.LNGIDENTITYKOD.HasValue)
+                .Select(x => x.LNGIDENTITYKOD!.Value)
+                .FirstOrDefaultAsync();
+            if (dbHit > 0)
             {
-                // DEV MODE: Şifre kontrolü devre dışı — sadece email ile giriş
-                var result = Microsoft.AspNetCore.Identity.SignInResult.Success;
-                // PROD'da şu satırı aç: var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, true);
-
-                if (result.Succeeded)
-                {
-                    // Fetch Company Name & User Type from TBL_KULLANICI
-                    var dbUser = _mskDb.TBL_KULLANICIs
-                        .Where(x => x.LNGIDENTITYKOD == user.Id)
-                        .Select(x => new { x.LNGKOD, x.TXTFIRMAADI, x.LNGKULLANICITIPI })
-                        .FirstOrDefault();
-
-                    var claims = new List<Claim>();
-                    if (dbUser != null)
-                    {
-                        if (!string.IsNullOrEmpty(dbUser.TXTFIRMAADI))
-                        {
-                            claims.Add(new Claim("FirmaAdi", dbUser.TXTFIRMAADI));
-                        }
-                        // Add UserType Claim (1=Admin, 2=Customer)
-                        claims.Add(new Claim("UserType", dbUser.LNGKULLANICITIPI?.ToString() ?? "0"));
-                    }
-
-                    // Welcome Bonus: Give 1000 tokens if balance is 0
-                    if (user.TokenBalance <= 0)
-                    {
-                         user.TokenBalance = 1000;
-                         await _userManager.UpdateAsync(user);
-                    }
-
-                    // Sign in with additional claims
-                    // Force isPersistent to false so session ends on browser close
-                    await _signInManager.SignInWithClaimsAsync(user, false, claims);
-
-                    await _userManager.ResetAccessFailedCountAsync(user);
-                    await _userManager.SetLockoutEndDateAsync(user, null);
-
-                    // Force Password Change Check
-                    // Check directly against the user object we just signed in
-                    var userClaims = await _userManager.GetClaimsAsync(user);
-                    if (userClaims.Any(c => c.Type == "ForcePasswordChange" && c.Value == "true"))
-                    {
-                        return RedirectToAction("ChangePassword");
-                    }
-
-                    if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-                    {
-                        try {
-                             var debugRoles = await _userManager.GetRolesAsync(user);
-                             TempData["DebugRoles"] = string.Join(",", debugRoles);
-                             TempData["DebugReturnUrl"] = returnUrl;
-                             TempData["DebugLogic"] = "LoginPOST Check";
-                        } catch (Exception ex) {
-                            // Debug TempData set'i kritik değil — hata yut ama log'a bas
-                            System.Diagnostics.Debug.WriteLine($"[LoginPOST Debug] TempData set failed: {ex.Message}");
-                        }
-
-                        // Check if user is authorized for this URL to avoid loop
-                        if (await IsUserAuthorizedForUrl(user, returnUrl))
-                        {
-                             return Redirect(returnUrl);
-                        }
-                    }
-
-                    // [FIX] Redirect to Authorized Page with Filter Parameter if Project Selected
-                    if (projectCode.HasValue) 
-                    {
-                        // Modify RedirectToAuthorizedPage to accept optional filter param or construct URL manually
-                        // For simplicity, we'll let RedirectToAuthorizedPage handle the base logic, 
-                        // but we need to ensure the query param is added *after* determining the controller/action.
-                        // Since RedirectToAuthorizedPage returns an ActionResult, we might need to intercept it.
-                        // Easier approach: The cookie is set above. The Dashboard reads the cookie. 
-                        // BUT User explicitly asked for URL parameter at first login.
-                        
-                        return await RedirectToAuthorizedPage(user, projectCode.Value);
-                    }
-
-                    await _logService.LogAsync("LOGIN_SUCCESS", $"Kullanıcı giriş yaptı: {user.UserName}", "ACCOUNT");
-
-                    return await RedirectToAuthorizedPage(user);
-
-                }
-                else if (result.IsLockedOut)
-                {
-                    var lockoutDate = await _userManager.GetLockoutEndDateAsync(user);
-                    var timeLeft = lockoutDate.Value - DateTime.UtcNow;
-                    ModelState.AddModelError("", $"Hesabınız kitlendi. Lütfen {timeLeft.Minutes + 1} dakika sonra tekrar deneyiniz.");
-                    TempData["Mesaj"] = $"Hesabınız kitlendi. Lütfen {timeLeft.Minutes + 1} dakika sonra tekrar deneyiniz.";
-                }
-                else if (result.IsNotAllowed)
-                {
-                    ModelState.AddModelError("", "Doğrulanmamış EMail");
-                    TempData["Mesaj"] = "Doğrulanmamış EMail";
-
-                } else
-                {
-                    ModelState.AddModelError("", "Hatalı parola");
-                    TempData["Mesaj"] = "Hatalı parola";
-                    await _logService.LogAsync("LOGIN_FAILED", $"Hatalı parola denemesi: {model.Email}", "ACCOUNT");
-                }
-            }
-            else
-            {
-                ModelState.AddModelError("", "Hatalı email");
-                TempData["Mesaj"] = "Hatalı email";
-                await _logService.LogAsync("LOGIN_FAILED", $"Hatalı email denemesi: {model.Email}", "ACCOUNT");
+                user = await _userManager.FindByIdAsync(dbHit.ToString());
             }
         }
-        
-        return View(model);
+
+        // Fallback: TBL_VARUNA_PERSON.Email ile eşleşme — varsa AspNetUser otomatik oluştur
+        TBL_VARUNA_PERSON? varunaPerson = null;
+        if (user == null)
+        {
+            varunaPerson = await _mskDb.TBL_VARUNA_PERSONs.AsNoTracking()
+                .Where(p => p.Email == email && p.DeletedOn == null)
+                .OrderByDescending(p => p.ModifiedOn)
+                .FirstOrDefaultAsync();
+
+            if (varunaPerson != null)
+            {
+                var fullName = !string.IsNullOrWhiteSpace(varunaPerson.PersonNameSurname)
+                    ? varunaPerson.PersonNameSurname!
+                    : ($"{varunaPerson.Name} {varunaPerson.SurName}").Trim();
+
+                var newUser = new AppUser
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true,
+                    AdSoyad = string.IsNullOrWhiteSpace(fullName) ? email : fullName
+                };
+                var createResult = await _userManager.CreateAsync(newUser);
+                if (createResult.Succeeded)
+                {
+                    user = newUser;
+
+                    // TBL_KULLANICI'da yoksa varsayılan tip (0) ile oluştur — Varuna Person üzerinden ilk giriş
+                    var alreadyDb = await _mskDb.TBL_KULLANICIs.AnyAsync(x => x.LNGIDENTITYKOD == newUser.Id);
+                    if (!alreadyDb)
+                    {
+                        _mskDb.TBL_KULLANICIs.Add(new TBL_KULLANICI
+                        {
+                            LNGIDENTITYKOD = newUser.Id,
+                            TXTEMAIL = email,
+                            TXTADSOYAD = newUser.AdSoyad,
+                            LNGKULLANICITIPI = 0
+                        });
+                        await _mskDb.SaveChangesAsync();
+                    }
+
+                    await _logService.LogAsync("USER_AUTOPROVISION", $"Varuna Person'dan otomatik kullanıcı oluşturuldu: {email}", "ACCOUNT");
+                }
+            }
+        }
+
+        if (user == null)
+        {
+            TempData["Mesaj"] = "Bu e-posta sistemde kayıtlı değil.";
+            await _logService.LogAsync("LOGIN_FAILED", $"Kayıtsız email denemesi: {email}", "ACCOUNT");
+            return View(model);
+        }
+
+        var dbUser = await _mskDb.TBL_KULLANICIs.AsNoTracking()
+            .Where(x => x.LNGIDENTITYKOD == user.Id)
+            .Select(x => new { x.LNGKOD, x.TXTADSOYAD, x.TXTFIRMAADI, x.LNGKULLANICITIPI })
+            .FirstOrDefaultAsync();
+
+        var claims = new List<Claim>();
+        if (dbUser != null)
+        {
+            if (!string.IsNullOrEmpty(dbUser.TXTFIRMAADI))
+                claims.Add(new Claim("FirmaAdi", dbUser.TXTFIRMAADI));
+            claims.Add(new Claim("UserType", dbUser.LNGKULLANICITIPI?.ToString() ?? "0"));
+            if (!string.IsNullOrEmpty(dbUser.TXTADSOYAD))
+                claims.Add(new Claim("AdSoyad", dbUser.TXTADSOYAD));
+        }
+        else
+        {
+            claims.Add(new Claim("UserType", "0"));
+        }
+
+        await _signInManager.SignInWithClaimsAsync(user, false, claims);
+        await _userManager.ResetAccessFailedCountAsync(user);
+        await _userManager.SetLockoutEndDateAsync(user, null);
+
+        // Aktivite kaydı — login event
+        await _loginAktivite.RecordLoginAsync(
+            kullaniciId: user.Id,
+            email: user.Email ?? email,
+            adSoyad: dbUser?.TXTADSOYAD ?? user.UserName,
+            ipAdresi: HttpContext.Connection.RemoteIpAddress?.ToString(),
+            userAgent: Request.Headers["User-Agent"].ToString());
+
+        await _logService.LogAsync("LOGIN_SUCCESS", $"Kullanıcı giriş yaptı: {user.UserName}", "ACCOUNT");
+
+        // Satışçı giriş uyarısı popup'ı her başarılı login'de tetiklensin diye
+        // _Layout, TempData["FreshLogin"] dolu olduğunda popup dedupe flag'ini (localStorage) temizler.
+        // Yan etki: doğal logout sonrası Clear-Site-Data zaten localStorage temizliyor; ama session
+        // timeout → otomatik /Account/Login akışı için gerekli (logout tetiklenmiyor).
+        TempData["FreshLogin"] = "1";
+
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return Redirect(returnUrl);
+        }
+
+        if (projectCode.HasValue)
+        {
+            return await RedirectToAuthorizedPage(user, projectCode.Value);
+        }
+
+        return await RedirectToAuthorizedPage(user);
     }
 
-    [Authorize]
     public async Task<ActionResult> LogOut()
     {
-        // Clear all browser data (cache, cookies, storage, executionContexts) for this site
-        Response.Headers["Clear-Site-Data"] = "\"cache\", \"cookies\", \"storage\", \"executionContexts\"";
-        
+        // Aktivite kaydı — logout event (Authorize kaldırıldı, expired session da çıkış yapabilsin)
+        if (User?.Identity?.IsAuthenticated ?? false)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (int.TryParse(userIdStr, out var uid))
+            {
+                try { await _loginAktivite.RecordLogoutAsync(uid); } catch { /* yutulur */ }
+            }
+            try { await _logService.LogAsync("LOGOUT", "Kullanıcı çıkış yaptı.", "ACCOUNT"); } catch { }
+        }
+
+        // 1) Identity SignOut — cookie max-age=0 ile süresiz expire eder
         await _signInManager.SignOutAsync();
 
-        Response.Cookies.Delete("duyuru_goruldu");
+        // 2) Bilinen cookie'leri açıkça temizle (bazı reverse proxy/cache senaryolarında SignOut yetmez)
+        var allCookies = Request.Cookies.Keys.ToList();
+        var cookieOpts = new Microsoft.AspNetCore.Http.CookieOptions
+        {
+            Expires = DateTimeOffset.UnixEpoch,
+            Path = "/",
+            SameSite = SameSiteMode.Lax
+        };
+        foreach (var c in allCookies)
+        {
+            // Identity, antiforgery, session ve uygulama özel cookie'leri
+            if (c.StartsWith(".AspNetCore.", StringComparison.OrdinalIgnoreCase)
+                || c.StartsWith(".AspNet.", StringComparison.OrdinalIgnoreCase)
+                || c.Equals("duyuru_goruldu", StringComparison.OrdinalIgnoreCase))
+            {
+                Response.Cookies.Delete(c, cookieOpts);
+            }
+        }
 
-        await _logService.LogAsync("LOGOUT", "Kullanıcı çıkış yaptı.", "ACCOUNT");
+        // 3) Tarayıcı tarafında storage + cache temizliği
+        Response.Headers["Clear-Site-Data"] = "\"cache\", \"cookies\", \"storage\"";
+        Response.Headers["Cache-Control"]   = "no-store, no-cache, must-revalidate, max-age=0";
+        Response.Headers["Pragma"]          = "no-cache";
 
         return RedirectToAction("Login", "Account");
+    }
+
+    [HttpPost]
+    [Authorize]
+    public async Task<IActionResult> Heartbeat()
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdStr, out var uid)) return Json(new { ok = false });
+        await _loginAktivite.RecordHeartbeatAsync(uid);
+        return Json(new { ok = true, t = DateTime.Now.ToString("HH:mm:ss") });
     }
 
     [Authorize]
@@ -891,6 +906,77 @@ public class AccountController : Controller
             _logger.LogError(ex, "Şirket değiştirme sırasında hata oluştu");
             return Json(new { success = false, message = "İşlem sırasında bir hata oluştu." });
         }
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // GET /Account/SatisciGirisUyarisi
+    // Login sonrası popup için: kullanıcı email'i TBL_VARUNA_PERSON ile eşleşip
+    // TBLSOS_HEDEF_TEMSILCI'de aktif kaydı varsa ve "bu ay başından önce kapanması
+    // gereken" açık fırsatları varsa, sayıları döndürür.
+    // ───────────────────────────────────────────────────────────────
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> SatisciGirisUyarisi()
+    {
+        var email = User.Identity?.Name;
+        if (string.IsNullOrEmpty(email)) return Json(new { eligible = false });
+
+        var person = await _mskDb.TBL_VARUNA_PERSONs.AsNoTracking()
+            .Where(p => p.Email == email && p.DeletedOn == null)
+            .Select(p => new { p.Id, p.PersonNameSurname, p.Name, p.SurName })
+            .FirstOrDefaultAsync();
+        if (person == null) return Json(new { eligible = false });
+
+        var hedefVar = await _mskDb.TBLSOS_HEDEF_TEMSILCIs.AsNoTracking()
+            .AnyAsync(h => h.CrmPersonId == person.Id && h.Aktif);
+        if (!hedefVar) return Json(new { eligible = false });
+
+        var now = DateTime.Today;
+        // Popup eşiği: BUGÜN. Tahmini kapanış tarihi bugünden önce olan açık fırsatlar
+        // satışçıya hatırlatılır (Rapor sayfasındaki "geçti" rozeti ay başı eşiklidir;
+        // popup daha agresif: kullanıcı her gün uyarılsın).
+        var personIdLower = person.Id.ToLower();
+
+        var staleFirsatlar = await _mskDb.TBL_VARUNA_OPPORTUNITIESs.AsNoTracking()
+            .Where(o => o.DeletedOn == null
+                && o.OwnerId != null && o.OwnerId.ToLower() == personIdLower
+                && o.OpportunityStageName != "Lost" && o.OpportunityStageName != "Won"
+                && o.CloseDate.HasValue && o.CloseDate.Value < now)
+            .Select(o => new { o.Id, o.OpportunityStageName, o.AmountAmount })
+            .ToListAsync();
+
+        var acik = staleFirsatlar
+            .Where(o => o.OpportunityStageName == null
+                || !o.OpportunityStageName.Contains("Closed", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var oppIds = acik.Select(o => o.Id.ToLower()).ToList();
+        var teklifOppIds = await _mskDb.TBL_VARUNA_TEKLIFs.AsNoTracking()
+            .Where(t => t.DeletedOn == null && t.OpportunityId.HasValue
+                && oppIds.Contains(t.OpportunityId!.Value.ToString().ToLower()))
+            .Select(t => t.OpportunityId!.Value.ToString().ToLower())
+            .Distinct()
+            .ToListAsync();
+        var teklifSet = teklifOppIds.ToHashSet();
+
+        var staleAdet = acik.Count;
+        var teklifVarAdet = acik.Count(o => teklifSet.Contains(o.Id.ToLower()));
+        var staleTutar = acik.Sum(o => o.AmountAmount ?? 0m);
+        var personName = !string.IsNullOrWhiteSpace(person.PersonNameSurname)
+            ? person.PersonNameSurname!
+            : ($"{person.Name} {person.SurName}").Trim();
+
+        return Json(new
+        {
+            eligible = staleAdet > 0,
+            personName,
+            staleAdet,
+            staleTutar,
+            teklifVarAdet,
+            bugun        = now.ToString("yyyy-MM-dd"),
+            // Detaylar linki için: yarın itibarıyla CloseDate < <yarın> → bugün dahil tüm geçmişler
+            raporOnceTarihi = now.AddDays(1).ToString("yyyy-MM-dd")
+        });
     }
 }
 

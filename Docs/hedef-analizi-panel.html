@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Hedef Analizi — Tek Panel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { background: #f5f6f8; padding: 40px; }
+  .money { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .panel {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 1px 2px rgba(17,24,39,.04), 0 6px 24px rgba(17,24,39,.06);
+    border: 1px solid rgba(17,24,39,.04);
+    overflow: hidden;
+  }
+  .label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; }
+  .chip-warn { background: #fef3c7; color: #92400e; }
+  .chip-good { background: #d1fae5; color: #065f46; }
+  .chip-bad { background: #fee2e2; color: #991b1b; }
+  .chip-mute { background: #f1f5f9; color: #475569; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .row-bar { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+  .row-bar-fill { height: 100%; border-radius: 999px; background: #0f172a; }
+</style>
+</head>
+<body>
+
+<div class="max-w-[1280px] mx-auto">
+
+  <!-- ====================================================== -->
+  <!--   HEDEF ANALİZİ — TEK PANEL, 3 BÖLÜM                    -->
+  <!-- ====================================================== -->
+  <div class="panel">
+
+    <!-- ============ BÖLÜM 1: AY DURUMU ============ -->
+    <div class="px-7 pt-6 pb-7 border-b border-slate-100">
+
+      <!-- Header -->
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            </div>
+            <h2 class="text-[18px] font-bold text-slate-900 tracking-tight">Hedef Analizi</h2>
+            <span class="chip chip-mute">Nisan 2026</span>
+          </div>
+          <p class="text-sm text-slate-500 mt-1.5">Gerçekleşen, açık iş ve ay sonu projeksiyonu</p>
+        </div>
+
+        <!-- Sağda zaman kutusu -->
+        <div class="text-right">
+          <div class="label">Kalan</div>
+          <div class="flex items-baseline gap-1.5 justify-end mt-1">
+            <span class="text-[26px] font-bold money text-slate-900 leading-none">5</span>
+            <span class="text-sm text-slate-500 font-medium">iş günü</span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-1">22 Nisan, Çarş</div>
+        </div>
+      </div>
+
+      <!-- 5 EŞİT KOLON: Hedef → Gerçekleşen → Açık Sipariş → Potansiyel → Tahmin -->
+      <div class="grid grid-cols-5 gap-0">
+
+        <!-- HEDEF -->
+        <div class="px-4 first:pl-0">
+          <div class="label">Hedef</div>
+          <div class="text-[26px] font-bold money text-slate-900 mt-1.5 leading-none">45.0<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+          <div class="text-[12px] text-slate-500 mt-1.5">Aylık taahhüt</div>
+        </div>
+
+        <!-- GERÇEKLEŞEN -->
+        <div class="px-4 border-l border-slate-100">
+          <div class="flex items-center gap-1.5">
+            <span class="label">Faturalanan</span>
+            <span class="chip chip-good text-[10px] py-0.5">KESİN</span>
+          </div>
+          <div class="text-[26px] font-bold money text-slate-900 mt-1.5 leading-none">4.9<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+          <div class="text-[12px] text-slate-500 mt-1.5">33 fatura · %11 hedef</div>
+        </div>
+
+        <!-- AÇIK SİPARİŞ -->
+        <div class="px-4 border-l border-slate-100">
+          <div class="flex items-center gap-1.5">
+            <span class="label">Açık Sipariş</span>
+            <span class="chip chip-good text-[10px] py-0.5">KESİN</span>
+          </div>
+          <div class="text-[26px] font-bold money text-slate-900 mt-1.5 leading-none">4.8<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+          <div class="text-[12px] text-slate-500 mt-1.5">8 sipariş · faturaya</div>
+        </div>
+
+        <!-- POTANSİYEL (AĞIRLIKLI) -->
+        <div class="px-4 border-l border-slate-100">
+          <div class="flex items-center gap-1.5">
+            <span class="label">Potansiyel</span>
+            <span class="chip chip-warn text-[10px] py-0.5">OLASI</span>
+          </div>
+          <div class="text-[26px] font-bold money text-slate-900 mt-1.5 leading-none">23.9<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+          <div class="text-[12px] text-slate-500 mt-1.5">119 teklif × %47 kazanma</div>
+        </div>
+
+        <!-- TAHMİN -->
+        <div class="px-4 border-l border-slate-100">
+          <div class="flex items-center gap-1.5">
+            <span class="label">Tahmini Kapanış</span>
+          </div>
+          <div class="text-[26px] font-bold money text-slate-900 mt-1.5 leading-none">33.7<span class="text-base text-slate-400 ml-1 font-semibold">M ₺</span></div>
+          <div class="text-[12px] text-slate-500 mt-1.5">Hedefin <span class="font-semibold text-amber-700">%74.8</span>'i</div>
+        </div>
+      </div>
+
+      <!-- Tek progress bar, çok katmanlı -->
+      <div class="mt-6">
+        <div class="flex items-center justify-between mb-2 text-[12px]">
+          <div class="flex items-center gap-4">
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-900"></span><span class="text-slate-700 font-medium">Faturalanan %10.9</span></span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-500"></span><span class="text-slate-700 font-medium">Açık sipariş %10.7</span></span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="text-slate-700 font-medium">Ağırlıklı potansiyel %53.1</span></span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-200"></span><span class="text-slate-500">Açık %25.3</span></span>
+          </div>
+          <div class="text-slate-700 font-semibold">33.7M / 45.0M</div>
+        </div>
+        <div class="h-3 rounded-full bg-slate-100 overflow-hidden flex">
+          <div class="h-full bg-slate-900" style="width: 10.9%"></div>
+          <div class="h-full bg-slate-500" style="width: 10.7%"></div>
+          <div class="h-full bg-amber-400 opacity-80" style="width: 53.1%"></div>
+        </div>
+      </div>
+
+      <!-- Tempo callout -->
+      <div class="mt-5 p-4 rounded-xl bg-red-50 border border-red-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-4.5 h-4.5 text-red-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div>
+            <div class="text-[14px] font-semibold text-red-900">Hedefe 11.3M ₺ kalıyor — kalan 5 iş günü</div>
+            <div class="text-[13px] text-red-700/90 mt-0.5">Günde <span class="font-bold">2.26M ₺</span> kapanış gerekli · Bu ayın ortalama günlük tempo'su: <span class="font-bold">1.40M ₺/gün</span></div>
+          </div>
+        </div>
+        <button class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition flex-shrink-0">Aksiyon Planı →</button>
+      </div>
+    </div>
+
+    <!-- ============ BÖLÜM 2: HUNİ + HIZ (yan yana) ============ -->
+    <div class="grid grid-cols-2 gap-0">
+
+      <!-- SOL: HUNİ -->
+      <div class="px-7 py-6 border-r border-slate-100">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h3 class="text-[14px] font-bold text-slate-900">Huni Dönüşümü</h3>
+            <p class="text-[12px] text-slate-500 mt-0.5">Aşamalar arası tutar ve dönüşüm oranı</p>
+          </div>
+          <span class="chip chip-mute">Uçtan uca %19.2</span>
+        </div>
+
+        <!-- 4 satır funnel -->
+        <div class="space-y-2.5">
+
+          <!-- Fırsat -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">1</span>
+                <span class="text-[13px] font-semibold text-slate-700">Fırsat</span>
+                <span class="text-[11px] text-slate-400">· 70 adet</span>
+              </div>
+              <span class="text-[14px] font-bold money text-slate-900">25.5M ₺</span>
+            </div>
+            <div class="row-bar"><div class="row-bar-fill bg-slate-900" style="width: 67%"></div></div>
+          </div>
+
+          <!-- Teklif -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">2</span>
+                <span class="text-[13px] font-semibold text-slate-700">Teklif</span>
+                <span class="text-[11px] text-slate-400">· 125 adet</span>
+                <span class="chip chip-good text-[10px] py-0.5">↑ %149</span>
+              </div>
+              <span class="text-[14px] font-bold money text-slate-900">38.0M ₺</span>
+            </div>
+            <div class="row-bar"><div class="row-bar-fill bg-slate-700" style="width: 100%"></div></div>
+          </div>
+
+          <!-- Sipariş -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">3</span>
+                <span class="text-[13px] font-semibold text-slate-700">Sipariş</span>
+                <span class="text-[11px] text-slate-400">· 8 adet</span>
+                <span class="chip chip-bad text-[10px] py-0.5">↓ %12.6</span>
+              </div>
+              <span class="text-[14px] font-bold money text-slate-900">4.8M ₺</span>
+            </div>
+            <div class="row-bar"><div class="row-bar-fill bg-slate-500" style="width: 13%"></div></div>
+          </div>
+
+          <!-- Fatura -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center justify-center">✓</span>
+                <span class="text-[13px] font-semibold text-slate-700">Fatura</span>
+                <span class="text-[11px] text-slate-400">· 33 adet</span>
+                <span class="chip chip-good text-[10px] py-0.5">↑ %102</span>
+              </div>
+              <span class="text-[14px] font-bold money text-slate-900">4.9M ₺</span>
+            </div>
+            <div class="row-bar"><div class="row-bar-fill bg-emerald-500" style="width: 13%"></div></div>
+          </div>
+        </div>
+
+        <!-- Darboğaz uyarısı -->
+        <div class="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-100 flex items-start gap-2.5">
+          <svg class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+          <div class="text-[12px] text-amber-900 leading-relaxed">
+            <span class="font-semibold">Darboğaz: Teklif → Sipariş.</span> 117 teklif beklemede. Ortalama 35 günde dönüşüyor — bu hafta takip toplantısı önerilir.
+          </div>
+        </div>
+      </div>
+
+      <!-- SAĞ: HIZ -->
+      <div class="px-7 py-6">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h3 class="text-[14px] font-bold text-slate-900">Satış Hızı</h3>
+            <p class="text-[12px] text-slate-500 mt-0.5">Aşamalar arası süre ve genel kapanış</p>
+          </div>
+          <span class="chip chip-mute">80 deal</span>
+        </div>
+
+        <!-- Aşamalar arası süre -->
+        <div class="space-y-2 mb-5">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+            <div class="flex items-center gap-2.5">
+              <span class="text-[12px] text-slate-500">Fırsat</span>
+              <svg class="w-3 h-3 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              <span class="text-[12px] text-slate-500">Teklif</span>
+            </div>
+            <span class="text-[14px] font-bold money text-slate-900">1 <span class="text-[11px] text-slate-400 font-medium">gün</span></span>
+          </div>
+          <div class="flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-100">
+            <div class="flex items-center gap-2.5">
+              <span class="text-[12px] text-amber-900 font-medium">Teklif</span>
+              <svg class="w-3 h-3 text-amber-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              <span class="text-[12px] text-amber-900 font-medium">Sipariş</span>
+              <span class="chip chip-warn text-[10px] py-0.5">DARBOĞAZ</span>
+            </div>
+            <span class="text-[14px] font-bold money text-amber-900">35 <span class="text-[11px] text-amber-700 font-medium">gün</span></span>
+          </div>
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+            <div class="flex items-center gap-2.5">
+              <span class="text-[12px] text-slate-500">Sipariş</span>
+              <svg class="w-3 h-3 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              <span class="text-[12px] text-slate-500">Fatura</span>
+            </div>
+            <span class="text-[14px] font-bold money text-slate-900">0 <span class="text-[11px] text-slate-400 font-medium">gün</span></span>
+          </div>
+        </div>
+
+        <!-- Genel kapanış istatistikleri -->
+        <div class="pt-4 border-t border-slate-100">
+          <div class="label mb-3">Uçtan uca kapanış (Fırsat → Fatura)</div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="text-center p-3 rounded-lg bg-emerald-50">
+              <div class="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">En Hızlı</div>
+              <div class="text-[20px] font-bold money text-emerald-900 mt-1">0<span class="text-[11px] text-emerald-700 ml-0.5 font-medium">gün</span></div>
+            </div>
+            <div class="text-center p-3 rounded-lg bg-slate-100">
+              <div class="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Medyan</div>
+              <div class="text-[20px] font-bold money text-slate-900 mt-1">17<span class="text-[11px] text-slate-500 ml-0.5 font-medium">gün</span></div>
+            </div>
+            <div class="text-center p-3 rounded-lg bg-red-50">
+              <div class="text-[10px] font-semibold text-red-700 uppercase tracking-wider">En Yavaş</div>
+              <div class="text-[20px] font-bold money text-red-900 mt-1">253<span class="text-[11px] text-red-700 ml-0.5 font-medium">gün</span></div>
+            </div>
+          </div>
+          <div class="mt-3 flex items-center justify-between text-[12px]">
+            <span class="text-slate-500">Ortalama kapanış</span>
+            <span class="font-bold text-slate-900">35.3 gün</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Açıklama -->
+  <div class="mt-4 text-[11px] text-slate-400 text-center">
+    Tek panel · 3 bölüm · Üstte projeksiyon (CEO sorusu) · Altta huni & hız (analitik) · Renk sadece anlamlı sinyallerde
+  </div>
+
+</div>
+</body>
+</html>

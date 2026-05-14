@@ -1,0 +1,1444 @@
+@{
+    ViewData["Title"] = "Hedefler";
+}
+
+@* ═══════════════════════════════════════════════════════════════════════
+   2026 Satış Karnesi — Apple-quality redesign
+   Tab 1: Şirket Özeti  · KPI satırı + ürün/ay heatmap
+   Tab 2: Temsilciler   · 9 kart (avatar, hedef, progress, sparkline)
+   Tab 3: Detay         · seçili kişi + ürün matrisi
+   ═══════════════════════════════════════════════════════════════════════ *@
+
+<style>
+    /* Aylık trend grafik gridi (Şirket Özeti + Detay) — 2 sütun, dar ekranda 1 sütun */
+    .kr-chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+    @@media (max-width: 1100px) { .kr-chart-grid { grid-template-columns: 1fr; } }
+    .kr-chart-wrap { position: relative; height: 280px; }
+    .kr-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+    /* Detay paneli — 3 ana bar grafiği grid */
+    .kr-bar-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+    @@media (max-width: 1280px) { .kr-bar-grid { grid-template-columns: 1fr 1fr; } }
+    @@media (max-width: 720px)  { .kr-bar-grid { grid-template-columns: 1fr; } }
+    .kr-bar-wrap { position: relative; height: 240px; }
+    .kr-bar-wrap canvas { width: 100% !important; height: 100% !important; }
+
+    /* Ürün bazında mini bar grafikleri — 4 sütun grid */
+    .kr-urun-bar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @@media (max-width: 1280px) { .kr-urun-bar-grid { grid-template-columns: repeat(3, 1fr); } }
+    @@media (max-width: 980px)  { .kr-urun-bar-grid { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 560px)  { .kr-urun-bar-grid { grid-template-columns: 1fr; } }
+    .kr-urun-bar-card {
+        background: #fff; border-radius: 12px; padding: 10px 12px 12px;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04), 0 0 0 1px rgba(15,23,42,.06);
+    }
+    .kr-urun-bar-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin-bottom: 6px;
+    }
+    .kr-urun-bar-title {
+        font-size: 11.5px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .kr-urun-bar-pct {
+        font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+        padding: 1px 6px; border-radius: 5px; flex-shrink: 0;
+    }
+    .kr-urun-bar-pct.green  { background: #d1fae5; color: #065f46; }
+    .kr-urun-bar-pct.yellow { background: #fef3c7; color: #92400e; }
+    .kr-urun-bar-pct.red    { background: #fee2e2; color: #991b1b; }
+    .kr-urun-bar-pct.neutral{ background: #f1f5f9; color: #475569; }
+    .kr-urun-bar-wrap { position: relative; height: 160px; }
+    .kr-urun-bar-wrap canvas { width: 100% !important; height: 100% !important; }
+    .kr-urun-bar-foot {
+        display: flex; justify-content: space-between; font-size: 9.5px;
+        color: #64748b; margin-top: 4px; gap: 6px;
+    }
+    .kr-urun-bar-foot b { color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .kr-section-title {
+        font-size: 12px; font-weight: 700; color: #64748b;
+        letter-spacing: 0.06em; margin: 18px 0 10px;
+    }
+
+    .kr-page { padding: 28px 36px 60px; max-width: 1480px; margin: 0 auto; }
+    .kr-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom: 28px; }
+    .kr-title { font-size: 26px; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; }
+    .kr-sub { font-size: 13.5px; color: #64748b; margin-top: 5px; font-weight: 500; }
+
+    /* Tabs */
+    .kr-tabs { display:flex; gap:2px; background:#f1f5f9; padding:4px; border-radius:12px; }
+    .kr-tab {
+        padding: 9px 22px; font-size: 13px; font-weight: 600; color:#64748b;
+        background:transparent; border:0; border-radius:9px; cursor:pointer;
+        transition: all .25s cubic-bezier(.4,0,.2,1);
+    }
+    .kr-tab.active { background:#fff; color:#0f172a; box-shadow: 0 1px 4px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.04); }
+    .kr-tab:hover:not(.active):not(:disabled) { color:#0f172a; background: rgba(255,255,255,.55); }
+    .kr-tab:disabled { opacity: .35; cursor: not-allowed; }
+
+    .kr-pane { display:none; animation: fadeUp .3s cubic-bezier(.4,0,.2,1); }
+    .kr-pane.active { display:block; }
+    @@keyframes fadeUp { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+
+    /* KPI yapısı — sol kolon (hero + 2 alt kart) | sağ kolon (banner full-height) */
+    .kpi-stack { display: grid; gap: 14px; margin-bottom: 22px; }
+    .kpi-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    /* Detay tab — 4'lü KPI satırı */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+    @@media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 600px)  { .kpi-grid { grid-template-columns: 1fr; } }
+    .layout-grid { display: grid; grid-template-columns: 1fr 380px; gap: 14px; align-items: stretch; }
+    .layout-left  { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .kpi {
+        background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+        border-radius: 16px; padding: 18px 22px; position: relative;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04), 0 0 0 1px rgba(15,23,42,.06);
+        transition: transform .25s, box-shadow .25s;
+    }
+    .kpi:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,.08), 0 0 0 1px rgba(15,23,42,.08); }
+    .kpi-label { font-size: 11.5px; color: #64748b; letter-spacing: 0.04em; font-weight: 700; }
+    .kpi-value { font-size: 24px; font-weight: 700; color: #0f172a; margin-top: 6px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .kpi-sub { font-size: 12.5px; color: #475569; margin-top: 5px; font-weight: 500; }
+    .kpi-bar { height: 6px; background: #f1f5f9; border-radius: 4px; margin-top: 12px; overflow: hidden; }
+    .kpi-fill { height: 100%; border-radius: 4px; width: 0; transition: width 1.1s cubic-bezier(.4,0,.2,1); }
+
+    /* Büyük kart — Yıllık Hedef + Yıl Sonu Tahmin birleşik */
+    .kpi-hero { padding: 22px 26px 24px; }
+    .kpi-hero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; flex-wrap: wrap; }
+    .kpi-hero-block { min-width: 200px; }
+    .kpi-hero-block .kpi-label { font-size: 11.5px; }
+    .kpi-hero-block .kpi-value { font-size: 30px; line-height: 1.05; margin-top: 4px; }
+    .kpi-hero-block .kpi-sub { font-size: 13.5px; margin-top: 6px; color: #475569; }
+    .kpi-hero-divider {
+        width: 1px; align-self: stretch; margin: 4px 0;
+        background: linear-gradient(180deg, transparent 0%, #e2e8f0 30%, #e2e8f0 70%, transparent 100%);
+    }
+
+    /* Tahmini kapanış altındaki yüzde rozeti — yıllık hedefin ne kadarı? */
+    .kpi-tahmin-pct {
+        display: inline-block; margin-top: 8px;
+        padding: 4px 12px; border-radius: 8px;
+        font-size: 13px; font-weight: 700;
+        font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+    }
+    .kpi-tahmin-pct.green  { background: #d1fae5; color: #065f46; }
+    .kpi-tahmin-pct.yellow { background: #fef3c7; color: #92400e; }
+    .kpi-tahmin-pct.red    { background: #fee2e2; color: #991b1b; }
+
+    /* Multi-tick bar — YTD Gerç (yeşil dolgu) → YTD Hedef (sarı tick) → Yıl Sonu Tahmin (turuncu tick) → Yıllık (uç) */
+    .kpi-multibar-wrap { position: relative; padding-top: 6px; padding-bottom: 40px; }
+    .kpi-multibar {
+        position: relative; height: 10px; background: #f1f5f9; border-radius: 6px; overflow: visible;
+        box-shadow: inset 0 1px 2px rgba(15,23,42,.04);
+    }
+    .kpi-mb-fill {
+        position: absolute; top: 0; left: 0; height: 100%; border-radius: 6px;
+        transition: width 1.1s cubic-bezier(.4,0,.2,1);
+    }
+    .kpi-mb-fill.gerc-fill { background: linear-gradient(90deg, #10b981, #059669); z-index: 3; }
+    .kpi-mb-fill.tahmin-fill { background: linear-gradient(90deg, rgba(245,158,11,.55), rgba(245,158,11,.85)); z-index: 2; border-radius: 0 6px 6px 0; }
+    .kpi-mb-tick {
+        position: absolute; top: -6px; bottom: -6px; width: 2px;
+        background: #475569; border-radius: 2px;
+        transition: left 1.1s cubic-bezier(.4,0,.2,1);
+    }
+    .kpi-mb-tick.tick-ytd-hedef { background: #f59e0b; }
+    .kpi-mb-tick.tick-tahmin    { background: #ef4444; }
+    .kpi-mb-tick.tick-yillik    { background: #1e293b; }
+    .kpi-mb-tick-label {
+        position: absolute; top: 18px; transform: translateX(-50%);
+        font-size: 11.5px; line-height: 1.25; font-weight: 600; color: #475569;
+        white-space: nowrap; text-align: center;
+    }
+    .kpi-mb-tick-label .lbl-name { color: #64748b; font-size: 10.5px; letter-spacing: 0.02em; display: block; font-weight: 600; }
+    .kpi-mb-tick-label .lbl-value { color: #1e293b; font-variant-numeric: tabular-nums; font-weight: 700; }
+    .kpi-mb-tick-label.is-ytd .lbl-value { color: #059669; }
+    .kpi-mb-tick-label.is-ytd-hedef .lbl-value { color: #d97706; }
+    .kpi-mb-tick-label.is-tahmin .lbl-value { color: #dc2626; }
+    .kpi-mb-tick-label.is-yillik .lbl-value { color: #1e293b; font-weight: 700; }
+
+    /* YS / Yenileme kartı — alt detay (yıllık hedef ile) */
+    .ysyen-row { display: flex; gap: 18px; margin-top: 4px; }
+    .ysyen-col { flex: 1; min-width: 0; }
+    .ysyen-tag {
+        display: inline-block; font-size: 11.5px; padding: 3px 10px; border-radius: 999px;
+        font-weight: 700; letter-spacing: 0.02em;
+    }
+    .ysyen-tag.ys  { background: #ede9fe; color: #6d28d9; }
+    .ysyen-tag.yen { background: #cffafe; color: #0e7490; }
+    .ysyen-val { font-size: 20px; font-weight: 700; color: #0f172a; margin-top: 8px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .ysyen-target { font-size: 12px; color: #475569; margin-top: 5px; font-weight: 500; }
+    .ysyen-target b { color: #0f172a; font-weight: 700; }
+    .ysyen-pct { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; margin-left: 5px; }
+    .ysyen-pct.green  { background: #d1fae5; color: #065f46; }
+    .ysyen-pct.yellow { background: #fef3c7; color: #92400e; }
+    .ysyen-pct.red    { background: #fee2e2; color: #991b1b; }
+    .ysyen-yillik { font-size: 11px; color: #64748b; margin-top: 3px; letter-spacing: 0.02em; font-weight: 500; }
+
+    .green  { background: linear-gradient(90deg, #10b981, #059669); color: #fff; }
+    .yellow { background: linear-gradient(90deg, #f59e0b, #d97706); color: #fff; }
+    .red    { background: linear-gradient(90deg, #ef4444, #dc2626); color: #fff; }
+    .neutral { background: linear-gradient(90deg, #94a3b8, #64748b); color: #fff; }
+    .text-green { color: #059669; }  .text-yellow { color: #d97706; }
+    .text-red { color: #dc2626; }    .text-neutral { color: #64748b; }
+
+    /* Banner sağ kolon — sol kolonun toplam yüksekliği kadar uzanır */
+    .layout-grid > .banner-card { align-self: stretch; }
+
+    /* Açık sinyali — ayrı kart, kompakt matematiksel detay */
+    .banner-card {
+        display: flex; flex-direction: column;
+        padding: 14px 16px; border-radius: 14px; border: 1.5px solid;
+        font-size: 12.5px; line-height: 1.45;
+    }
+    .banner-card.banner-red {
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        border-color: #fca5a5; color: #991b1b;
+    }
+    .banner-card.banner-yellow {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border-color: #fcd34d; color: #92400e;
+    }
+    .banner-card .banner-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+    .banner-card .banner-icon { font-size: 16px; line-height: 1; }
+    .banner-card .banner-title { font-weight: 700; font-size: 13.5px; line-height: 1.25; }
+
+    /* Matematik mini tablo — sıkı */
+    .banner-math {
+        background: rgba(255,255,255,0.65); border-radius: 8px;
+        padding: 9px 12px; margin-bottom: 8px;
+        font-variant-numeric: tabular-nums; font-size: 12px;
+        line-height: 1.4;
+    }
+    .banner-math .row { display: flex; justify-content: space-between; padding: 2px 0; gap: 8px; }
+    .banner-math .row .lbl { color: inherit; opacity: 0.88; }
+    .banner-math .row .val { font-weight: 600; }
+    .banner-math .row.sep { border-top: 1px dashed rgba(0,0,0,0.18); margin-top: 4px; padding-top: 5px; }
+    .banner-math .row.total { font-weight: 800; }
+    .banner-math .row.total .val { font-size: 13.5px; }
+    .banner-card .banner-foot { font-size: 12px; opacity: 0.95; line-height: 1.45; }
+    .banner-card .banner-foot b { font-weight: 700; }
+    .banner-card .hiz-baslik {
+        font-weight: 700; font-size: 12px; margin-bottom: 4px;
+        opacity: 0.92; letter-spacing: 0.01em;
+    }
+    .banner-card .hiz-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        padding: 2px 0; gap: 8px;
+    }
+    .banner-card .hiz-lbl { opacity: 0.88; font-size: 12px; }
+    .banner-card .hiz-val { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 13px; }
+    .banner-card .hiz-unit { opacity: 0.65; font-size: 11px; font-weight: 500; }
+    .banner-card .hiz-x { opacity: 0.88; font-size: 11px; font-weight: 600; margin-left: 3px; }
+
+    /* Info ikon + tooltip — banner başlığında ⓘ, hover ile matematik detayı */
+    .banner-card .banner-head { position: relative; }
+    .info-icon {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: rgba(0,0,0,0.08); color: inherit;
+        font-size: 10px; font-weight: 700; cursor: help;
+        border: 0; margin-left: auto; flex-shrink: 0;
+        transition: background 0.2s;
+    }
+    .info-icon:hover { background: rgba(0,0,0,0.18); }
+    .info-tooltip {
+        position: absolute; top: 28px; right: -4px; z-index: 50;
+        width: 320px; padding: 12px 14px;
+        background: #1e293b; color: #e2e8f0;
+        border-radius: 10px; box-shadow: 0 8px 24px rgba(15,23,42,0.25);
+        font-size: 11px; line-height: 1.55; font-variant-numeric: tabular-nums;
+        opacity: 0; visibility: hidden; transform: translateY(-4px);
+        transition: opacity 0.18s, transform 0.18s, visibility 0.18s;
+        pointer-events: none;
+    }
+    .info-tooltip::before {
+        content: ''; position: absolute; top: -6px; right: 12px;
+        width: 12px; height: 12px; background: #1e293b;
+        transform: rotate(45deg);
+    }
+    .info-icon:hover + .info-tooltip,
+    .info-icon:focus + .info-tooltip,
+    .info-tooltip:hover {
+        opacity: 1; visibility: visible; transform: translateY(0);
+        pointer-events: auto;
+    }
+    .info-tooltip h4 { margin: 0 0 8px 0; font-size: 11px; font-weight: 700; color: #fbbf24; letter-spacing: 0.02em; }
+    .info-tooltip .formula-row {
+        display: flex; justify-content: space-between; gap: 8px;
+        padding: 3px 0; border-bottom: 1px dashed rgba(226,232,240,0.12);
+    }
+    .info-tooltip .formula-row:last-child { border-bottom: 0; }
+    .info-tooltip .formula-row .lbl { color: #94a3b8; }
+    .info-tooltip .formula-row .val { color: #e2e8f0; font-weight: 600; }
+    .info-tooltip .formula-block { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(226,232,240,0.18); }
+    .info-tooltip .formula-block .formula-name { color: #fbbf24; font-weight: 700; margin-bottom: 4px; }
+    .info-tooltip .formula-block code {
+        display: block; padding: 6px 8px; background: rgba(0,0,0,0.3);
+        border-radius: 6px; font-size: 10.5px; color: #cbd5e1;
+        font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+        margin-bottom: 4px;
+    }
+
+    /* Ürün kart grid (Şirket Özeti) — rep-card şablonunun ürün eksenli kardeşi */
+    .urun-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom: 22px; }
+    .urun-card-section-title {
+        font-size: 12px; font-weight: 700; color: #64748b; letter-spacing: 0.06em;
+        text-transform: none; margin: 4px 0 10px;
+    }
+    .urun-avatar {
+        width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+        color: #fff; font-weight: 700; font-size: 11px;
+        display: flex; align-items: center; justify-content: center;
+        letter-spacing: -0.02em;
+    }
+    /* 8 ana ürün için sabit gradient paleti (sırayla atanır) */
+    .urun-avatar.c1 { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+    .urun-avatar.c2 { background: linear-gradient(135deg, #06b6d4, #0ea5e9); }
+    .urun-avatar.c3 { background: linear-gradient(135deg, #10b981, #059669); }
+    .urun-avatar.c4 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .urun-avatar.c5 { background: linear-gradient(135deg, #ec4899, #db2777); }
+    .urun-avatar.c6 { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+    .urun-avatar.c7 { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .urun-avatar.c8 { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+    .rep-kanal.agirlik-ys  { background:#ede9fe; color:#6d28d9; }
+    .rep-kanal.agirlik-yen { background:#cffafe; color:#0e7490; }
+
+    /* Temsilci kartları — kompakt 4 sütun */
+    .rep-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+    .rep-card {
+        background:#fff; border-radius:12px; padding:13px 14px;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04), 0 0 0 1px rgba(15,23,42,.06);
+        cursor:pointer; transition: all .25s cubic-bezier(.4,0,.2,1);
+        position: relative; overflow: hidden;
+    }
+    .rep-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(15,23,42,.1), 0 0 0 1px rgba(14,165,233,.2); }
+    .rep-card::before {
+        content:''; position:absolute; top:0; left:0; right:0; height:2px;
+        background: var(--accent, #94a3b8);
+    }
+    .rep-card[data-renk="green"]  { --accent: #10b981; }
+    .rep-card[data-renk="yellow"] { --accent: #f59e0b; }
+    .rep-card[data-renk="red"]    { --accent: #ef4444; }
+
+    .rep-top { display:flex; align-items:center; gap:8px; margin-bottom: 10px; }
+    .rep-avatar {
+        width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff; font-weight: 700; font-size: 11px;
+        display: flex; align-items: center; justify-content: center;
+        letter-spacing: -0.02em;
+    }
+    .rep-name { font-size: 12px; font-weight: 700; color: #0f172a; line-height: 1.2; }
+    .rep-kanal { font-size: 9px; padding: 1px 6px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-weight: 600; margin-top: 3px; display: inline-block; }
+    .rep-kanal.kanal { background: #fef3c7; color: #92400e; }
+
+    .rep-row { display:flex; justify-content: space-between; font-size: 10px; color: #64748b; margin: 3px 0; }
+    .rep-row b { color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .rep-progress {
+        position: relative; height: 18px; background: #f1f5f9;
+        border-radius: 9px; overflow: visible; margin: 10px 0 6px;
+        box-shadow: inset 0 1px 2px rgba(15,23,42,.04);
+    }
+    .rep-progress-fill {
+        height: 100%; border-radius: 9px; width: 0;
+        transition: width 1s cubic-bezier(.4,0,.2,1);
+        position: relative;
+    }
+    .rep-progress-pct {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        right: 8px;
+        font-size: 10.5px; font-weight: 800; color: #fff;
+        font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+        white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.28);
+        pointer-events: none;
+    }
+    /* Bar dolgusu çok dar ise yüzde etiketini dışarı (sağ tarafa) taşı, koyu renk */
+    .rep-progress-pct.outside {
+        right: auto; left: calc(100% + 6px);
+        color: #1e293b; text-shadow: none;
+        background: rgba(255,255,255,0.92); padding: 1px 6px; border-radius: 4px;
+        border: 1px solid #e2e8f0;
+    }
+
+    /* Kart içi YS/Yen mini breakdown — yıllık hedef + YTD gerçekleşen */
+    .rep-mini-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        margin: 8px 0 2px; padding: 7px 8px;
+        background: #f8fafc; border-radius: 8px;
+    }
+    .rep-mini-col { min-width: 0; }
+    .rep-mini-tag {
+        font-size: 9px; font-weight: 700; letter-spacing: 0.02em;
+        padding: 1px 6px; border-radius: 999px;
+        display: inline-block; margin-bottom: 4px;
+    }
+    .rep-mini-tag.ys  { background: #ede9fe; color: #6d28d9; }
+    .rep-mini-tag.yen { background: #cffafe; color: #0e7490; }
+    .rep-mini-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 9.5px; color: #64748b; margin: 1px 0; line-height: 1.35;
+    }
+    .rep-mini-row b { color: #0f172a; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    .rep-tempo { display:flex; flex-direction: column; align-items: flex-end; margin-top: 9px; padding-top: 9px; border-top: 1px solid #f1f5f9; gap: 2px; }
+    .rep-tempo-label { font-size: 9px; color: #94a3b8; letter-spacing: .05em; font-weight: 700; }
+    .rep-tempo-value { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .rep-tempo-pct {
+        display: inline-block; padding: 1px 7px; border-radius: 6px;
+        font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+        margin-top: 2px;
+    }
+    .rep-tempo-pct.green  { background: #d1fae5; color: #065f46; }
+    .rep-tempo-pct.yellow { background: #fef3c7; color: #92400e; }
+    .rep-tempo-pct.red    { background: #fee2e2; color: #991b1b; }
+    .rep-tempo-pct.neutral{ background: #f1f5f9; color: #475569; }
+
+    /* Atanmamış uyarı şeridi */
+    .atanmamis-alert {
+        background: #fef3c7; border: 1px solid #fbbf24;
+        border-radius: 10px; padding: 9px 14px; margin-bottom: 12px;
+        display: flex; align-items: center; gap: 10px;
+        color: #92400e; font-size: 11px; line-height: 1.4;
+    }
+    .atanmamis-alert i { font-size: 14px; flex-shrink: 0; }
+    .atanmamis-alert b { font-weight: 700; }
+    .atanmamis-alert.gizli { display: none; }
+
+    /* Heatmap (Şirket Özeti) */
+    .panel { background:#fff; border-radius:16px; padding: 22px 24px; box-shadow: 0 1px 3px rgba(15,23,42,.04), 0 0 0 1px rgba(15,23,42,.06); }
+    .panel-title { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 14px; letter-spacing: -0.01em; }
+    .heatmap { width:100%; border-collapse: separate; border-spacing: 4px; font-size: 11px; }
+    .heatmap th { font-weight: 700; color: #94a3b8; font-size: 10px; padding: 8px 6px; letter-spacing: 0.05em; }
+    .heatmap td.urun-name { text-align: left; font-weight: 600; color: #0f172a; padding: 8px 12px 8px 4px; white-space: nowrap; }
+    .heatmap td.heat-cell {
+        text-align: right;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #fafbfc;
+        border: 1px solid #eef2f7;
+        font-variant-numeric: tabular-nums;
+        transition: background .15s, border-color .15s;
+    }
+    .heatmap td.heat-cell:hover { background: #fff; border-color: #cbd5e1; }
+    .heatmap td.total-cell { background: #f1f5f9; border-color: #e2e8f0; }
+    .heatmap td.total-cell-strong { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+    .skeleton { display:inline-block; width:80px; height:14px; background:linear-gradient(90deg,#f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%); background-size: 200% 100%; border-radius:4px; animation: shimmer 1.4s linear infinite; }
+    @@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* Matris başlık + legend */
+    .matris-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+    .matris-legend { display: flex; gap: 14px; font-size: 10px; color: #64748b; font-weight: 600; letter-spacing: 0.04em; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .legend-tot { background: #0f172a; }   /* siyah — Toplam (asıl hedef) */
+    .legend-ys  { background: #3b82f6; }   /* mavi — Yeni Satış */
+    .legend-yen { background: #8b5cf6; }   /* mor — Yenileme */
+
+    /* Hücre içi 3 satır: Toplam (koyu, ana) → ayırıcı → YS (mavi soluk) + Yen (mor soluk) */
+    .cell-total {
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+        padding-bottom: 4px;
+        border-bottom: 1px dashed #e2e8f0;
+        margin-bottom: 4px;
+    }
+    .cell-ys-mini  { color: #3b82f6; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.4; }
+    .cell-yen-mini { color: #8b5cf6; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.4; }
+    .heatmap td.total-cell-strong .cell-total { color: #fff; border-bottom-color: rgba(255,255,255,0.2); }
+    .heatmap td.total-cell-strong .cell-ys-mini { color: #93c5fd; }
+    .heatmap td.total-cell-strong .cell-yen-mini { color: #c4b5fd; }
+    .heatmap td.total-cell .cell-total { font-size: 13px; }
+
+    /* İki satırlı Hedef/Gerç hücresi (Detay tab — Ürün Bazında YS/Yen tablosu) */
+    .cell-hedef { color: #0f172a; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .cell-gerc {
+        font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+        margin-top: 2px; display: flex; justify-content: flex-end; align-items: baseline; gap: 6px;
+    }
+    .cell-gerc .pct {
+        font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px;
+    }
+    .cell-gerc.gr  { color: #059669; } .cell-gerc.gr  .pct { background: #d1fae5; color: #065f46; }
+    .cell-gerc.yl  { color: #d97706; } .cell-gerc.yl  .pct { background: #fef3c7; color: #92400e; }
+    .cell-gerc.rd  { color: #dc2626; } .cell-gerc.rd  .pct { background: #fee2e2; color: #991b1b; }
+    .cell-gerc.nu  { color: #64748b; } .cell-gerc.nu  .pct { background: #f1f5f9; color: #475569; }
+</style>
+
+<div class="kr-page">
+    <div class="kr-head">
+        <div>
+            <div class="kr-title">2026 Hedefleri</div>
+            <div class="kr-sub" id="krSub">600M Senaryosu · Yıllık ₺600,1M hedef</div>
+        </div>
+        <div class="kr-tabs" role="tablist">
+            <button class="kr-tab active" data-tab="ozet">Şirket Özeti</button>
+            <button class="kr-tab" data-tab="liste">Temsilciler</button>
+            <button class="kr-tab" data-tab="detay" disabled>Detay</button>
+        </div>
+    </div>
+
+    <!-- ═══ TAB 1: Şirket Özeti ═══ -->
+    <div class="kr-pane active" id="pane-ozet">
+        <div class="kpi-stack">
+          <div class="layout-grid">
+            <!-- SOL KOLON: hero + alt 2 kart -->
+            <div class="layout-left">
+              <div class="kpi kpi-hero">
+                <div class="kpi-hero-head">
+                    <div class="kpi-hero-block">
+                        <div class="kpi-label">Yıllık Hedef</div>
+                        <div class="kpi-value" id="o_yillik"><span class="skeleton"></span></div>
+                        <div class="kpi-sub" id="o_yillikSub"></div>
+                    </div>
+                    <div class="kpi-hero-divider"></div>
+<div class="kpi-hero-block">
+                        <div class="kpi-label">Bu hızla tahmini yıl sonu kapanışı</div>
+                        <div class="kpi-value" id="o_runrate"><span class="skeleton"></span></div>
+                        <div class="kpi-sub" id="o_runrateSub">YS run-rate + Yen tavanı</div>
+                        <div class="kpi-tahmin-pct" id="o_runratePct"></div>
+                    </div>
+                </div>
+                <!-- Multi-tick bar: YTD Hedef + Tahmin + Yıllık tickleri (YTD Gerç yeşil dolguda görünür) -->
+                <div class="kpi-multibar-wrap">
+                    <div class="kpi-multibar">
+                        <div class="kpi-mb-fill gerc-fill"   id="mb_gerc_fill"></div>
+                        <div class="kpi-mb-fill tahmin-fill" id="mb_tahmin_fill"></div>
+                        <div class="kpi-mb-tick tick-ytd-hedef" id="mb_tick_ytdh"></div>
+                        <div class="kpi-mb-tick tick-tahmin"    id="mb_tick_tahmin"></div>
+                        <div class="kpi-mb-tick tick-yillik"    id="mb_tick_yillik"></div>
+                    </div>
+                    <div class="kpi-mb-tick-label is-ytd-hedef" id="mb_lbl_ytdh"   style="left:0%"></div>
+                    <div class="kpi-mb-tick-label is-tahmin"    id="mb_lbl_tahmin" style="left:0%"></div>
+                    <div class="kpi-mb-tick-label is-yillik"    id="mb_lbl_yillik" style="left:100%"></div>
+                </div>
+              </div>
+
+              <!-- Sol kolonun alt sırası — YTD Gerç + YS/Yenileme yan yana -->
+              <div class="kpi-row-2">
+                <div class="kpi">
+                    <div class="kpi-label">YTD Gerçekleşen</div>
+                    <div class="kpi-value" id="o_ytdGerc"><span class="skeleton"></span></div>
+                    <div class="kpi-sub" id="o_ytdSub"></div>
+                    <div class="kpi-bar"><div class="kpi-fill" id="o_bar"></div></div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-label">Yeni Satış · Yenileme</div>
+                    <div class="ysyen-row">
+                        <div class="ysyen-col">
+                            <span class="ysyen-tag ys">Yeni Satış</span>
+                            <div class="ysyen-val"  id="o_ysVal"><span class="skeleton"></span></div>
+                            <div class="ysyen-target" id="o_ysTarget"></div>
+                        </div>
+                        <div class="ysyen-col">
+                            <span class="ysyen-tag yen">Yenileme</span>
+                            <div class="ysyen-val"  id="o_yenVal"><span class="skeleton"></span></div>
+                            <div class="ysyen-target" id="o_yenTarget"></div>
+                        </div>
+                    </div>
+                </div>
+              </div>
+            </div><!-- /.layout-left -->
+
+            <!-- SAĞ KOLON: banner — hero + alt 2 kart toplam yüksekliği -->
+            <div class="kpi banner-card" id="acikBanner" style="display:none;"></div>
+          </div><!-- /.layout-grid -->
+        </div>
+
+
+        <!-- Aylık trend grafikleri — şirket geneli (Yeni Satış vs Yenileme + Ürün) -->
+        <div class="kr-chart-grid">
+            <div class="panel">
+                <div class="panel-title">Yeni Satış / Yenileme — Aylık Gerçekleşen</div>
+                <div class="kr-chart-wrap"><canvas id="chart_ozet_ysyen"></canvas></div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">Ürün × Ay — Aylık Gerçekleşen</div>
+                <div class="kr-chart-wrap"><canvas id="chart_ozet_urun"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Aylık Hedef vs Gerçekleşen — Tüm Şirket (3 ana bar: Genel/YS/Yen) -->
+        <div class="kr-section-title">Aylık Hedef vs Gerçekleşen — Tüm Şirket</div>
+        <div class="kr-bar-grid">
+            <div class="panel"><div class="panel-title">Genel × Ay</div>
+                <div class="kr-bar-wrap"><canvas id="chart_ozet_genel"></canvas></div></div>
+            <div class="panel"><div class="panel-title">Yeni Satış × Ay</div>
+                <div class="kr-bar-wrap"><canvas id="chart_ozet_ys2"></canvas></div></div>
+            <div class="panel"><div class="panel-title">Yenileme × Ay</div>
+                <div class="kr-bar-wrap"><canvas id="chart_ozet_yen2"></canvas></div></div>
+        </div>
+
+        <!-- Ürün Bazında Hedef vs Gerçekleşen — Tüm Şirket (8 mini bar) -->
+        <div class="kr-section-title">Ürün Bazında Hedef vs Gerçekleşen — Tüm Şirket</div>
+        <div class="kr-urun-bar-grid" id="ozetUrunBarGrid">
+            <div style="grid-column: 1/-1; text-align:center; color:#94a3b8; padding: 24px;">Yükleniyor…</div>
+        </div>
+
+        <!-- Ürün Performansı — kart grid (temsilci kartının ürün eksenli karşılığı) -->
+        <div class="urun-card-section-title" style="margin-top: 22px;">Ürün Performansı</div>
+        <div class="urun-grid" id="urunGrid">
+            <div style="grid-column: 1/-1; text-align:center; color:#94a3b8; padding: 40px;">Yükleniyor…</div>
+        </div>
+
+        <!-- Ürün × Ay Hedef Matrisi — sayfanın en altında, referans/drilldown amaçlı -->
+        <div class="panel" style="margin-top: 22px;">
+            <div class="matris-head">
+                <div class="panel-title" style="margin-bottom:0;">Ürün × Ay Hedef Matrisi</div>
+                <div class="matris-legend">
+                    <span class="legend-item"><span class="legend-dot legend-tot"></span>Toplam Hedef</span>
+                    <span class="legend-item"><span class="legend-dot legend-ys"></span>Yeni Satış</span>
+                    <span class="legend-item"><span class="legend-dot legend-yen"></span>Yenileme</span>
+                </div>
+            </div>
+            <table class="heatmap" id="o_heatmap"><tbody><tr><td>Yükleniyor…</td></tr></tbody></table>
+        </div>
+    </div>
+
+    <!-- ═══ TAB 2: Temsilciler — Excel benzeri matris (üst) + kart grid (alt) ═══ -->
+    <div class="kr-pane" id="pane-liste">
+        <div class="atanmamis-alert gizli" id="atanmamisAlert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div id="atanmamisText"></div>
+        </div>
+
+        <div class="urun-card-section-title">Temsilci Performansı</div>
+        <div class="rep-grid" id="repGrid">
+            <div style="grid-column: 1/-1; text-align:center; color:#94a3b8; padding: 60px;">Yükleniyor…</div>
+        </div>
+
+        <!-- Satış Temsilcisi × Ürün matrisi — sayfanın en altında, referans/drilldown amaçlı -->
+        <div class="panel" style="margin-top: 22px;">
+            <div class="matris-head">
+                <div class="panel-title" style="margin-bottom:0;">Satış Temsilcisi × Ürün — Yıllık Hedef</div>
+                <div class="matris-legend">
+                    <span class="legend-item"><span class="legend-dot legend-tot"></span>Toplam</span>
+                    <span class="legend-item"><span class="legend-dot legend-ys"></span>Yeni Satış</span>
+                    <span class="legend-item"><span class="legend-dot legend-yen"></span>Yenileme</span>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="heatmap" id="o_temsMatris"><tbody><tr><td>Yükleniyor…</td></tr></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB 3: Detay ═══ -->
+    <div class="kr-pane" id="pane-detay">
+        <div id="detayContent"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+    const fmtTLm = v => {
+        v = Number(v) || 0;
+        if (Math.abs(v) >= 1e9) return '₺' + (v/1e9).toFixed(1) + 'Mr';
+        if (Math.abs(v) >= 1e6) return '₺' + (v/1e6).toFixed(1) + 'M';
+        if (Math.abs(v) >= 1e3) return '₺' + (v/1e3).toFixed(0) + 'K';
+        return '₺' + v.toFixed(0);
+    };
+    const fmtPct = v => (Math.round((Number(v)||0)*10)/10).toLocaleString('tr-TR') + '%';
+    const renkText = r => 'text-' + (r||'neutral');
+    const initials = ad => ad.split(/\s+/).map(s => s[0]).join('').slice(0,2).toUpperCase();
+    const AYLAR = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+
+    // ── Chart.js helpers — aylık trend grafikleri (Şirket Özeti + Detay) ──
+    // Eski instance'ı destroy ederek tab/temsilci değişiminde memory leak engelle.
+    const _chartInstances = {};
+    function tlAxisCallback(v) {
+        v = Number(v) || 0;
+        if (Math.abs(v) >= 1e6) return (v/1e6).toFixed(1) + 'M';
+        if (Math.abs(v) >= 1e3) return (v/1e3).toFixed(0) + 'K';
+        return String(v);
+    }
+    // 12 ay × YS / Yenileme yan yana bar — ayToplamlari girdisinden
+    function renderYsYenChart(canvasId, ayToplamlari) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        if (_chartInstances[canvasId]) _chartInstances[canvasId].destroy();
+        const map = {};
+        (ayToplamlari || []).forEach(a => { map[a.ay] = a; });
+        const ysData  = []; const yenData = [];
+        for (let ay = 1; ay <= 12; ay++) {
+            const r = map[ay] || {};
+            ysData.push(Number(r.gerceklesenYS || 0));
+            yenData.push(Number(r.gerceklesenYen || 0));
+        }
+        _chartInstances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: AYLAR,
+                datasets: [
+                    // Stacked sıralama: alt=Yenileme (yeşil), üst=Yeni Satış (mor) — sağ taraftaki "Ürün × Ay" ile aynı estetik.
+                    { label: 'Yenileme',   data: yenData, backgroundColor: '#10b981', borderRadius: 1, maxBarThickness: 24 },
+                    { label: 'Yeni Satış', data: ysData,  backgroundColor: '#818cf8', borderRadius: 1, maxBarThickness: 24 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ' + fmtTLm(ctx.parsed.y);
+                            },
+                            footer: function(items) {
+                                let sum = 0; items.forEach(i => sum += i.parsed.y);
+                                return 'Toplam: ' + fmtTLm(sum);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+                    y: { stacked: true, grid: { color: '#f1f5f9' }, ticks: { callback: tlAxisCallback, font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    // 12 ay × her ürün için ayrı seri (stacked bar) — heatmap girdisinden
+    // Sabit renk haritası — her ürün için kalıcı (renk-ürün eşleşmesi tüm ekranda aynı):
+    //   Enroute=kırmızı, Stokbar=mavi, Quest=yeşil, ServiceCore=mor (kullanıcı sabit istedi)
+    //   Diğerleri statik palet — Enroute kırmızı olduğu için BFG'yi eski kırmızıdan turuncuya aldık (çakışma).
+    const URUN_RENK = {
+        'Enroute':            '#ef4444',  // kırmızı
+        'Stokbar':            '#3b82f6',  // mavi
+        'Quest':              '#10b981',  // yeşil
+        'ServiceCore':        '#a855f7',  // mor
+        'Varuna':             '#06b6d4',  // cyan
+        'E-Dönüşüm':          '#ec4899',  // pembe
+        'Hosting':            '#f59e0b',  // amber
+        'Bütünleşik Finans':  '#ea580c',  // turuncu (BFG — TBLSOS_HEDEF_URUN'da Ad="Bütünleşik Finans")
+        'BFG':                '#ea580c',  // alias — eski etiket (geri uyumluluk)
+        'Raporlama':          '#94a3b8'   // gri
+    };
+    function renderUrunChart(canvasId, heatmap) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        if (_chartInstances[canvasId]) _chartInstances[canvasId].destroy();
+        const urunMap = {};
+        (heatmap || []).forEach(c => {
+            const ad = c.urunAd || '—';
+            if (!urunMap[ad]) urunMap[ad] = Array(12).fill(0);
+            urunMap[ad][(c.ay || 1) - 1] += Number(c.gerceklesen || 0);
+        });
+        // Yıl boyu toplamı hesapla, en çok satandan en aza sırala (descending)
+        // Stacked bar'da ilk dataset alta düşer → en çok satan altta, en az satan tepede.
+        const urunler = Object.keys(urunMap)
+            .map(ad => ({ ad, total: urunMap[ad].reduce((a, b) => a + b, 0) }))
+            .sort((a, b) => b.total - a.total)
+            .map(x => x.ad);
+        const datasets = urunler.map(ad => ({
+            label: ad,
+            data: urunMap[ad],
+            backgroundColor: URUN_RENK[ad] || '#cbd5e1',
+            borderRadius: 1, maxBarThickness: 20
+        }));
+        _chartInstances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: AYLAR, datasets: datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, font: { size: 10 }, padding: 8 } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.dataset.label + ': ' + fmtTLm(ctx.parsed.y);
+                            },
+                            footer: function(items) {
+                                let sum = 0; items.forEach(i => sum += i.parsed.y);
+                                return 'Toplam: ' + fmtTLm(sum);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+                    y: { stacked: true, grid: { color: '#f1f5f9' }, ticks: { callback: tlAxisCallback, font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    // ── Detay panel için — ay-bazlı Hedef vs Gerçekleşen grouped bar ──
+    function renderAyHedefGercBar(canvasId, ayToplamlari, hedefKey, gercKey, colorHedef, colorGerc) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        if (_chartInstances[canvasId]) _chartInstances[canvasId].destroy();
+        const map = {};
+        (ayToplamlari || []).forEach(a => { map[a.ay] = a; });
+        const hedefData = []; const gercData = [];
+        for (let ay = 1; ay <= 12; ay++) {
+            const r = map[ay] || {};
+            hedefData.push(Number(r[hedefKey] || 0));
+            gercData.push(Number(r[gercKey] || 0));
+        }
+        _chartInstances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: AYLAR,
+                datasets: [
+                    { label: 'Hedef',       data: hedefData, backgroundColor: colorHedef, borderRadius: 1, maxBarThickness: 18 },
+                    { label: 'Gerçekleşen', data: gercData,  backgroundColor: colorGerc,  borderRadius: 1, maxBarThickness: 18 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 11, boxHeight: 11, font: { size: 10 }, padding: 6 } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.dataset.label + ': ' + fmtTLm(ctx.parsed.y)
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                    y: { grid: { color: '#f1f5f9' }, ticks: { callback: tlAxisCallback, font: { size: 9 } } }
+                }
+            }
+        });
+    }
+
+    // ── Tek ürün için — 12 ay × Hedef/Gerçekleşen mini grouped bar (ürün kartı içinde) ──
+    function renderUrunMiniBar(canvasId, hucreler, urunRengi) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        if (_chartInstances[canvasId]) _chartInstances[canvasId].destroy();
+        const map = {};
+        (hucreler || []).forEach(c => { map[c.ay] = c; });
+        const hedefData = []; const gercData = [];
+        for (let ay = 1; ay <= 12; ay++) {
+            const r = map[ay] || {};
+            hedefData.push(Number(r.hedef || 0));
+            gercData.push(Number(r.gerceklesen || 0));
+        }
+        // Hedef bar — yarı saydam ürün rengi; Gerçekleşen — tam ürün rengi
+        const colHedef = (urunRengi || '#94a3b8') + '55'; // alfa
+        const colGerc  = urunRengi || '#475569';
+        _chartInstances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: AYLAR,
+                datasets: [
+                    { label: 'Hedef',       data: hedefData, backgroundColor: colHedef, borderRadius: 1, maxBarThickness: 10 },
+                    { label: 'Gerçekleşen', data: gercData,  backgroundColor: colGerc,  borderRadius: 1, maxBarThickness: 10 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmtTLm(ctx.parsed.y) } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 8 }, autoSkip: false, maxRotation: 0 } },
+                    y: { display: false, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // ── Ürün başına mini bar grid render — Şirket Özeti veya Detay panel'inde kullanılabilir ──
+    // Veri: d.heatmap (= ürün × ay × hedef/gerceklesen) + d.urunToplamlari (= ürün × hedef/gerç toplam + attainment)
+    function renderOzetUrunBarGrid(d) {
+        const grid = document.getElementById('ozetUrunBarGrid');
+        if (!grid) return;
+        const urunBarMap = {};
+        (d.heatmap || []).forEach(c => {
+            if (!urunBarMap[c.urunId]) urunBarMap[c.urunId] = { ad: c.urunAd, hucreler: [] };
+            urunBarMap[c.urunId].hucreler.push(c);
+        });
+        const urunTopMap = {};
+        (d.urunToplamlari || []).forEach(u => { urunTopMap[u.urunId] = u; });
+        const uids = Object.keys(urunBarMap).sort((a, b) => a - b);
+        if (!uids.length) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#94a3b8; padding: 24px;">Ürün bazında veri yok.</div>';
+            return;
+        }
+        let html = '';
+        uids.forEach(uid => {
+            const u = urunBarMap[uid];
+            const top = urunTopMap[uid] || {};
+            const att = top.attainment || 0;
+            const renkCls = att >= 90 ? 'green' : att >= 70 ? 'yellow' : att > 0 ? 'red' : 'neutral';
+            html += `
+            <div class="kr-urun-bar-card">
+                <div class="kr-urun-bar-head">
+                    <div class="kr-urun-bar-title" title="${u.ad}">${u.ad}</div>
+                    <span class="kr-urun-bar-pct ${renkCls}">${fmtPct(att)}</span>
+                </div>
+                <div class="kr-urun-bar-wrap"><canvas id="chart_urun_ozet_${uid}"></canvas></div>
+                <div class="kr-urun-bar-foot">
+                    <span>Hedef <b>${fmtTLm(top.hedefToplam || 0)}</b></span>
+                    <span>Gerç. <b>${fmtTLm(top.gerceklesenToplam || 0)}</b></span>
+                </div>
+            </div>`;
+        });
+        grid.innerHTML = html;
+        requestAnimationFrame(() => {
+            uids.forEach(uid => {
+                const u = urunBarMap[uid];
+                const renkHex = URUN_RENK[u.ad] || '#64748b';
+                renderUrunMiniBar('chart_urun_ozet_' + uid, u.hucreler, renkHex);
+            });
+        });
+    }
+
+    const tabs = document.querySelectorAll('.kr-tab');
+    const panes = document.querySelectorAll('.kr-pane');
+    let listeLoaded = false;
+    tabs.forEach(t => t.addEventListener('click', () => {
+        if (t.disabled) return;
+        const target = t.dataset.tab;
+        tabs.forEach(x => x.classList.toggle('active', x === t));
+        panes.forEach(p => p.classList.toggle('active', p.id === 'pane-' + target));
+        if (target === 'liste' && !listeLoaded) loadTemsilciListesi();
+    }));
+
+    // ── Tab 1 ── (sayfa açılışında — kullanıcı önce burayı görür)
+    let _ozetData = null;
+
+    fetch('/Hedef/SirketOzeti').then(r => r.json()).then(j => {
+        if (!j.ok) return; const d = j.data;
+        _ozetData = d;
+        // ── Aylık trend grafikleri (şirket geneli) ──
+        // Chart.js CDN async yüklenebilir; window.Chart hazırsa hemen çiz, değilse 100ms loop
+        (function tryDrawCharts(retry){
+            if (typeof Chart !== 'undefined') {
+                renderYsYenChart('chart_ozet_ysyen', d.ayToplamlari);
+                renderUrunChart('chart_ozet_urun', d.heatmap);
+                // ── Detay analizleri Şirket Özeti'ne de — Tüm şirket toplamı bazlı ──
+                // 3 ana bar: Genel/YS/Yen × Ay (Hedef vs Gerçekleşen grouped)
+                renderAyHedefGercBar('chart_ozet_genel', d.ayToplamlari, 'hedef',    'gerceklesen',    '#cbd5e1', '#0ea5e9');
+                renderAyHedefGercBar('chart_ozet_ys2',   d.ayToplamlari, 'hedefYS',  'gerceklesenYS',  '#cbd5e1', '#8b5cf6');
+                renderAyHedefGercBar('chart_ozet_yen2',  d.ayToplamlari, 'hedefYen', 'gerceklesenYen', '#cbd5e1', '#10b981');
+                // Ürün başına mini bar — 8 ürün × Hedef/Gerçekleşen × Ay
+                renderOzetUrunBarGrid(d);
+            } else if (retry < 30) {
+                setTimeout(function(){ tryDrawCharts(retry + 1); }, 100);
+            }
+        })(0);
+        // ── Üst büyük kart: Yıllık Hedef + Yıl Sonu Tahmin ──
+        document.getElementById('o_yillik').innerText = fmtTLm(d.yillikHedef);
+        document.getElementById('o_yillikSub').innerHTML =
+            'YS ' + fmtTLm(d.yillikHedefYS) + ' · Yen ' + fmtTLm(d.yillikHedefYen);
+
+        document.getElementById('o_runrate').innerText = fmtTLm(d.runRate);
+        var subParts = ['YS ' + fmtTLm(d.runRateYS), 'Yen ' + fmtTLm(d.runRateYen)];
+        if (d.yenCappe) subParts[1] += ' 🚧';
+        document.getElementById('o_runrateSub').innerHTML = subParts.join(' · ');
+
+        // Tahmin renk (yeşil ≥%90, sarı %70-90, kırmızı <%70)
+        var tahminOran = d.yillikHedef > 0 ? d.runRate / d.yillikHedef * 100 : 0;
+        var tahminRenk = tahminOran >= 90 ? '#059669' : tahminOran >= 70 ? '#d97706' : '#dc2626';
+        document.getElementById('o_runrate').style.color = tahminRenk;
+        var tahminRenkCls = tahminOran >= 90 ? 'green' : tahminOran >= 70 ? 'yellow' : 'red';
+        var pctEl = document.getElementById('o_runratePct');
+        pctEl.className = 'kpi-tahmin-pct ' + tahminRenkCls;
+        pctEl.textContent = 'Yıllık hedefin ' + fmtPct(tahminOran);
+
+        // ── Multi-tick bar: YTD Hedef + Tahmin + Yıllık ticklerı (YTD Gerç yeşil dolgu) ──
+        var maxBar = d.yillikHedef > 0 ? d.yillikHedef : 1;
+        var pctGerc   = Math.min(100, d.ytdGerceklesen / maxBar * 100);
+        var pctYtdh   = Math.min(100, d.ytdHedef / maxBar * 100);
+        var pctTahmin = Math.min(100, d.runRate / maxBar * 100);
+
+        requestAnimationFrame(function(){
+            document.getElementById('mb_gerc_fill').style.width = pctGerc + '%';
+            document.getElementById('mb_tahmin_fill').style.left = pctGerc + '%';
+            document.getElementById('mb_tahmin_fill').style.width = Math.max(0, pctTahmin - pctGerc) + '%';
+            document.getElementById('mb_tick_ytdh').style.left   = pctYtdh + '%';
+            document.getElementById('mb_tick_tahmin').style.left = pctTahmin + '%';
+            document.getElementById('mb_tick_yillik').style.left = '100%';
+            document.getElementById('mb_lbl_ytdh').style.left    = pctYtdh + '%';
+            document.getElementById('mb_lbl_tahmin').style.left  = pctTahmin + '%';
+            document.getElementById('mb_lbl_yillik').style.left  = '100%';
+            document.getElementById('mb_lbl_yillik').style.transform = 'translateX(-100%)';
+            // Collision koruması: YTD Hedef ve Tahmin etiketleri çok yakınsa YTD'yi kaydır
+            if (Math.abs(pctTahmin - pctYtdh) < 8) {
+                document.getElementById('mb_lbl_ytdh').style.transform = 'translateX(-95%)';
+            }
+        });
+        document.getElementById('mb_lbl_ytdh').innerHTML   = '<span class="lbl-name">YTD Hedef</span><span class="lbl-value">' + fmtTLm(d.ytdHedef) + '</span>';
+        document.getElementById('mb_lbl_tahmin').innerHTML = '<span class="lbl-name">Tahmin</span><span class="lbl-value">' + fmtTLm(d.runRate) + '</span>';
+        document.getElementById('mb_lbl_yillik').innerHTML = '<span class="lbl-name">Yıllık</span><span class="lbl-value">' + fmtTLm(d.yillikHedef) + '</span>';
+
+        // ── Alt sol: YTD Gerçekleşen ──
+        document.getElementById('o_ytdGerc').innerText = fmtTLm(d.ytdGerceklesen);
+        document.getElementById('o_ytdSub').innerHTML = 'YTD Hedef ' + fmtTLm(d.ytdHedef) + ' · <b class="' + renkText(d.renkSinifi) + '">' + fmtPct(d.attainment) + '</b>';
+        const bar = document.getElementById('o_bar');
+        bar.className = 'kpi-fill ' + (d.renkSinifi || 'neutral');
+        requestAnimationFrame(() => bar.style.width = Math.min(100, d.attainment) + '%');
+
+        // ── Alt sağ: YS / Yenileme — YTD hedef + Yıllık hedef ──
+        function ysyenPctCls(p){ return p >= 90 ? 'green' : p >= 60 ? 'yellow' : 'red'; }
+        var ysYtdPct  = d.ytdHedefYS  > 0 ? d.gerceklesenYS  / d.ytdHedefYS  * 100 : 0;
+        var yenYtdPct = d.ytdHedefYen > 0 ? d.gerceklesenYen / d.ytdHedefYen * 100 : 0;
+        document.getElementById('o_ysVal').innerText  = fmtTLm(d.gerceklesenYS);
+        document.getElementById('o_yenVal').innerText = fmtTLm(d.gerceklesenYen);
+        document.getElementById('o_ysTarget').innerHTML  =
+            '<div>YTD Hedef <b>' + fmtTLm(d.ytdHedefYS) + '</b><span class="ysyen-pct ' + ysyenPctCls(ysYtdPct) + '">%' + ysYtdPct.toFixed(1) + '</span></div>' +
+            '<div class="ysyen-yillik">Yıllık ' + fmtTLm(d.yillikHedefYS) + '</div>';
+        document.getElementById('o_yenTarget').innerHTML =
+            '<div>YTD Hedef <b>' + fmtTLm(d.ytdHedefYen) + '</b><span class="ysyen-pct ' + ysyenPctCls(yenYtdPct) + '">%' + yenYtdPct.toFixed(1) + '</span></div>' +
+            '<div class="ysyen-yillik">Yıllık ' + fmtTLm(d.yillikHedefYen) + '</div>';
+
+        // Açık sinyali banner (sadece YSAcik > 0 ise göster)
+        // Mantık: Yenileme yıllık hedefini %100 yapsa bile YS açığı kapanmıyor.
+        if (d.ysAcik && d.ysAcik > 0) {
+            // Günlük hızları frontend'de hesapla — backend ysHizOrani var ama somut sayı yok
+            var ytdStart = new Date(d.yil, 0, 1);
+            var nowDate  = new Date();
+            var gunGecti = Math.max(1, Math.floor((nowDate - ytdStart) / 86400000) + 1);
+            var kalanGun = Math.max(1, 365 - gunGecti);
+            var ysGunMevcut = d.gerceklesenYS / gunGecti;
+            var ysGunGerekli = Math.max(0, d.yillikHedefYS - d.gerceklesenYS) / kalanGun;
+            var hizCarpan = ysGunMevcut > 0 ? (ysGunGerekli / ysGunMevcut).toFixed(1) : '∞';
+
+            var bannerCls = d.ysHizOrani < 0.5 ? 'banner-red' : 'banner-yellow';
+            var banner = document.getElementById('acikBanner');
+            banner.className = 'kpi banner-card ' + bannerCls;
+            // Tooltip içeriği — matematik detayı
+            var tooltipHtml =
+                '<h4>Hesaplama Detayı</h4>' +
+                '<div class="formula-row"><span class="lbl">Bugün</span><span class="val">' + nowDate.toLocaleDateString('tr-TR') + '</span></div>' +
+                '<div class="formula-row"><span class="lbl">Geçmiş gün (1 Oca → bugün)</span><span class="val">' + gunGecti + ' gün</span></div>' +
+                '<div class="formula-row"><span class="lbl">Kalan gün (bugün → 31 Ara)</span><span class="val">' + kalanGun + ' gün</span></div>' +
+                '<div class="formula-row"><span class="lbl">YS YTD gerçekleşen</span><span class="val">' + fmtTLm(d.gerceklesenYS) + '</span></div>' +
+                '<div class="formula-row"><span class="lbl">YS yıllık hedef</span><span class="val">' + fmtTLm(d.yillikHedefYS) + '</span></div>' +
+                '<div class="formula-block">' +
+                  '<div class="formula-name">Şu anki hız</div>' +
+                  '<code>YS YTD ÷ Geçmiş gün<br>= ' + fmtTLm(d.gerceklesenYS) + ' ÷ ' + gunGecti + ' = ' + fmtTLm(ysGunMevcut) + ' / gün</code>' +
+                '</div>' +
+                '<div class="formula-block">' +
+                  '<div class="formula-name">Gerekli hız</div>' +
+                  '<code>(YS yıllık − YS YTD) ÷ Kalan gün<br>= (' + fmtTLm(d.yillikHedefYS) + ' − ' + fmtTLm(d.gerceklesenYS) + ') ÷ ' + kalanGun + '<br>= ' + fmtTLm(d.yillikHedefYS - d.gerceklesenYS) + ' ÷ ' + kalanGun + ' = ' + fmtTLm(ysGunGerekli) + ' / gün</code>' +
+                '</div>' +
+                '<div class="formula-block">' +
+                  '<div class="formula-name">Hızlanma katsayısı</div>' +
+                  '<code>Gerekli ÷ Şu anki = ' + fmtTLm(ysGunGerekli) + ' ÷ ' + fmtTLm(ysGunMevcut) + ' = ' + hizCarpan + '×</code>' +
+                '</div>';
+
+            banner.innerHTML =
+                '<div class="banner-head">' +
+                  '<span class="banner-icon">⚠</span>' +
+                  '<span class="banner-title">Yıl sonu açığı <b>' + fmtTLm(d.ysAcik) + '</b></span>' +
+                  '<button class="info-icon" type="button" aria-label="Hesaplama detayı" tabindex="0">i</button>' +
+                  '<div class="info-tooltip">' + tooltipHtml + '</div>' +
+                '</div>' +
+                '<div class="banner-math">' +
+                  '<div class="row"><span class="lbl">Yenileme tavanı (yıllık hedef)</span><span class="val">' + fmtTLm(d.yillikHedefYen) + '</span></div>' +
+                  '<div class="row"><span class="lbl">+ YS yıl sonu (mevcut hızla)</span><span class="val">' + fmtTLm(d.runRateYS) + '</span></div>' +
+                  '<div class="row sep"><span class="lbl">= Tahmini kapanış</span><span class="val">' + fmtTLm(d.runRate) + '</span></div>' +
+                  '<div class="row"><span class="lbl">Yıllık hedef</span><span class="val">' + fmtTLm(d.yillikHedef) + '</span></div>' +
+                  '<div class="row sep total"><span class="lbl">Açık</span><span class="val">−' + fmtTLm(d.ysAcik) + '</span></div>' +
+                '</div>' +
+                '<div class="banner-foot">' +
+                  '<div class="hiz-baslik">Yeni Satış günlük hızı</div>' +
+                  '<div class="hiz-row"><span class="hiz-lbl">Şu anki</span><span class="hiz-val">' + fmtTLm(ysGunMevcut) + ' <span class="hiz-unit">/ gün</span></span></div>' +
+                  '<div class="hiz-row"><span class="hiz-lbl">Hedefe varmak için</span><span class="hiz-val"><b>' + fmtTLm(ysGunGerekli) + '</b> <span class="hiz-unit">/ gün</span> <span class="hiz-x">(' + hizCarpan + '× hızlanma)</span></span></div>' +
+                '</div>';
+            banner.style.display = 'flex';
+        }
+
+        renderMatris();
+        loadUrunListesi();
+    });
+
+    // ── Şirket Özeti — Ürün kart grid (temsilci kartının ürün eksenli karşılığı) ──
+    function loadUrunListesi() {
+        fetch('/Hedef/UrunListesi').then(r => r.json()).then(j => {
+            if (!j.ok) return;
+            const grid = document.getElementById('urunGrid');
+            if (!j.data || !j.data.length) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#94a3b8; padding: 24px;">Ürün hedefi bulunamadı.</div>';
+                return;
+            }
+            grid.innerHTML = j.data.map((u, i) => {
+                const renk = u.renkSinifi || 'neutral';
+                const pct = Math.min(100, Math.max(0, u.attainmentTimeAdj || 0));
+                const pctOutside = pct < 22;
+                const colorIdx = ((i % 8) + 1);
+                const ad = u.urunAd || '';
+                const init = ad.replace(/[^A-Za-zÇĞİÖŞÜçğıöşü]/g, '').slice(0, 2).toUpperCase() || '??';
+                const tahminPctU = u.yillikHedef > 0 ? Math.round((u.runRate / u.yillikHedef) * 100 * 10) / 10 : 0;
+                const tahminRenkU = tahminPctU >= 90 ? 'green' : tahminPctU >= 70 ? 'yellow' : tahminPctU > 0 ? 'red' : 'neutral';
+                return `
+                <div class="rep-card" data-renk="${renk}" data-id="${u.urunId}" data-urun="${ad}">
+                    <div class="rep-top">
+                        <div class="urun-avatar c${colorIdx}">${init}</div>
+                        <div>
+                            <div class="rep-name">${ad}</div>
+                        </div>
+                    </div>
+                    <div class="rep-row"><span>Yıllık Hedef</span><b>${fmtTLm(u.yillikHedef)}</b></div>
+                    <div class="rep-row"><span>YTD Hedef</span><b>${fmtTLm(u.ytdHedef)}</b></div>
+                    <div class="rep-row"><span>YTD Gerçekleşen</span><b>${fmtTLm(u.ytdGerceklesen)}</b></div>
+                    <div class="rep-progress">
+                        <div class="rep-progress-fill ${renk}" data-pct="${pct}">
+                            <span class="rep-progress-pct ${pctOutside ? 'outside' : ''}">${fmtPct(u.attainmentTimeAdj)}</span>
+                        </div>
+                    </div>
+                    <div class="rep-mini-grid">
+                        <div class="rep-mini-col">
+                            <span class="rep-mini-tag ys">Yeni Satış</span>
+                            <div class="rep-mini-row"><span>YTD Hedef</span><b>${fmtTLm(u.ytdHedefYS)}</b></div>
+                            <div class="rep-mini-row"><span>YTD Gerç.</span><b>${fmtTLm(u.gerceklesenYS)}</b></div>
+                        </div>
+                        <div class="rep-mini-col">
+                            <span class="rep-mini-tag yen">Yenileme</span>
+                            <div class="rep-mini-row"><span>YTD Hedef</span><b>${fmtTLm(u.ytdHedefYen)}</b></div>
+                            <div class="rep-mini-row"><span>YTD Gerç.</span><b>${fmtTLm(u.gerceklesenYen)}</b></div>
+                        </div>
+                    </div>
+                    <div class="rep-tempo">
+                        <div class="rep-tempo-label">Bu hızla tahmini kapanış</div>
+                        <div class="rep-tempo-value">${fmtTLm(u.runRate)}</div>
+                        <div class="rep-tempo-pct ${tahminRenkU}">Yıllık hedefin %${tahminPctU.toLocaleString('tr-TR')}</div>
+                    </div>
+                </div>`;
+            }).join('');
+            requestAnimationFrame(() => {
+                document.querySelectorAll('#urunGrid .rep-progress-fill').forEach(el => el.style.width = el.dataset.pct + '%');
+            });
+            // Tıklama davranışı şimdilik yok — ürün kartları sayfa üstünde KPI panelini tamamlar.
+            document.querySelectorAll('#urunGrid .rep-card').forEach(card => { card.style.cursor = 'default'; });
+        });
+    }
+
+    // Hücre içi 3 satır — Toplam (koyu, ana) → YS (mavi soluk) → Yen (mor soluk)
+    function tripleCell(toplam, ys, yen, extraCls) {
+        return '<td class="heat-cell ' + (extraCls || '') + '">'
+             + '<div class="cell-total">'    + fmtTLm(toplam || 0) + '</div>'
+             + '<div class="cell-ys-mini">'  + fmtTLm(ys || 0)     + '</div>'
+             + '<div class="cell-yen-mini">' + fmtTLm(yen || 0)    + '</div>'
+             + '</td>';
+    }
+
+    function renderMatris() {
+        if (!_ozetData) return;
+        const d = _ozetData;
+        const aylar = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+
+        // (urunId, ay) → { toplam, ys, yen }
+        const urunMap = {};
+        d.heatmap.forEach(c => {
+            urunMap[c.urunId] = urunMap[c.urunId] || { ad: c.urunAd, h: {} };
+            urunMap[c.urunId].h[c.ay] = {
+                toplam: c.hedef    || 0,
+                ys:     c.hedefYS  || 0,
+                yen:    c.hedefYen || 0
+            };
+        });
+
+        let html = '<thead><tr><th></th>' + aylar.map(a => '<th>' + a + '</th>').join('') + '<th>Toplam</th></tr></thead><tbody>';
+        Object.keys(urunMap).sort((a,b) => a - b).forEach(uid => {
+            const u = urunMap[uid];
+            let topT = 0, topYS = 0, topYen = 0;
+            html += '<tr><td class="urun-name">' + u.ad + '</td>';
+            for (let ay = 1; ay <= 12; ay++) {
+                const v = u.h[ay] || { toplam: 0, ys: 0, yen: 0 };
+                topT += v.toplam; topYS += v.ys; topYen += v.yen;
+                html += tripleCell(v.toplam, v.ys, v.yen);
+            }
+            html += tripleCell(topT, topYS, topYen, 'total-cell');
+            html += '</tr>';
+        });
+        // Alt toplam satır: ay başı (Toplam + YS + Yen)
+        html += '<tr><td class="urun-name" style="border-top:1px solid #e2e8f0;padding-top:12px;">Toplam</td>';
+        d.ayToplamlari.forEach(a => html += tripleCell(a.hedef, a.hedefYS, a.hedefYen, 'total-cell'));
+        html += tripleCell(d.yillikHedef, d.yillikHedefYS, d.yillikHedefYen, 'total-cell-strong');
+        html += '</tr></tbody>';
+        document.getElementById('o_heatmap').innerHTML = html;
+    }
+
+    // ── Tab 2: Temsilci kart grid (lazy — sadece sekme açılınca yüklenir) ──
+    function loadTemsilciListesi() {
+        listeLoaded = true;
+        // Alt panel: Excel benzeri matris (kart grid ile paralel yüklenir)
+        loadTemsilciUrunMatris();
+        fetch('/Hedef/TemsilciListesi').then(r => r.json()).then(j => {
+        if (!j.ok) return;
+
+        // Atanmamış uyarı şeridi: şirket geneli (Tab 1) ile temsilci toplamının farkı
+        if (_ozetData) {
+            const sirketYTD = _ozetData.ytdGerceklesen || 0;
+            const atanmis = j.data.reduce((s, t) => s + (t.ytdGerceklesen || 0), 0);
+            const atanmamis = sirketYTD - atanmis;
+            const oran = sirketYTD > 0 ? (atanmamis / sirketYTD * 100) : 0;
+            if (atanmamis > 1000) {
+                const alert = document.getElementById('atanmamisAlert');
+                document.getElementById('atanmamisText').innerHTML =
+                    '<b>YTD Atanmamış: ' + fmtTLm(atanmamis) + '</b> (şirket toplamının ' +
+                    fmtPct(oran) + ') · CRM\'de temsilci eşleşmesi olmayan hesapların faturaları. ' +
+                    'Atanmış: ' + fmtTLm(atanmis) + ' · Şirket geneli: ' + fmtTLm(sirketYTD) + '.';
+                alert.classList.remove('gizli');
+            }
+        }
+
+        const grid = document.getElementById('repGrid');
+        grid.innerHTML = j.data.map(t => {
+            const renk = t.renkSinifi || 'neutral';
+            const pct = Math.min(100, Math.max(0, t.attainmentTimeAdj || 0));
+            const pctOutside = pct < 22; // Dar dolguda yüzde dışarı taşır
+            const kanalBadge = t.kanal === 'Kanal' ? 'kanal' : '';
+            // Run-rate yüzde: yıllık hedefin ne kadarını öngörüyor?
+            const tahminPct = t.yillikHedef > 0 ? Math.round((t.runRate / t.yillikHedef) * 100 * 10) / 10 : 0;
+            const tahminRenk = tahminPct >= 90 ? 'green' : tahminPct >= 70 ? 'yellow' : tahminPct > 0 ? 'red' : 'neutral';
+            return `
+            <div class="rep-card" data-renk="${renk}" data-id="${t.temsilciId}">
+                <div class="rep-top">
+                    <div class="rep-avatar">${initials(t.ad)}</div>
+                    <div>
+                        <div class="rep-name">${t.ad}</div>
+                        <span class="rep-kanal ${kanalBadge}">${t.kanal}</span>
+                    </div>
+                </div>
+                <div class="rep-row"><span>Yıllık Hedef</span><b>${fmtTLm(t.yillikHedef)}</b></div>
+                <div class="rep-row"><span>YTD Hedef</span><b>${fmtTLm(t.ytdHedef)}</b></div>
+                <div class="rep-row"><span>YTD Gerçekleşen</span><b>${fmtTLm(t.ytdGerceklesen)}</b></div>
+                <div class="rep-progress">
+                    <div class="rep-progress-fill ${renk}" data-pct="${pct}">
+                        <span class="rep-progress-pct ${pctOutside ? 'outside' : ''}">${fmtPct(t.attainmentTimeAdj)}</span>
+                    </div>
+                </div>
+                <div class="rep-mini-grid">
+                    <div class="rep-mini-col">
+                        <span class="rep-mini-tag ys">Yeni Satış</span>
+                        <div class="rep-mini-row"><span>YTD Hedef</span><b>${fmtTLm(t.ytdHedefYS)}</b></div>
+                        <div class="rep-mini-row"><span>YTD Gerç.</span><b>${fmtTLm(t.gerceklesenYS)}</b></div>
+                    </div>
+                    <div class="rep-mini-col">
+                        <span class="rep-mini-tag yen">Yenileme</span>
+                        <div class="rep-mini-row"><span>YTD Hedef</span><b>${fmtTLm(t.ytdHedefYen)}</b></div>
+                        <div class="rep-mini-row"><span>YTD Gerç.</span><b>${fmtTLm(t.gerceklesenYen)}</b></div>
+                    </div>
+                </div>
+                <div class="rep-tempo">
+                    <div class="rep-tempo-label">Bu hızla tahmini kapanış</div>
+                    <div class="rep-tempo-value">${fmtTLm(t.runRate)}</div>
+                    <div class="rep-tempo-pct ${tahminRenk}">Yıllık hedefin %${tahminPct.toLocaleString('tr-TR')}</div>
+                </div>
+            </div>`;
+        }).join('');
+        // Animate progress bars
+        requestAnimationFrame(() => {
+            document.querySelectorAll('.rep-progress-fill').forEach(el => el.style.width = el.dataset.pct + '%');
+        });
+        // Click → detay
+        document.querySelectorAll('.rep-card').forEach(card => {
+            card.addEventListener('click', () => loadDetay(card.dataset.id));
+        });
+        });
+    }
+
+    // ── Tab 2 alt panel: Temsilci × Ürün matrisi (Excel benzeri, triple-row hücreler) ──
+    function loadTemsilciUrunMatris() {
+        fetch('/Hedef/TemsilciUrunMatris').then(r => r.json()).then(j => {
+            if (!j.ok) return;
+            const d = j.data;
+            const urunler = d.urunSirasi;
+
+            let html = '<thead><tr><th></th>';
+            urunler.forEach(u => html += '<th>' + u + '</th>');
+            html += '<th>Toplam</th></tr></thead><tbody>';
+
+            d.satirlar.forEach(row => {
+                html += '<tr><td class="urun-name">' + row.temsilciAd + '</td>';
+                urunler.forEach(u => {
+                    const t = row.urunToplam[u] || 0;
+                    const ys = row.urunYS[u] || 0;
+                    const yen = row.urunYen[u] || 0;
+                    html += tripleCell(t, ys, yen);
+                });
+                html += tripleCell(row.satirToplam, row.satirYS, row.satirYen, 'total-cell');
+                html += '</tr>';
+            });
+
+            // Sütun toplamları
+            html += '<tr><td class="urun-name" style="border-top:1px solid #e2e8f0;padding-top:12px;">Toplam</td>';
+            urunler.forEach(u => {
+                html += tripleCell(d.urunToplamTop[u] || 0, d.urunToplamYS[u] || 0, d.urunToplamYen[u] || 0, 'total-cell');
+            });
+            html += tripleCell(d.grandToplam, d.grandYS, d.grandYen, 'total-cell-strong');
+            html += '</tr></tbody>';
+            document.getElementById('o_temsMatris').innerHTML = html;
+        });
+    }
+
+    // ── Tab 3: Detay ──
+    function loadDetay(temsilciId) {
+        const dt = document.querySelector('.kr-tab[data-tab="detay"]');
+        dt.disabled = false;
+        tabs.forEach(x => x.classList.toggle('active', x === dt));
+        panes.forEach(p => p.classList.toggle('active', p.id === 'pane-detay'));
+        const c = document.getElementById('detayContent');
+        c.innerHTML = '<div style="text-align:center;padding:48px;color:#94a3b8;">Yükleniyor…</div>';
+
+        fetch('/Hedef/TemsilciDetay?temsilciId=' + temsilciId).then(r => r.json()).then(j => {
+            if (!j.ok) { c.innerHTML = '<div style="padding:24px;color:#dc2626;">Hata: ' + (j.error||'') + '</div>'; return; }
+            const d = j.data;
+            const renk = d.attainmentTimeAdj >= 85 ? 'green' : d.attainmentTimeAdj >= 70 ? 'yellow' : 'red';
+            const aylar = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+
+            // Tahmin renk (Şirket Özeti ile aynı mantık): yeşil ≥%90, sarı %70-90, kırmızı <%70
+            const tahminOran = d.yillikHedef > 0 ? (d.runRate / d.yillikHedef * 100) : 0;
+            const tahminRenkHex = tahminOran >= 90 ? '#059669' : tahminOran >= 70 ? '#d97706' : '#dc2626';
+
+            let html = '<div class="kpi-grid">' +
+                `<div class="kpi"><div class="kpi-label">${d.ad} · Yıllık Hedef</div><div class="kpi-value">${fmtTLm(d.yillikHedef)}</div><div class="kpi-sub">${d.kanal} · YS ${fmtTLm(d.yillikHedefYS)} · Yen ${fmtTLm(d.yillikHedefYen)}</div></div>` +
+                `<div class="kpi"><div class="kpi-label">YTD Hedef</div><div class="kpi-value">${fmtTLm(d.ytdHedef)}</div></div>` +
+                `<div class="kpi"><div class="kpi-label">YTD Gerçekleşen</div><div class="kpi-value">${fmtTLm(d.ytdGerceklesen)}</div><div class="kpi-sub"><b class="${renkText(renk)}">${fmtPct(d.attainmentTimeAdj)}</b></div></div>` +
+                `<div class="kpi"><div class="kpi-label">Bu hızla tahmini kapanış</div><div class="kpi-value" style="color:${tahminRenkHex};">${fmtTLm(d.runRate)}</div><div class="kpi-sub">Yıllık hedefin <b>${fmtPct(tahminOran)}</b></div></div>` +
+            '</div>';
+
+            // ── Hedef × Ay bar grafikleri — 3 ana blok: Genel, Yeni Satış, Yenileme ──
+            html += '<div class="kr-section-title">Aylık Hedef vs Gerçekleşen — ' + d.ad + '</div>';
+            html += '<div class="kr-bar-grid">' +
+                  '<div class="panel"><div class="panel-title">Genel × Ay</div>' +
+                  '<div class="kr-bar-wrap"><canvas id="chart_detay_genel"></canvas></div></div>' +
+                  '<div class="panel"><div class="panel-title">Yeni Satış × Ay</div>' +
+                  '<div class="kr-bar-wrap"><canvas id="chart_detay_ys"></canvas></div></div>' +
+                  '<div class="panel"><div class="panel-title">Yenileme × Ay</div>' +
+                  '<div class="kr-bar-wrap"><canvas id="chart_detay_yen"></canvas></div></div>' +
+                  '</div>';
+
+            // ── Ürün başına ayrı bar grafiği (4-sütun grid) ──
+            // Her ürün kendi mini panelinde 12 ay × Hedef/Gerçekleşen
+            html += '<div class="kr-section-title">Ürün Bazında Hedef vs Gerçekleşen</div>';
+            // Ürün × Ay matrisinden ürün ad'a göre grupla
+            const _urunBarMap = {};
+            (d.urunAyMatris || []).forEach(c => {
+                const uid = c.urunId;
+                if (!_urunBarMap[uid]) _urunBarMap[uid] = { ad: c.urunAd, hucreler: [] };
+                _urunBarMap[uid].hucreler.push(c);
+            });
+            // Toplam tablosundan attainment için referans dictionary
+            const _urunTopMap = {};
+            (d.urunToplamlari || []).forEach(u => { _urunTopMap[u.urunId] = u; });
+            // Sırayı urunToplamlari'na göre (UrunId asc), kart başına render
+            html += '<div class="kr-urun-bar-grid">';
+            Object.keys(_urunBarMap).sort((a,b) => a-b).forEach((uid, idx) => {
+                const u = _urunBarMap[uid];
+                const top = _urunTopMap[uid] || {};
+                const att = top.attainment || 0;
+                const renkCls = att >= 90 ? 'green' : att >= 70 ? 'yellow' : att > 0 ? 'red' : 'neutral';
+                const renkHex = URUN_RENK[u.ad] || '#64748b';
+                html += `
+                <div class="kr-urun-bar-card">
+                    <div class="kr-urun-bar-head">
+                        <div class="kr-urun-bar-title" title="${u.ad}">${u.ad}</div>
+                        <span class="kr-urun-bar-pct ${renkCls}">${fmtPct(att)}</span>
+                    </div>
+                    <div class="kr-urun-bar-wrap"><canvas id="chart_urun_${uid}"></canvas></div>
+                    <div class="kr-urun-bar-foot">
+                        <span>Hedef <b>${fmtTLm(top.hedefToplam || 0)}</b></span>
+                        <span>Gerç. <b>${fmtTLm(top.gerceklesenToplam || 0)}</b></span>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+
+            // Ürün × Ay matrisi — triple-row (Toplam / YS / Yen)
+            const urunMap = {};
+            d.urunAyMatris.forEach(c => {
+                urunMap[c.urunId] = urunMap[c.urunId] || { ad: c.urunAd, h: {} };
+                urunMap[c.urunId].h[c.ay] = {
+                    toplam: c.hedef    || 0,
+                    ys:     c.hedefYS  || 0,
+                    yen:    c.hedefYen || 0
+                };
+            });
+            html += '<div class="panel"><div class="matris-head">'
+                  + '<div class="panel-title" style="margin-bottom:0;">Ürün × Ay Hedef Matrisi</div>'
+                  + '<div class="matris-legend">'
+                  + '<span class="legend-item"><span class="legend-dot legend-tot"></span>Toplam</span>'
+                  + '<span class="legend-item"><span class="legend-dot legend-ys"></span>Yeni Satış</span>'
+                  + '<span class="legend-item"><span class="legend-dot legend-yen"></span>Yenileme</span>'
+                  + '</div></div>'
+                  + '<div style="overflow-x:auto;"><table class="heatmap"><thead><tr><th></th>'
+                  + aylar.map(a=>'<th>'+a+'</th>').join('') + '<th>Toplam</th></tr></thead><tbody>';
+            Object.keys(urunMap).sort((a,b)=>a-b).forEach(uid => {
+                const u = urunMap[uid];
+                let topT = 0, topYS = 0, topYen = 0;
+                html += '<tr><td class="urun-name">'+u.ad+'</td>';
+                for (let ay = 1; ay <= 12; ay++) {
+                    const v = u.h[ay] || { toplam: 0, ys: 0, yen: 0 };
+                    topT += v.toplam; topYS += v.ys; topYen += v.yen;
+                    html += tripleCell(v.toplam, v.ys, v.yen);
+                }
+                html += tripleCell(topT, topYS, topYen, 'total-cell');
+                html += '</tr>';
+            });
+            html += '<tr><td class="urun-name" style="border-top:1px solid #e2e8f0;padding-top:12px;">Toplam</td>';
+            d.ayToplamlari.forEach(a => html += tripleCell(a.hedef, a.hedefYS, a.hedefYen, 'total-cell'));
+            html += tripleCell(d.yillikHedef, d.yillikHedefYS, d.yillikHedefYen, 'total-cell-strong');
+            html += '</tr></tbody></table></div></div>';
+
+            html += '<div class="panel" style="margin-top:16px;"><div class="panel-title">Ürün Bazında Yeni Satış / Yenileme</div><table class="heatmap"><thead><tr><th></th><th>Yeni Satış</th><th>Yenileme</th><th>Toplam</th></tr></thead><tbody>';
+            // Hedef/Gerç + % çift satırlı hücre
+            const pctCls = p => p >= 90 ? 'gr' : p >= 70 ? 'yl' : p > 0 ? 'rd' : 'nu';
+            const cellHG = (hedef, gerc, extraCls) => {
+                const p = hedef > 0 ? (gerc / hedef * 100) : 0;
+                return '<td class="heat-cell ' + (extraCls || '') + '">'
+                     + '<div class="cell-hedef">' + fmtTLm(hedef) + '</div>'
+                     + '<div class="cell-gerc ' + pctCls(p) + '">' + fmtTLm(gerc)
+                     + (hedef > 0 ? '<span class="pct">' + fmtPct(p) + '</span>' : '')
+                     + '</div></td>';
+            };
+            d.urunToplamlari.forEach(u => {
+                html += '<tr><td class="urun-name">' + u.urunAd + '</td>'
+                      + cellHG(u.hedefYS,     u.gerceklesenYS)
+                      + cellHG(u.hedefYen,    u.gerceklesenYen)
+                      + cellHG(u.hedefToplam, u.gerceklesenToplam, 'total-cell')
+                      + '</tr>';
+            });
+            html += '</tbody></table></div>';
+
+            c.innerHTML = html;
+
+            // Canvas DOM hazır → grafikleri çiz (Chart.js CDN async; hazır değilse retry loop)
+            (function tryDrawDetayCharts(retry){
+                if (typeof Chart !== 'undefined') {
+                    // 3 ana bar: Genel × Ay, Yeni Satış × Ay, Yenileme × Ay
+                    renderAyHedefGercBar('chart_detay_genel', d.ayToplamlari, 'hedef',    'gerceklesen',    '#cbd5e1', '#0ea5e9');
+                    renderAyHedefGercBar('chart_detay_ys',    d.ayToplamlari, 'hedefYS',  'gerceklesenYS',  '#cbd5e1', '#8b5cf6');
+                    renderAyHedefGercBar('chart_detay_yen',   d.ayToplamlari, 'hedefYen', 'gerceklesenYen', '#cbd5e1', '#10b981');
+                    // Ürün başına mini bar
+                    Object.keys(_urunBarMap).forEach(uid => {
+                        const u = _urunBarMap[uid];
+                        const renkHex = URUN_RENK[u.ad] || '#64748b';
+                        renderUrunMiniBar('chart_urun_' + uid, u.hucreler, renkHex);
+                    });
+                } else if (retry < 30) {
+                    setTimeout(function(){ tryDrawDetayCharts(retry + 1); }, 100);
+                }
+            })(0);
+        });
+    }
+
+    // URL hash ile direct-link (#temsilci=3 gibi)
+    const hash = location.hash.match(/temsilci=(\d+)/);
+    if (hash) loadDetay(hash[1]);
+})();
+</script>

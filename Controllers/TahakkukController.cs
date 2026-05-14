@@ -12,6 +12,7 @@ namespace SOS.Controllers;
 /// Matbu fatura no (SerialNumber) opsiyonel — sonradan atanabilir.
 /// </summary>
 [Authorize]
+[SosAdmin]
 public class TahakkukController : Controller
 {
     private readonly IDbContextFactory<MskDbContext> _contextFactory;
@@ -40,7 +41,7 @@ public class TahakkukController : Controller
 
         // 1) Varuna'da SAP referans no ile ara
         var varunaSip = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
-            .Where(s => s.SAPOutReferenceCode != null && s.SAPOutReferenceCode.Trim() == aranan)
+            .Where(s => s.SAPOutReferenceCode != null && s.SAPOutReferenceCode.Trim() == aranan && s.DeletedOn == null)
             .Select(s => new { s.SerialNumber, s.SAPOutReferenceCode, s.InvoiceDate, s.AccountTitle, s.TotalNetAmount, s.OrderStatus })
             .FirstOrDefaultAsync();
 
@@ -48,7 +49,7 @@ public class TahakkukController : Controller
         if (varunaSip == null)
         {
             varunaSip = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
-                .Where(s => s.SerialNumber == aranan)
+                .Where(s => s.SerialNumber == aranan && s.DeletedOn == null)
                 .Select(s => new { s.SerialNumber, s.SAPOutReferenceCode, s.InvoiceDate, s.AccountTitle, s.TotalNetAmount, s.OrderStatus })
                 .FirstOrDefaultAsync();
         }
@@ -109,7 +110,7 @@ public class TahakkukController : Controller
 
         // Varuna'da doğrula
         var varunaSip = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
-            .Where(s => s.SAPOutReferenceCode != null && s.SAPOutReferenceCode.Trim() == sapReferansNo)
+            .Where(s => s.SAPOutReferenceCode != null && s.SAPOutReferenceCode.Trim() == sapReferansNo && s.DeletedOn == null)
             .Select(s => new { s.InvoiceDate, s.SerialNumber })
             .FirstOrDefaultAsync();
 
@@ -192,7 +193,7 @@ public class TahakkukController : Controller
         using var db = _contextFactory.CreateDbContext();
 
         var siparisler = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
-            .Where(s => s.OrderId != null)
+            .Where(s => s.OrderId != null && s.DeletedOn == null)
             .Select(s => new { s.OrderId, s.SerialNumber, s.InvoiceDate, s.SAPOutReferenceCode })
             .ToListAsync();
 
@@ -307,7 +308,7 @@ public class TahakkukController : Controller
         // Müşteri lookup: SAP no → Varuna AccountTitle
         var sapNos = rows.Select(r => r.SapReferansNo).Distinct().ToList();
         var musteriMap = (await db.TBL_VARUNA_SIPARIs.AsNoTracking()
-            .Where(s => s.SAPOutReferenceCode != null && sapNos.Contains(s.SAPOutReferenceCode))
+            .Where(s => s.SAPOutReferenceCode != null && sapNos.Contains(s.SAPOutReferenceCode) && s.DeletedOn == null)
             .Select(s => new { s.SAPOutReferenceCode, s.AccountTitle, s.TotalNetAmount })
             .ToListAsync())
             .GroupBy(s => s.SAPOutReferenceCode!.Trim())

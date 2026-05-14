@@ -15,6 +15,7 @@ namespace SOS.Controllers
         private readonly IDbContextFactory<MskDbContext> _contextFactory;
         private readonly IMemoryCache _cache;
         private readonly ICockpitDataService _cockpitData;
+        private readonly IHedefService _hedef;
         private const string CACHE_KEY_FATURALAR = "cockpit_faturalar";
         private const string CACHE_KEY_SIPARISLER = "cockpit_siparisler";
         private const string CACHE_KEY_URUNLER = "cockpit_urunler";
@@ -24,14 +25,16 @@ namespace SOS.Controllers
         private const string CACHE_KEY_HEDEFLER = "cockpit_hedefler";
         private const string CACHE_KEY_VARUNA_TUTAR = "cockpit_varuna_tutar";
         private const string CACHE_KEY_URUN_GRUP_MAP = "cockpit_urun_grup_map"; // StockCode → AnaUrunAd
+        private const string CACHE_KEY_TEMSILCI_MAP = "cockpit_temsilci_map";  // Fatura_No (SerialNumber) → Satış Temsilcisi adı (4-kademe)
 
         private static readonly SemaphoreSlim _cacheLock = new(1, 1);
 
-        public CockpitController(IDbContextFactory<MskDbContext> contextFactory, IMemoryCache cache, ICockpitDataService cockpitData)
+        public CockpitController(IDbContextFactory<MskDbContext> contextFactory, IMemoryCache cache, ICockpitDataService cockpitData, IHedefService hedef)
         {
             _contextFactory = contextFactory;
             _cache = cache;
             _cockpitData = cockpitData;
+            _hedef = hedef;
         }
 
         #region Filter Parsing
@@ -59,8 +62,10 @@ namespace SOS.Controllers
             switch (filter?.ToLowerInvariant())
             {
                 case "ytd":
+                    // YTD = yıl başı → bulunduğu ayın SONU (tam ay).
+                    // FirsatAnaliz/Hedef ile aynı semantik — Bu Ay (ay sonu) ⊆ YTD garantisi.
                     start = new DateTime(year, 1, 1);
-                    end = today;
+                    end = new DateTime(year, now.Month, DateTime.DaysInMonth(year, now.Month), 23, 59, 59);
                     months = now.Month;
                     break;
                 case "q1":
@@ -155,6 +160,7 @@ namespace SOS.Controllers
                             Dictionary<string, List<(string Grup, decimal TlTutar)>> urunGrupMap)> LoadAllCachedDataAsync(
                             IDbContextFactory<MskDbContext> contextFactory,
                             IMemoryCache cache,
+                            IHedefService hedefService,
                             bool forceRefresh = false)
         {
             // Hot path — cache warm, lock'a gerek yok
@@ -199,7 +205,7 @@ namespace SOS.Controllers
                 {
                     using var db2 = contextFactory.CreateDbContext();
                     return await db2.TBL_VARUNA_SIPARIs.AsNoTracking()
-                        .Where(s => s.OrderId != null)
+                        .Where(s => s.OrderId != null && s.DeletedOn == null)
                         .Select(s => new SiparisDto
                         {
                             SerialNumber = s.SerialNumber,
@@ -208,8 +214,25 @@ namespace SOS.Controllers
                             OrderStatus = s.OrderStatus,
                             TotalNetAmount = s.TotalNetAmount,
                             InvoiceDate = s.InvoiceDate,
-                            SAPOutReferenceCode = s.SAPOutReferenceCode
+                            SAPOutReferenceCode = s.SAPOutReferenceCode,
+                            ModifiedOn = s.ModifiedOn,
+                            CreatedOn = s.CreatedOn,
+                            CreateOrderDate = s.CreateOrderDate
                         })
+                        .ToListAsync();
+                });
+
+                // ── Müşteri lookup: SerialNumber → AccountTitle GENİŞ tarama ──
+                // Kullanıcı kuralı (2026-05-13): "Fatura no varsa Varuna'da kaydı var; varsa müşteri de var."
+                // Mali hesap için siparisTask DeletedOn IS NULL + OrderId NOT NULL filtreliyor — bu filtreler
+                // silinmiş/eski sipariş kayıtlarındaki müşteri unvanını da eliyordu (104 fatura "—" ile geliyordu).
+                // Müşteri lookup için ayrı, geniş tarama: yalnızca SerialNumber + AccountTitle dolu olsun.
+                var musteriLookupTask = Task.Run(async () =>
+                {
+                    using var dbM = contextFactory.CreateDbContext();
+                    return await dbM.TBL_VARUNA_SIPARIs.AsNoTracking()
+                        .Where(s => s.SerialNumber != null && s.AccountTitle != null)
+                        .Select(s => new { s.SerialNumber, s.AccountTitle, s.ModifiedOn, s.CreatedOn })
                         .ToListAsync();
                 });
 
@@ -237,15 +260,16 @@ namespace SOS.Controllers
                 {
                     using var db4 = contextFactory.CreateDbContext();
                     return await db4.TBL_VARUNA_SOZLESMEs.AsNoTracking()
-                        .Where(s => s.RenewalDate.HasValue)
+                        .Where(s => s.RenewalDate.HasValue && s.DeletedOn == null)
                         .ToListAsync();
                 });
 
-                await Task.WhenAll(faturaTask, siparisTask, urunTask, sozlesmeTask);
+                await Task.WhenAll(faturaTask, siparisTask, urunTask, sozlesmeTask, musteriLookupTask);
                 var faturalar = faturaTask.Result;
                 var siparisler = siparisTask.Result;
                 var urunler = urunTask.Result;
                 var sozlesmeler = sozlesmeTask.Result;
+                var musteriLookup = musteriLookupTask.Result;
 
                 // Lookup map'leri oluştur
                 var urunMap = siparisler
@@ -255,10 +279,14 @@ namespace SOS.Controllers
                     .GroupBy(x => x.SerialNumber!)
                     .ToDictionary(g => g.Key, g => (g.First().AccountTitle, g.First().ProductName, g.First().Quantity));
 
-                var musteriMap = siparisler
-                    .Where(s => s.SerialNumber != null)
-                    .GroupBy(s => s.SerialNumber!)
-                    .ToDictionary(g => g.Key, g => g.First().AccountTitle);
+                // Müşteri map: geniş tarama (DeletedOn / OrderId filter YOK) — fatura no varsa müşteri çekilebilsin.
+                // Aynı SerialNumber için birden çok kayıt varsa en güncel (ModifiedOn desc → CreatedOn desc) tercih.
+                var musteriMap = musteriLookup
+                    .GroupBy(x => x.SerialNumber!)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderByDescending(x => x.ModifiedOn ?? x.CreatedOn ?? DateTime.MinValue)
+                              .First().AccountTitle);
 
                 // Varuna kalem bazlı net tutar: OrderId → SUM(kalem.Total)
                 // İptal kalemleri negatif Total taşır → net toplam Excel ile tutarlı olur
@@ -301,14 +329,10 @@ namespace SOS.Controllers
                     }
                 }
 
-                // Hedef + tahakkuk sorguları da parallel — bağımsız context'ler ile
-                var hedefTask = Task.Run(async () =>
-                {
-                    using var dbH = contextFactory.CreateDbContext();
-                    return await dbH.TBLSOS_HEDEF_AYLIKs.AsNoTracking()
-                        .Where(h => h.Yil == DateTime.Now.Year && h.Tip == "GENEL" && h.Aktif)
-                        .ToDictionaryAsync(h => h.Ay, h => h.HedefTutar);
-                });
+                // Hedef artık HedefService üzerinden TBLSOS_HEDEF_URUN_AYLIK (yeni senaryo bazlı tablo)
+                // toplamından gelir; eski TBLSOS_HEDEF_AYLIK fallback olarak HedefService içinde kalır.
+                // Tahakkuk paralel — bağımsız context.
+                var hedefTask = hedefService.GetGenelAylikSozlukAsync(DateTime.Now.Year);
                 var tahakkukTask = Task.Run(async () =>
                 {
                     using var dbT = contextFactory.CreateDbContext();
@@ -375,9 +399,9 @@ namespace SOS.Controllers
                     }
                 }
 
-                // ── Sentetik fatura: Varuna Closed + tahakkuklu ama VIEW'de yok ──
-                // Sadece tahakkuk kaydı olan siparişler sentetik olarak eklenir.
-                // Tahakkuksuz Varuna siparişleri dahil edilmez (VIEW'e girinceye kadar beklenir).
+                // ── Sentetik fatura: Varuna Closed + VIEW'de yok (tahakkuk opsiyonel) ──
+                // Tahakkuk varsa onun tarihi, yoksa InvoiceDate, yoksa ModifiedOn (Closed olduğu tarih)
+                // VIEW'e girince SerialNumber eşleşmesiyle deduplicate olur — sentetik kaybolur.
                 var excelFaturaNoSet = new HashSet<string>(
                     faturalar.Where(f => f.Fatura_No != null).Select(f => f.Fatura_No!),
                     StringComparer.OrdinalIgnoreCase);
@@ -404,17 +428,20 @@ namespace SOS.Controllers
                     else if (tahakkukMap.TryGetValue(faturaNo, out var thDate3))
                         tahakkukOverride = thDate3;
 
-                    // Tahakkuk yoksa sentetik ekleme — VIEW'e girinceye kadar bekle
-                    if (!tahakkukOverride.HasValue) continue;
-
-                    var efektifTarih = tahakkukOverride.Value;
+                    // Efektif tarih: tahakkuk → InvoiceDate → ModifiedOn (Closed olduğu tarih)
+                    var efektifTarih = tahakkukOverride
+                        ?? sip.InvoiceDate
+                        ?? sip.ModifiedOn
+                        ?? sip.CreatedOn
+                        ?? sip.CreateOrderDate;
+                    if (!efektifTarih.HasValue) continue;
 
                     var sentetik = new VIEW_CP_EXCEL_FATURA
                     {
                         Fatura_No = faturaNo,
-                        Fatura_Tarihi = sip.InvoiceDate,
+                        Fatura_Tarihi = sip.InvoiceDate ?? efektifTarih,
                         Fatura_Toplam = sip.TotalNetAmount,
-                        Fatura_Vade_Tarihi = sip.InvoiceDate,
+                        Fatura_Vade_Tarihi = sip.InvoiceDate ?? efektifTarih,
                         Tahsil_Edilen = 0,
                         Bekleyen_Bakiye = sip.TotalNetAmount,
                         Durum = null,
@@ -475,8 +502,12 @@ namespace SOS.Controllers
                     urunGrupMap[mapKey] = kalemler;
                 }
 
-                // Cache'e yaz — TTL 15 dk (CacheWarmer her 4 dk'da refresh eder, bu sliding buffer)
-                var ttl = TimeSpan.FromMinutes(15);
+                // Müşteri unvanını faturalar listesine iliştir — tüm endpoint'lerin tutarlı görmesi için
+                // cache.Set'ten ÖNCE bir kez yap. MapMusteriUrun in-place çalışır; idempotent.
+                MapMusteriUrun(faturalar, urunMap, musteriMap);
+
+                // Cache'e yaz — TTL 5 dk (CacheWarmer her 4 dk'da refresh eder; warmer fail olsa bile veri ≤5dk eskir)
+                var ttl = TimeSpan.FromMinutes(5);
                 cache.Set(CACHE_KEY_FATURALAR, faturalar, ttl);
                 cache.Set(CACHE_KEY_SOZLESMELER, sozlesmeler, ttl);
                 cache.Set(CACHE_KEY_URUN_MAP, urunMap, ttl);
@@ -514,6 +545,107 @@ namespace SOS.Controllers
             }
         }
 
+        // ─────────────────────────────────────────────────────────────────────────
+        // Satış Temsilcisi 4-kademe resolver — Fatura_No (SerialNumber) → adı
+        // Pri 0: REPS.EnterpriceAccountRepresentativeId (kurumsal)
+        // Pri 1: REPS.AccountOwnerId                  (hesap sahibi)
+        // Pri 2: SIPARIS.ProposalOwnerId              (teklif sahibi)
+        // Canlı DB ölçümü (2026-05-13): 307 "atanmamış" → 1 (Pri 1 tek başına 308 ek kapatıyor).
+        // ─────────────────────────────────────────────────────────────────────────
+        internal static async Task<Dictionary<string, string>> GetTemsilciMapAsync(
+            IDbContextFactory<MskDbContext> contextFactory,
+            IMemoryCache cache)
+        {
+            if (cache.TryGetValue(CACHE_KEY_TEMSILCI_MAP, out Dictionary<string, string>? cached) && cached != null)
+                return cached;
+
+            using var db = contextFactory.CreateDbContext();
+
+            // PERSON: Id → PersonNameSurname (birleşik field zaten dolu)
+            var personList = await db.TBL_VARUNA_PERSONs.AsNoTracking()
+                .Where(p => p.PersonNameSurname != null)
+                .Select(p => new { p.Id, p.PersonNameSurname })
+                .ToListAsync();
+            var personById = personList
+                .GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().PersonNameSurname!.Trim(), StringComparer.OrdinalIgnoreCase);
+
+            // REPS Active: AccountId → AccountOwnerId (Account'un müşteri temsilcisi)
+            // Kullanıcı kararı (2026-05-14): EnterpriceAccountRepresentativeId KULLANMA — bu alan
+            // "kurumsal ilişki yetkilisi" (örn. İsmet Alkan / Proje Müdür Yardımcısı) tarafına gidiyor,
+            // satış temsilcisi DEĞİL. AccountOwnerId 9 kanonik satış temsilcisine birebir eşleşiyor.
+            var repsList = await db.TBL_VARUNA_ACCOUNT_REPRESENTATIVESs.AsNoTracking()
+                .Where(r => r.State == "Active" && r.AccountId != null && r.AccountOwnerId != null)
+                .Select(r => new { r.AccountId, r.AccountOwnerId })
+                .ToListAsync();
+            var repByAccount = repsList
+                .GroupBy(r => r.AccountId!.Value.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            // Whitelist: TBLSOS_HEDEF_TEMSILCI Aktif=1 (kanonik satış temsilcileri)
+            // Account.OwnerId/Sipariş.ProposalOwnerId bu whitelist'in dışındaysa atama yok.
+            var whitelist = await db.TBLSOS_HEDEF_TEMSILCIs.AsNoTracking()
+                .Where(t => t.Aktif && t.CrmPersonId != null)
+                .Select(t => t.CrmPersonId!)
+                .ToListAsync();
+            var whitelistSet = new HashSet<string>(whitelist, StringComparer.OrdinalIgnoreCase);
+
+            // SIPARIS: Fatura_No (SerialNumber veya "SAP:"+SAPOutReferenceCode sentetik) → (AccountId, ProposalOwnerId)
+            // musteriMap ile aynı geniş kapsam — silinmiş sipariş kayıtlarını da analiz için yakala.
+            // Sentetik fatura no formatı: LoadAllCachedDataAsync'in sentetik dal'ında "SAP:"+SAPOutReferenceCode.
+            var siparisRaw = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
+                .Where(s => s.SerialNumber != null || s.SAPOutReferenceCode != null)
+                .Select(s => new { s.SerialNumber, s.SAPOutReferenceCode, s.AccountId, s.ProposalOwnerId, s.ModifiedOn, s.CreatedOn })
+                .ToListAsync();
+            var siparisList = siparisRaw
+                .Select(s => new
+                {
+                    Key = !string.IsNullOrEmpty(s.SerialNumber)
+                          ? s.SerialNumber
+                          : (!string.IsNullOrEmpty(s.SAPOutReferenceCode) ? $"SAP:{s.SAPOutReferenceCode.Trim()}" : null),
+                    s.AccountId,
+                    s.ProposalOwnerId,
+                    s.ModifiedOn,
+                    s.CreatedOn
+                })
+                .Where(s => s.Key != null)
+                .GroupBy(s => s.Key!)
+                .Select(g => g.OrderByDescending(x => x.ModifiedOn ?? x.CreatedOn ?? DateTime.MinValue).First())
+                .ToList();
+
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in siparisList)
+            {
+                if (s.Key == null || map.ContainsKey(s.Key)) continue;
+                string? rep = null;
+
+                // Pri 0: Account.OwnerId (kanonik müşteri temsilcisi)
+                if (!string.IsNullOrEmpty(s.AccountId)
+                    && repByAccount.TryGetValue(s.AccountId, out var r)
+                    && r.AccountOwnerId.HasValue)
+                {
+                    var ownerId = r.AccountOwnerId.Value.ToString();
+                    if (whitelistSet.Contains(ownerId) && personById.TryGetValue(ownerId, out var p0))
+                        rep = p0;
+                }
+
+                // Pri 1: Sipariş.ProposalOwnerId (account owner yoksa teklif sahibi)
+                if (rep == null
+                    && !string.IsNullOrEmpty(s.ProposalOwnerId)
+                    && whitelistSet.Contains(s.ProposalOwnerId)
+                    && personById.TryGetValue(s.ProposalOwnerId, out var p1))
+                    rep = p1;
+
+                if (rep != null) map[s.Key] = rep;
+            }
+
+            cache.Set(CACHE_KEY_TEMSILCI_MAP, map, TimeSpan.FromMinutes(5));
+            return map;
+        }
+
         // DTO'lar
         private class SpDefCheck { public string? Durum { get; set; } }
         private class SiparisDto
@@ -525,6 +657,9 @@ namespace SOS.Controllers
             public decimal? TotalNetAmount { get; set; }
             public DateTime? InvoiceDate { get; set; }
             public string? SAPOutReferenceCode { get; set; }
+            public DateTime? ModifiedOn { get; set; }
+            public DateTime? CreatedOn { get; set; }
+            public DateTime? CreateOrderDate { get; set; }
         }
 
         private class UrunDto
@@ -740,7 +875,7 @@ namespace SOS.Controllers
         public async Task<IActionResult> PreloadAllFilters()
         {
             // Cache'i bir kez yükle — sonra 7 filtre bu cache'den hesaplanır (lock yok)
-            var cached = await LoadAllCachedDataAsync(_contextFactory, _cache);
+            var cached = await LoadAllCachedDataAsync(_contextFactory, _cache, _hedef);
 
             var filters = new[] { "month", "lastmonth", "q1", "q2", "q3", "q4", "ytd" };
 
@@ -777,7 +912,9 @@ namespace SOS.Controllers
             var spTahGecenHaftaTask = _cockpitData.GetTahsilatOzetAsync(gecenHaftaBaslangic, gecenHaftaSonu);
             var spTahBuHaftaTask = _cockpitData.GetTahsilatOzetAsync(haftaBaslangic, haftaSonu);
             var spTahAylikTask = _cockpitData.GetTahsilatOzetAsync(ayBaslangic, aySonu);
-            var spTahYillikTask = _cockpitData.GetTahsilatOzetAsync(ytdStart, today);
+            // Tahsilat YTD payda: ay sonuna kadar (Aylık ve Fatura YTD kartlarıyla simetri).
+            // Pay etkilenmez (gelecek tahsilat yok), sadece "vadesi gelecek açık" payda'ya katılır.
+            var spTahYillikTask = _cockpitData.GetTahsilatOzetAsync(ytdStart, aySonu);
 
             // Tüm SP'leri parallel bekle
             var allTasks = new List<Task>();
@@ -916,7 +1053,7 @@ namespace SOS.Controllers
             var bugun = now.Date;
             var today = bugun.AddDays(1).AddSeconds(-1);
 
-            var cacheTask = LoadAllCachedDataAsync(_contextFactory, _cache);
+            var cacheTask = LoadAllCachedDataAsync(_contextFactory, _cache, _hedef);
 
             var prevDuration = end - start;
             var prevStart = start.AddDays(-prevDuration.TotalDays);
@@ -950,7 +1087,7 @@ namespace SOS.Controllers
             var spTahGecenHaftaTask = _cockpitData.GetTahsilatOzetAsync(gecenHaftaBaslangic, gecenHaftaSonu);
             var spTahBuHaftaTask = _cockpitData.GetTahsilatOzetAsync(haftaBaslangic, haftaSonu);
             var spTahAylikTask = _cockpitData.GetTahsilatOzetAsync(ayBaslangic, aySonu);
-            var spTahYillikTask = _cockpitData.GetTahsilatOzetAsync(ytdStart, today);
+            var spTahYillikTask = _cockpitData.GetTahsilatOzetAsync(ytdStart, aySonu);
 
             await Task.WhenAll(cacheTask, spFaturaTask, spTahsilatTask, spSozlesmeTask,
                 spFixedMonthTask, spFixedYTDTask,
@@ -1107,9 +1244,37 @@ namespace SOS.Controllers
                 lastRefreshDurationMs = state.LastRefreshDurationMs,
                 refreshCount = state.RefreshCount,
                 failureCount = state.FailureCount,
+                lastTaskFailures = state.LastTaskFailures,
                 lastError = state.LastError,
                 lastErrorAt = state.LastErrorAt
             });
+        }
+
+        /// <summary>
+        /// Cache'i hemen yenile — kullanıcı UI'dan tetikler. SP cache + C# cache temizlenir,
+        /// taze data DB'den çekilir. ~2-5 sn bekler, dönüş = yeni state.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CacheRefresh([FromServices] SOS.Services.CockpitCacheWarmerState state)
+        {
+            var startedAt = DateTime.UtcNow;
+            try
+            {
+                _cockpitData.InvalidateAll();
+                // Endpoint-seviye cache'leri de temizle (yoksa kullanıcı Yenile basınca 5dk eski veri görür)
+                _cache.Remove($"Cockpit_MonthlyBreakdown_{DateTime.Now.Year}_{DateTime.Today:yyyyMMdd}");
+                await LoadAllCachedDataAsync(_contextFactory, _cache, _hedef, forceRefresh: true);
+                state.LastRefreshAt = DateTime.UtcNow;
+                state.LastRefreshDurationMs = (int)(DateTime.UtcNow - startedAt).TotalMilliseconds;
+                return Json(new { ok = true, durationMs = state.LastRefreshDurationMs, lastRefreshAt = state.LastRefreshAt });
+            }
+            catch (Exception ex)
+            {
+                state.LastError = ex.Message;
+                state.LastErrorAt = DateTime.UtcNow;
+                return StatusCode(500, new { ok = false, error = ex.Message });
+            }
         }
 
         public async Task<IActionResult> Index(string? filter, string? startDate, string? endDate)
@@ -1122,7 +1287,7 @@ namespace SOS.Controllers
             // ══════════════════════════════════════════════════════════════
             // Eski cache (ürün kırılımı, müşteri eşleşme için)
             // ══════════════════════════════════════════════════════════════
-            var cacheTask = LoadAllCachedDataAsync(_contextFactory, _cache);
+            var cacheTask = LoadAllCachedDataAsync(_contextFactory, _cache, _hedef);
 
             // ══════════════════════════════════════════════════════════════
             // Single-pass: Tüm KPI'lar TEK döngüde hesaplanır
@@ -1170,7 +1335,7 @@ namespace SOS.Controllers
             var spTahGecenHaftaTask = _cockpitData.GetTahsilatOzetAsync(gecenHaftaBaslangic, gecenHaftaSonu);
             var spTahBuHaftaTask = _cockpitData.GetTahsilatOzetAsync(haftaBaslangic, haftaSonu);
             var spTahAylikTask = _cockpitData.GetTahsilatOzetAsync(ayBaslangic, aySonu);
-            var spTahYillikTask = _cockpitData.GetTahsilatOzetAsync(ytdStart, today);
+            var spTahYillikTask = _cockpitData.GetTahsilatOzetAsync(ytdStart, aySonu);
 
             await Task.WhenAll(cacheTask, spFaturaTask, spTahsilatTask, spSozlesmeTask,
                 spFixedMonthTask, spFixedYTDTask,
@@ -1526,7 +1691,7 @@ namespace SOS.Controllers
         public async Task<IActionResult> GetDetailTable(string type, string? filter, string? startDate, string? endDate, int page = 1, int pageSize = 50)
         {
             var (start, end, activeFilter, _) = ParseFilter(filter, startDate, endDate);
-            var (allFaturalar, urunMap, musteriMap, sozlesmeler, hedefler, varunaTutarMap, urunGrupMap) = await LoadAllCachedDataAsync(_contextFactory, _cache);
+            var (allFaturalar, urunMap, musteriMap, sozlesmeler, hedefler, varunaTutarMap, urunGrupMap) = await LoadAllCachedDataAsync(_contextFactory, _cache, _hedef);
             var bugun = DateTime.Now.Date;
 
             // Hangi seviyeden başla: month/lastmonth → ay, q1-q4 → çeyrek, ytd/range → yıl
@@ -1769,38 +1934,53 @@ namespace SOS.Controllers
                     var spSozList = await _cockpitData.GetSozlesmelerAsync(start, end);
                     var spOzet = await _cockpitData.GetSozlesmeOzetAsync(start, end);
 
+                    // Tarih anahtarı: Eski → Yenilemetarihi (FinishDate+1), BagsizYeni → YeniBaslangic (StartDate)
+                    DateTime DonemAnahtari(SozlesmeRow s) => string.Equals(s.Tipi, "BagsizYeni", StringComparison.OrdinalIgnoreCase)
+                        ? (s.YeniBaslangic ?? DateTime.Now)
+                        : (s.Yenilemetarihi ?? s.EskiBitis ?? DateTime.Now);
+                    decimal SatirTutari(SozlesmeRow s) => string.Equals(s.Tipi, "BagsizYeni", StringComparison.OrdinalIgnoreCase)
+                        ? (s.YeniTutar ?? 0)
+                        : (s.EskiTutar ?? 0);
+                    bool SayilirYenilendi(SozlesmeRow s) =>
+                        s.Yenilendi == 1 && string.Equals(s.YeniStatus, "Archived", StringComparison.OrdinalIgnoreCase);
+
                     var hierarchy = spSozList
-                        .GroupBy(s => (s.Yenilemetarihi ?? s.EskiBitis ?? DateTime.Now).Year)
+                        .GroupBy(s => DonemAnahtari(s).Year)
                         .OrderBy(y => y.Key)
                         .Select(yGrp => new
                         {
                             yil = yGrp.Key,
-                            toplam = yGrp.Sum(s => s.EskiTutar ?? 0),
+                            toplam = yGrp.Sum(SatirTutari),
                             adet = yGrp.Count(),
-                            archivedAdet = yGrp.Count(s => s.Yenilendi == 1 && string.Equals(s.YeniStatus, "Archived", StringComparison.OrdinalIgnoreCase)),
+                            archivedAdet = yGrp.Count(SayilirYenilendi),
                             ceyrekler = yGrp
-                                .GroupBy(s => ((s.Yenilemetarihi ?? s.EskiBitis ?? DateTime.Now).Month - 1) / 3 + 1)
+                                .GroupBy(s => (DonemAnahtari(s).Month - 1) / 3 + 1)
                                 .OrderBy(q => q.Key)
                                 .Select(qGrp => new
                                 {
                                     ceyrek = qGrp.Key,
                                     label = qGrp.Key + ". Çeyrek",
-                                    toplam = qGrp.Sum(s => s.EskiTutar ?? 0),
+                                    toplam = qGrp.Sum(SatirTutari),
                                     adet = qGrp.Count(),
-                                    archivedAdet = qGrp.Count(s => s.Yenilendi == 1 && string.Equals(s.YeniStatus, "Archived", StringComparison.OrdinalIgnoreCase)),
+                                    archivedAdet = qGrp.Count(SayilirYenilendi),
                                     aylar = qGrp
-                                        .GroupBy(s => (s.Yenilemetarihi ?? s.EskiBitis ?? DateTime.Now).Month)
+                                        .GroupBy(s => DonemAnahtari(s).Month)
                                         .OrderBy(m => m.Key)
                                         .Select(mGrp => new
                                         {
                                             ay = mGrp.Key,
                                             ayAdi = new DateTime(yGrp.Key, mGrp.Key, 1).ToString("MMMM", new System.Globalization.CultureInfo("tr-TR")),
-                                            toplam = mGrp.Sum(s => s.EskiTutar ?? 0),
+                                            toplam = mGrp.Sum(SatirTutari),
                                             adet = mGrp.Count(),
-                                            archivedAdet = mGrp.Count(s => s.Yenilendi == 1 && string.Equals(s.YeniStatus, "Archived", StringComparison.OrdinalIgnoreCase)),
-                                            sozlesmeler = mGrp.OrderByDescending(s => s.EskiTutar).Select(s => new
+                                            archivedAdet = mGrp.Count(SayilirYenilendi),
+                                            bagsizYeniAdet = mGrp.Count(s => string.Equals(s.Tipi, "BagsizYeni", StringComparison.OrdinalIgnoreCase)),
+                                            sozlesmeler = mGrp
+                                                .OrderBy(s => (s.Firma ?? string.Empty).ToUpper(new System.Globalization.CultureInfo("tr-TR")), StringComparer.Create(new System.Globalization.CultureInfo("tr-TR"), ignoreCase: false))
+                                                .Select(s => new
                                             {
+                                                tipi = s.Tipi,
                                                 musteri = s.Firma,
+                                                tanim = s.ContractName,
                                                 baslangic = s.EskiBitis?.AddYears(-1).ToString("dd.MM.yyyy"),
                                                 bitis = s.EskiBitis?.ToString("dd.MM.yyyy"),
                                                 yenileme = s.Yenilemetarihi?.ToString("dd.MM.yyyy"),
@@ -1809,8 +1989,11 @@ namespace SOS.Controllers
                                                 yenilendi = s.Yenilendi == 1,
                                                 yeniTutar = s.YeniTutar,
                                                 yeniDurum = s.YeniStatus,
+                                                yeniBaslangic = s.YeniBaslangic?.ToString("dd.MM.yyyy"),
                                                 yeniBitis = s.YeniBitis?.ToString("dd.MM.yyyy"),
-                                                faturaStatu = s.FaturaStatu
+                                                faturaStatu = s.FaturaStatu,
+                                                eskiTip = s.EskiTip,
+                                                yeniTip = s.YeniTip
                                             })
                                         })
                                 })
@@ -1833,7 +2016,7 @@ namespace SOS.Controllers
         public async Task<IActionResult> GetDailyBreakdown(string type, string? filter, string? startDate, string? endDate)
         {
             var (start, end, _, _) = ParseFilter(filter, startDate, endDate);
-            var (allFaturalar, _, _, sozlesmeler, _, _, _) = await LoadAllCachedDataAsync(_contextFactory, _cache);
+            var (allFaturalar, _, _, sozlesmeler, _, _, _) = await LoadAllCachedDataAsync(_contextFactory, _cache, _hedef);
 
             switch (type?.ToLowerInvariant())
             {
@@ -1887,6 +2070,12 @@ namespace SOS.Controllers
             var year = DateTime.Now.Year;
             var trAylar = new[] { "", "Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara" };
 
+            // ⚡ Perf: Aylık özet 5dk cache. 12 ay × 2 SP = 24 paralel çağrıydı (cold ~9s).
+            // Cache hit ile ms döner. SP cache'i 5dk TTL ile uyumlu — veri tazeliği aynı.
+            var monthlyCacheKey = $"Cockpit_MonthlyBreakdown_v4_{year}_{DateTime.Today:yyyyMMdd}";
+            if (_cache.TryGetValue(monthlyCacheKey, out object? cachedMonthly) && cachedMonthly != null)
+                return Json(cachedMonthly);
+
             // 12 ay için SP fatura + tahsilat parallel çağır (SP cache'den ~1ms × 12)
             var fatTasks = new Dictionary<int, Task<FaturaOzet>>();
             var tahTasks = new Dictionary<int, Task<TahsilatOzet>>();
@@ -1898,26 +2087,24 @@ namespace SOS.Controllers
                 tahTasks[m] = _cockpitData.GetTahsilatOzetAsync(s, e);
             }
 
-            // Vade tarihi için allFaturalar'dan (SP'de vade bazlı gruplama yok)
-            var cacheTask = LoadAllCachedDataAsync(_contextFactory, _cache);
-
             var allTasks = new List<Task>();
             allTasks.AddRange(fatTasks.Values);
             allTasks.AddRange(tahTasks.Values);
-            allTasks.Add(cacheTask);
             await Task.WhenAll(allTasks);
 
-            var (allFaturalar, _, _, _, _, _, _) = cacheTask.Result;
-            var vadeByMonth = allFaturalar
-                .Where(f => !IsRetDurum(f.Durum) && !IsNegatifDurum(f.Durum)
-                    && f.Fatura_Vade_Tarihi.HasValue && f.Fatura_Vade_Tarihi.Value.Year == year)
-                .GroupBy(f => f.Fatura_Vade_Tarihi!.Value.Month)
-                .ToDictionary(g => g.Key, g => new { toplam = g.Sum(x => x.Fatura_Toplam ?? 0), adet = g.Count() });
-
+            // Vade Tarihi: SP_COCKPIT_TAHSILAT'taki VadesiGelenToplam/Adet kullanılır.
+            // SP iade/ret/iptal filtresini DB seviyesinde uygular (`NOT IN` list, deduplicated).
+            // Eski C# yolu `vadeByMonth` IsRetDurum/IsNegatifDurum filtresini in-memory uyguluyordu
+            // ama VIEW'deki duplicate kayıtlar + filtre lambda capture sorunu → 192 adet / ₺67.34M
+            // (gerçek SP çıktısı: 160 / ₺55.27M). 2026-05-13'te SP'ye delegate edildi.
+            // Gelecek aylar (faturaAdet=0) için bekleyen alanlar NULL döner → grafikte boşluk.
+            // Aksi takdirde kümülatif bekleyen yıl sonuna kadar düz çizgi olur, görsel anlamsız.
+            var thisMonth = DateTime.Today.Month;
             var result = Enumerable.Range(1, 12).Select(m =>
             {
                 var fat = fatTasks[m].Result;
                 var tah = tahTasks[m].Result;
+                bool gelecekAy = m > thisMonth;
                 return new
                 {
                     ay = m,
@@ -1926,11 +2113,17 @@ namespace SOS.Controllers
                     faturaAdet = fat.Adet,
                     tahsilatToplam = tah.TahsilEdilen,
                     tahsilatAdet = tah.TahsilAdet,
-                    vadeToplam = vadeByMonth.TryGetValue(m, out var vb) ? vb.toplam : 0,
-                    vadeAdet = vadeByMonth.TryGetValue(m, out var vb2) ? vb2.adet : 0,
+                    vadeToplam = tah.VadesiGelenToplam,
+                    vadeAdet = tah.VadesiGelenAdet,
+                    // O ay vadeli + hâlâ bekleyen bakiye (sadece bu ayın net açık alacağı)
+                    oAyBekleyenToplam = gelecekAy ? (decimal?)null : tah.OAyBekleyenToplam,
+                    oAyBekleyenAdet = gelecekAy ? (int?)null : tah.OAyBekleyenAdet,
+                    // Kümülatif bekleyen bakiye (vade <= ay sonu — geçmişten kalan dahil tüm açık alacak)
+                    kumulatifBekleyenToplam = gelecekAy ? (decimal?)null : tah.BekleyenBakiyeToplam,
                 };
             }).ToList();
 
+            _cache.Set(monthlyCacheKey, result, TimeSpan.FromMinutes(5));
             return Json(result);
         }
 
@@ -1945,7 +2138,7 @@ namespace SOS.Controllers
             // Fatura_No → SerialNumber → OrderId + TotalNetAmount (TL bazlı)
             var siparis = await db.TBL_VARUNA_SIPARIs
                 .AsNoTracking()
-                .Where(s => s.SerialNumber == faturaNo)
+                .Where(s => s.SerialNumber == faturaNo && s.DeletedOn == null)
                 .Select(s => new { s.OrderId, s.TotalNetAmount })
                 .FirstOrDefaultAsync();
 
@@ -2127,6 +2320,84 @@ namespace SOS.Controllers
             return File(bytes, "text/csv; charset=utf-8", "urun_kategori_eslestirme.csv");
         }
 
+        /// <summary>
+        /// Tanı: SP_COCKPIT_SOZLESME dönüşünde Tipi='BagsizYeni' kaç satır geliyor?
+        /// Kullanım: /Cockpit/DiagBagsizYeni?start=2026-04-01&end=2026-04-30
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> DiagBagsizYeni(string? start, string? end)
+        {
+            // Cache'i bypass et — SP'yi direkt çağır
+            var s = !string.IsNullOrEmpty(start) ? DateTime.Parse(start) : new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+            var e = !string.IsNullOrEmpty(end) ? DateTime.Parse(end) : new DateTime(s.Year, s.Month, DateTime.DaysInMonth(s.Year, s.Month));
+
+            using var db = _contextFactory.CreateDbContext();
+            db.Database.SetCommandTimeout(60);
+            var rows = await db.Database.SqlQueryRaw<SozlesmeRow>(
+                "EXEC SP_COCKPIT_SOZLESME @p0, @p1", s, e).ToListAsync();
+
+            var bagsiz = rows.Where(r => string.Equals(r.Tipi, "BagsizYeni", StringComparison.OrdinalIgnoreCase)).ToList();
+            var eski = rows.Where(r => !string.Equals(r.Tipi, "BagsizYeni", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            // Ham DB sorgusu — RelatedContractId NULL olan dönemde başlayan tüm sözleşmeler (deleted dahil/hariç)
+            var hamSorgu = await db.Database.SqlQueryRaw<DiagSozlesmeDto>(@"
+SELECT
+    CAST(s.Id AS NVARCHAR(64)) AS Id,
+    s.AccountTitle AS AccountTitle,
+    s.ContractNo AS ContractNo,
+    s.ContractStatus AS ContractStatus,
+    s.StartDate AS StartDate,
+    s.FinishDate AS FinishDate,
+    CAST(s.RelatedContractId AS NVARCHAR(64)) AS RelatedContractId,
+    s.TotalAmount AS TotalAmount,
+    CAST(s.DeletedOn AS NVARCHAR(50)) AS DeletedOn
+FROM TBL_VARUNA_SOZLESME s
+WHERE s.RelatedContractId IS NULL
+  AND s.StartDate >= {0} AND s.StartDate < DATEADD(DAY, 1, {1})
+ORDER BY s.StartDate DESC", s, e).ToListAsync();
+
+            return Json(new
+            {
+                donem = new { baslangic = s.ToString("yyyy-MM-dd"), bitis = e.ToString("yyyy-MM-dd") },
+                spOzet = new
+                {
+                    toplamSatir = rows.Count,
+                    eskiAdet = eski.Count,
+                    bagsizYeniAdet = bagsiz.Count,
+                    bagsizYeniler = bagsiz.Select(b => new
+                    {
+                        b.Id,
+                        firma = b.Firma,
+                        yeniTutar = b.YeniTutar,
+                        yeniBaslangic = b.YeniBaslangic?.ToString("yyyy-MM-dd"),
+                        yeniBitis = b.YeniBitis?.ToString("yyyy-MM-dd"),
+                        yeniStatus = b.YeniStatus,
+                        faturaStatu = b.FaturaStatu
+                    })
+                },
+                hamSorgu = new
+                {
+                    toplam = hamSorgu.Count,
+                    silinmemis = hamSorgu.Count(x => string.IsNullOrEmpty(x.DeletedOn)),
+                    silinmis = hamSorgu.Count(x => !string.IsNullOrEmpty(x.DeletedOn)),
+                    ornekler = hamSorgu.Take(20).ToList()
+                }
+            });
+        }
+
+        private class DiagSozlesmeDto
+        {
+            public string? Id { get; set; }
+            public string? AccountTitle { get; set; }
+            public string? ContractNo { get; set; }
+            public string? ContractStatus { get; set; }
+            public DateTime? StartDate { get; set; }
+            public DateTime? FinishDate { get; set; }
+            public string? RelatedContractId { get; set; }
+            public decimal? TotalAmount { get; set; }
+            public string? DeletedOn { get; set; }
+        }
+
         [HttpGet]
         public async Task<IActionResult> SapLookup(string sapNos)
         {
@@ -2134,7 +2405,7 @@ namespace SOS.Controllers
             var sapList = sapNos.Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).ToList();
 
             var siparisler = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
-                .Where(s => s.SAPOutReferenceCode != null)
+                .Where(s => s.SAPOutReferenceCode != null && s.DeletedOn == null)
                 .Select(s => new { s.OrderId, s.SerialNumber, s.SAPOutReferenceCode, s.OrderStatus, s.InvoiceDate, s.AccountTitle, s.TotalNetAmount })
                 .ToListAsync();
 
@@ -2202,7 +2473,7 @@ namespace SOS.Controllers
 
             // 2026 yenileme sözleşmeleri — RenewalDate bazlı, ContractStatus dağılımı
             var yenileme = await db.TBL_VARUNA_SOZLESMEs.AsNoTracking()
-                .Where(s => s.RenewalDate.HasValue && s.RenewalDate.Value.Year == 2026)
+                .Where(s => s.RenewalDate.HasValue && s.RenewalDate.Value.Year == 2026 && s.DeletedOn == null)
                 .OrderBy(s => s.RenewalDate).ThenBy(s => s.AccountTitle)
                 .ToListAsync();
 
@@ -2266,9 +2537,11 @@ BEGIN
                         THEN ISNULL(Tahsil_Edilen, 0) END), 0) AS TahsilEdilen,
         ISNULL(SUM(CASE WHEN Tahsil_Tarihi >= @StartDate AND Tahsil_Tarihi < DATEADD(DAY,1,@EndDate)
                         THEN 1 END), 0) AS TahsilAdet,
+        -- PAYDA bakiye: as-of @EndDate snapshot (donem sonrasi tahsilatlar geri eklenir)
         ISNULL(SUM(CASE WHEN Fatura_Vade_Tarihi <= @EndDate
-                         AND ISNULL(Bekleyen_Bakiye, ISNULL(Fatura_Toplam,0) - ISNULL(Tahsil_Edilen,0)) > 0
-                        THEN ISNULL(Bekleyen_Bakiye, ISNULL(Fatura_Toplam,0) - ISNULL(Tahsil_Edilen,0)) END), 0) AS BekleyenBakiyeToplam,
+                        THEN ISNULL(Bekleyen_Bakiye, ISNULL(Fatura_Toplam,0) - ISNULL(Tahsil_Edilen,0))
+                           + CASE WHEN Tahsil_Tarihi > @EndDate THEN ISNULL(Tahsil_Edilen, 0) ELSE 0 END
+                        END), 0) AS BekleyenBakiyeToplam,
         ISNULL(SUM(CASE WHEN Fatura_Vade_Tarihi >= @StartDate AND Fatura_Vade_Tarihi < DATEADD(DAY,1,@EndDate)
                         THEN ISNULL(Fatura_Toplam, 0) END), 0) AS VadesiGelenToplam,
         ISNULL(SUM(CASE WHEN Fatura_Vade_Tarihi >= @StartDate AND Fatura_Vade_Tarihi < DATEADD(DAY,1,@EndDate)
@@ -2472,11 +2745,12 @@ END;");
             var varunaMart = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
                 .Where(s => s.OrderStatus == "Closed" && s.TotalNetAmount > 0
                     && s.SerialNumber != null
+                    && s.DeletedOn == null
                     && s.InvoiceDate.HasValue && s.InvoiceDate.Value >= startDate && s.InvoiceDate.Value <= endDate)
                 .ToListAsync();
 
             // 4) LoadAllCachedData sonucu (eski yöntem)
-            var cached = await LoadAllCachedDataAsync(_contextFactory, _cache);
+            var cached = await LoadAllCachedDataAsync(_contextFactory, _cache, _hedef);
             var allFaturalar = cached.faturalar;
             var varunaTutarMap = cached.varunaTutarMap;
 
@@ -2498,7 +2772,8 @@ END;");
             // Siparis map
             var siparisler = await db.TBL_VARUNA_SIPARIs.AsNoTracking()
                 .Where(s => s.OrderId != null && s.SerialNumber != null
-                    && s.OrderStatus == "Closed" && s.TotalNetAmount > 0)
+                    && s.OrderStatus == "Closed" && s.TotalNetAmount > 0
+                    && s.DeletedOn == null)
                 .Select(s => new { s.SerialNumber, s.SAPOutReferenceCode, s.TotalNetAmount })
                 .ToListAsync();
             var sapMap = siparisler
@@ -2558,6 +2833,93 @@ END;");
                 hamView_Mart = new { adet = hamView.Count, toplam = hamView.Sum(f => f.Fatura_Toplam ?? 0) },
                 varunaClosed_Mart = new { adet = varunaMart.Count, toplam = varunaMart.Sum(s => s.TotalNetAmount ?? 0) },
             });
+        }
+
+        // ───────────────────────────────────────────────────────────────────────
+        // Vadesi geçmiş faturalar — sayfa içi alt-panel için detay listesi
+        // Tahsilat kartındaki "Vadesi geçmiş · N fatura · ₺X" bandına tıklanınca açılır.
+        // Aynı filtre mantığı: Fatura_Vade_Tarihi < bugün, Bekleyen_Bakiye > 0, Durum boş.
+        // Yaş = (bugün - Fatura_Vade_Tarihi) gün; minYas chip filtreleri için (0/30/60/90).
+        // ───────────────────────────────────────────────────────────────────────
+        [HttpGet]
+        public async Task<IActionResult> VadesiGecmisDetay(int minYas = 0)
+        {
+            var (faturalar, _, _, _, _, _, _) = await LoadAllCachedDataAsync(_contextFactory, _cache, _hedef, false);
+            var temsilciMap = await GetTemsilciMapAsync(_contextFactory, _cache);
+            var bugun = DateTime.Now.Date;
+
+            // Vadesi geçmiş kuralı — GetCockpit @724-732 ile birebir
+            // Müşteri zinciri (kullanıcı kararı 2026-05-13, canlı DB doğrulamalı):
+            //   1) Varuna (MusteriUnvan = musteriMap[FaturaNo] = TBL_VARUNA_SIPARIS.AccountTitle)
+            //   2) Excel fallback — VIEW_CP_EXCEL_FATURA.Proje (kaynak: VeriOkumaDonusum.TBL_FINANS_FATURA.Proje;
+            //      Satici_Adi/Ilgili_Kisi 104/104 vadesi geçmiş kayıtta BOŞ; Proje 104/104 DOLU — müşteri/proje adı taşır)
+            //      UI'da küçük "Excel" rozeti gösterir.
+            //   3) Boşsa "—" (hukuki badge ayrı kolon)
+            // Sıralama: Vade tarihi asc (en eski vade en üstte) → Bakiye desc.
+            var rowsAll = faturalar
+                .Where(f => f.Fatura_Vade_Tarihi.HasValue
+                            && (f.Bekleyen_Bakiye ?? 0m) > 0
+                            && string.IsNullOrWhiteSpace(f.Durum)
+                            && f.Fatura_Vade_Tarihi!.Value.Date < bugun)
+                .OrderBy(f => f.Fatura_Vade_Tarihi!.Value.Date)
+                .ThenByDescending(f => f.Bekleyen_Bakiye ?? 0m)
+                .Select(f =>
+                {
+                    string musteriAd;
+                    string kaynak;
+                    if (!string.IsNullOrWhiteSpace(f.MusteriUnvan))
+                    {
+                        musteriAd = f.MusteriUnvan!.Trim();
+                        kaynak = "varuna";
+                    }
+                    else if (!string.IsNullOrWhiteSpace(f.Proje))
+                    {
+                        musteriAd = f.Proje!.Trim();
+                        kaynak = "excel";
+                    }
+                    else if (!string.IsNullOrWhiteSpace(f.Satici_Adi))
+                    {
+                        musteriAd = f.Satici_Adi!.Trim();
+                        kaynak = "excel";
+                    }
+                    else
+                    {
+                        musteriAd = "—";
+                        kaynak = "yok";
+                    }
+                    return new
+                    {
+                        faturaNo = f.Fatura_No,
+                        musteri = musteriAd,
+                        musteriKaynak = kaynak,
+                        satisRep = (f.Fatura_No != null && temsilciMap.TryGetValue(f.Fatura_No, out var rep))
+                                   ? rep
+                                   : (!string.IsNullOrWhiteSpace(f.Ilgili_Kisi) ? f.Ilgili_Kisi!.Trim() : "—"),
+                        faturaTarihi = f.Fatura_Tarihi?.ToString("dd.MM.yyyy"),
+                        vadeTarihi = f.Fatura_Vade_Tarihi?.ToString("dd.MM.yyyy"),
+                        bakiye = f.Bekleyen_Bakiye ?? 0m,
+                        hukuki = !string.IsNullOrWhiteSpace(f.Hukuki_Durum),
+                        yas = (int)(bugun - f.Fatura_Vade_Tarihi!.Value.Date).TotalDays
+                    };
+                })
+                .ToList();
+
+            // Özet: hukuki takip dahil tüm vadesi geçmiş (üst kartla tutarlı)
+            var ozet = new
+            {
+                toplamAdet = rowsAll.Count,
+                toplamBakiye = rowsAll.Sum(r => r.bakiye),
+                hukukiAdet = rowsAll.Count(r => r.hukuki),
+                hukukiBakiye = rowsAll.Where(r => r.hukuki).Sum(r => r.bakiye),
+                yas30Plus = rowsAll.Count(r => r.yas >= 30),
+                yas60Plus = rowsAll.Count(r => r.yas >= 60),
+                yas90Plus = rowsAll.Count(r => r.yas >= 90)
+            };
+
+            // Yaş filtresi (chip)
+            var rows = minYas > 0 ? rowsAll.Where(r => r.yas >= minYas).ToList() : rowsAll;
+
+            return Json(new { ok = true, ozet, rows });
         }
 
         #endregion

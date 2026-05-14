@@ -9,7 +9,7 @@ namespace SOS.Services;
 
 public class FaturaRow
 {
-    public string FaturaNo { get; set; } = "";
+    public string? FaturaNo { get; set; }
     public DateTime EfektifTarih { get; set; }
     public decimal NetTutar { get; set; }
     public string? Firma { get; set; }
@@ -33,10 +33,15 @@ public class TahsilatOzet
     public decimal BekleyenBakiyeToplam { get; set; }
     public decimal VadesiGelenToplam { get; set; }
     public int VadesiGelenAdet { get; set; }
+    // O ay vadeli + hâlâ bekleyen bakiye (sadece dönem aralığı, kümülatif değil)
+    public decimal OAyBekleyenToplam { get; set; }
+    public int OAyBekleyenAdet { get; set; }
 }
 
 public class SozlesmeRow
 {
+    /// <summary>"Eski" = FinishDate+1 dönemde olan sözleşme. "BagsizYeni" = StartDate dönemde, eski-yeni bağı yok.</summary>
+    public string? Tipi { get; set; }
     public Guid? Id { get; set; }
     public string? ContractNo { get; set; }
     public string? ContractName { get; set; }
@@ -45,6 +50,8 @@ public class SozlesmeRow
     public decimal? EskiTutar { get; set; }
     public decimal? EskiTutarLocal { get; set; }
     public DateTime? EskiBitis { get; set; }
+    /// <summary>Önceki sözleşmenin ContractType (NewSales / Renewal / null)</summary>
+    public string? EskiTip { get; set; }
     public DateTime? Yenilemetarihi { get; set; }
     public int Yenilendi { get; set; }
     public string? YeniContractNo { get; set; }
@@ -53,6 +60,8 @@ public class SozlesmeRow
     public decimal? YeniTutarLocal { get; set; }
     public DateTime? YeniBaslangic { get; set; }
     public DateTime? YeniBitis { get; set; }
+    /// <summary>Yeni sözleşmenin ContractType (NewSales / Renewal)</summary>
+    public string? YeniTip { get; set; }
     public string? YeniInvoiceStatusId { get; set; }
     public string? FaturaStatu { get; set; }
 }
@@ -107,6 +116,8 @@ public interface ICockpitDataService
     Task<SozlesmeOzet> GetSozlesmeOzetAsync(DateTime start, DateTime end);
     Task<PipelineResult> GetPipelineAsync(DateTime start, DateTime end, string? owner = null);
     void InvalidateAll();
+    // Force flag — UI "Yenile" butonu ile controller bypass ettiğinde service cache'i de bypass eder
+    void InvalidateRange(DateTime start, DateTime end, string? owner = null);
 }
 
 public class CockpitDataService : ICockpitDataService
@@ -191,26 +202,33 @@ public class CockpitDataService : ICockpitDataService
     public async Task<SozlesmeOzet> GetSozlesmeOzetAsync(DateTime start, DateTime end)
     {
         var rows = await GetSozlesmelerAsync(start, end);
-        var yen = rows.Where(r => r.Yenilendi == 1).ToList();
-        var bek = rows.Where(r => r.Yenilendi == 0).ToList();
-        var archived = yen.Where(r => string.Equals(r.YeniStatus, "Archived", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var eski = rows.Where(r => !string.Equals(r.Tipi, "BagsizYeni", StringComparison.OrdinalIgnoreCase)).ToList();
+        var bagsiz = rows.Where(r => string.Equals(r.Tipi, "BagsizYeni", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var yen = eski.Where(r => r.Yenilendi == 1).ToList();           // eski-yeni bağı kurulmuş
+        var bek = eski.Where(r => r.Yenilendi == 0).ToList();           // yenilenmemiş eski
+
+        // Tüm yeni sözleşmeler = bağlı yeniler (eski'nin yenisi) + bağsız yeniler (eskisi yok)
+        var tumYeniler = yen.Concat(bagsiz).ToList();
+        var archived = tumYeniler.Where(r => string.Equals(r.YeniStatus, "Archived", StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Faturalanma durumu: yeni sözleşmenin InvoiceStatusId'sine bak (SP'den geliyor)
         var tamamlandiStr = INVOICE_TAMAMLANDI.ToString().ToUpperInvariant();
         var kismiStr = INVOICE_KISMI.ToString().ToUpperInvariant();
-        var fatTamamlandi = yen.Where(r => string.Equals(r.YeniInvoiceStatusId?.Trim(), tamamlandiStr, StringComparison.OrdinalIgnoreCase)).ToList();
-        var fatKismi = yen.Where(r => string.Equals(r.YeniInvoiceStatusId?.Trim(), kismiStr, StringComparison.OrdinalIgnoreCase)).ToList();
+        var fatTamamlandi = tumYeniler.Where(r => string.Equals(r.YeniInvoiceStatusId?.Trim(), tamamlandiStr, StringComparison.OrdinalIgnoreCase)).ToList();
+        var fatKismi = tumYeniler.Where(r => string.Equals(r.YeniInvoiceStatusId?.Trim(), kismiStr, StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Fesih/İptal: yeni sözleşmenin ContractStatus = TerminationCancellation
-        var fesih = yen.Where(r => string.Equals(r.YeniStatus, "TerminationCancellation", StringComparison.OrdinalIgnoreCase)).ToList();
+        var fesih = tumYeniler.Where(r => string.Equals(r.YeniStatus, "TerminationCancellation", StringComparison.OrdinalIgnoreCase)).ToList();
 
         return new SozlesmeOzet
         {
             Toplam = rows.Count,
-            YenilenenAdet = yen.Count,
-            BekleyenAdet = bek.Count,
-            EskiTutar = rows.Sum(r => r.EskiTutar ?? 0),
-            YeniTutar = yen.Sum(r => r.YeniTutar ?? 0),
+            YenilenenAdet = yen.Count,                                  // sadece eski→yeni bağı kurulmuş olanlar
+            BekleyenAdet = bek.Count,                                   // yenilenmemiş eskiler
+            EskiTutar = eski.Sum(r => r.EskiTutar ?? 0),
+            YeniTutar = tumYeniler.Sum(r => r.YeniTutar ?? 0),          // bağlı yeniler + bağsız yeniler
             BekleyenTutar = bek.Sum(r => r.EskiTutar ?? 0),
             ArchivedTutar = archived.Sum(r => r.YeniTutar ?? 0),
             ArchivedAdet = archived.Count,
@@ -244,6 +262,31 @@ public class CockpitDataService : ICockpitDataService
     public void InvalidateAll()
     {
         lock (_keys) { foreach (var k in _keys) _cache.Remove(k); _keys.Clear(); }
+    }
+
+    // Belirli bir tarih aralığı için tüm SP cache'lerini sil (fatura, tahsilat, sözleşme, pipeline).
+    // UI "Yenile" butonu sadece aktif dönemin cache'ini temizler — diğer kullanıcıların
+    // farklı dönem cache'leri etkilenmez.
+    public void InvalidateRange(DateTime start, DateTime end, string? owner = null)
+    {
+        var ownerKey = owner ?? "all";
+        var sd = start.ToString("yyyyMMdd");
+        var ed = end.ToString("yyyyMMdd");
+        var prefixes = new[]
+        {
+            $"sp_fat_{sd}_{ed}_{ownerKey}",
+            $"sp_tah_{sd}_{ed}",
+            $"sp_soz_{sd}_{ed}",
+            $"sp_pipe_{sd}_{ed}_{ownerKey}"
+        };
+        lock (_keys)
+        {
+            foreach (var p in prefixes)
+            {
+                _cache.Remove(p);
+                _keys.Remove(p);
+            }
+        }
     }
 
     private async Task<T> CachedAsync<T>(string key, Func<Task<T>> loader) where T : class

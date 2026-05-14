@@ -246,7 +246,8 @@
         </div>
         <div>
             <h1 class="text-xl font-semibold text-[#1e293b] tracking-tight">Finansal Cockpit</h1>
-            <p class="text-[10px] text-slate-400" id="headerDateRange">@headerDateRange &middot; <span id="cacheStatus" title="Cache warmer durumu">Canlı veri</span></p>
+            <p class="text-[10px] text-slate-400" id="headerDateRange">@headerDateRange &middot; <span id="cacheStatus" title="Cache warmer durumu">Canlı veri</span> &middot; <button type="button" id="cacheRefreshBtn" class="text-[10px] text-slate-500 hover:text-slate-800 underline-offset-2 hover:underline" title="Cache'i hemen yenile">↻ Yenile</button></p>
+            @Html.AntiForgeryToken()
         </div>
     </div>
 </div>
@@ -276,7 +277,7 @@
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
                 <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center"><i class="bi bi-calendar-event text-blue-600" style="font-size:13px;"></i></div>
-                <span class="text-[12px] font-bold text-[#1e293b]">@ayAdi</span>
+                <span class="text-[12px] font-bold text-[#1e293b]">@ayAdi Fatura</span>
             </div>
             <span class="text-lg font-extrabold @(Model.FixedCurrentMonthPct >= 80 ? "text-emerald-600" : Model.FixedCurrentMonthPct >= 50 ? "text-amber-500" : "text-red-500")">%@Model.FixedCurrentMonthPct.ToString("N0")</span>
         </div>
@@ -294,7 +295,7 @@
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
                 <div class="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center"><i class="bi bi-graph-up-arrow text-emerald-600" style="font-size:13px;"></i></div>
-                <span class="text-[12px] font-bold text-[#1e293b]">YTD</span>
+                <span class="text-[12px] font-bold text-[#1e293b]">YTD Fatura</span>
             </div>
             <span class="text-lg font-extrabold @(ytdPct >= 80 ? "text-emerald-600" : ytdPct >= 50 ? "text-amber-500" : "text-red-500")">%@ytdPct.ToString("N0")</span>
         </div>
@@ -330,7 +331,7 @@
             </div>
             <div>
                 <h3 class="text-[12px] font-semibold text-slate-800">Fatura & Tahsilat Akışı</h3>
-                <p class="text-[9px] text-slate-400">Tahsilat oranları · Aylık dağılım · @DateTime.Now.Year</p>
+                <p class="text-[9px] text-slate-400">Aylık fatura, tahsilat, vade ve kalan tahsilat · @DateTime.Now.Year</p>
             </div>
         </div>
         <div class="flex items-center gap-3">
@@ -406,7 +407,7 @@
                         <div class="cei-bar" id="ceiYillikBar" data-width="@(ceiYPct.ToString(System.Globalization.CultureInfo.InvariantCulture))" style="background:#2563eb;"></div>
                     </div>
                     <div class="text-[11px] text-slate-600" id="ceiYillikDetail">₺@Model.CeiYillikTahsilat.ToString("N0") / ₺@Model.CeiYillikToplam.ToString("N0")</div>
-                    <p class="text-[10px] text-slate-500 mt-0.5">01.01.2026 → @DateTime.Now.ToString("dd.MM.yyyy")</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">01.01.@DateTime.Now.Year → @(new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.DaysInMonth(DateTime.Now.Year, DateTime.Now.Month)).ToString("dd.MM.yyyy"))</p>
                 </div>
             </div>
 
@@ -544,8 +545,11 @@
             </div>
         </div>
 
-        <!-- Vadesi Geçmiş -->
-        <div class="mt-2 pt-2 border-t border-slate-200/60">
+        <!-- Vadesi Geçmiş — tıklanabilir, tahsilat panelini vadesi-geçmiş modunda açar -->
+        <div class="mt-2 pt-2 border-t border-slate-200/60 cursor-pointer hover:bg-amber-50/40 -mx-1 px-1 rounded-md transition-colors"
+             onclick="openVadesiGecmisPanel(event)"
+             role="button" tabindex="0"
+             title="Vadesi geçmiş faturaları aç">
             <div class="flex items-center justify-between">
                 <span class="text-[11px] text-amber-600 font-semibold flex items-center gap-1"><i class="bi bi-exclamation-triangle-fill" style="font-size:11px;"></i> Vadesi geçmiş &middot; <span id="vadesiGecmisAdet">@Model.VadesiGecmisAdet</span> fatura</span>
                 <span id="tahGecmisBakiyeTutar" class="text-[12px] font-bold text-red-500">₺@Model.TahGecmisBakiye.ToString("N0")</span>
@@ -556,11 +560,14 @@
 
     <!-- SÖZLEŞMELER (CRM) -->
     @{
-        var sozYuzde = Model.SozlesmelerToplam > 0 ? Math.Round(Model.SozArchivedToplam / Model.SozlesmelerToplam * 100, 1) : 0;
+        // PAY = Faturalandı (tam + kısmi) — eski Arşivlenen yerine, kullanıcı kararı 2026-05-06
+        var sozFatToplamPay = Model.SozFaturalandiToplam + Model.SozKismiFatToplam;
+        var sozFatAdetPay = Model.SozFaturalandiAdet + Model.SozKismiFatAdet;
+        var sozYuzde = Model.SozlesmelerToplam > 0 ? Math.Round(sozFatToplamPay / Model.SozlesmelerToplam * 100, 1) : 0;
         var sozPctClamped = Math.Min(sozYuzde, 100);
         var sozBarClr = sozYuzde >= 80 ? "#10b981" : sozYuzde >= 50 ? "#f59e0b" : "#ef4444";
         var sozPctCls = sozYuzde >= 80 ? "text-green-600" : sozYuzde >= 50 ? "text-amber-600" : "text-red-500";
-        var sozKalan = Model.SozlesmelerToplam - Model.SozArchivedToplam;
+        var sozKalan = Model.SozlesmelerToplam - sozFatToplamPay;
     }
     <div class="card-secondary spotlight-card accent-red p-5">
         <div class="flex items-start justify-between mb-3">
@@ -576,11 +583,11 @@
             </button>
         </div>
         <div class="flex items-baseline gap-2">
-            <p id="sozlesmelerTutar" class="text-[1.4rem] font-semibold text-slate-500 leading-tight num" data-countup="@Model.SozArchivedToplam.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)" data-prefix="₺">₺0</p>
+            <p id="sozlesmelerTutar" class="text-[1.4rem] font-semibold text-slate-500 leading-tight num" data-countup="@sozFatToplamPay.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)" data-prefix="₺">₺0</p>
             <span id="sozlesmelerPayda" class="text-[1.4rem] font-bold text-[#1e293b]">/ ₺@Model.SozlesmelerToplam.ToString("N0")</span>
         </div>
         <div class="flex items-center justify-between mt-2">
-            <span id="sozlesmelerAdet" class="text-xs text-slate-400">@Model.SozArchivedAdet / @Model.SozlesmelerAdet adet</span>
+            <span id="sozlesmelerAdet" class="text-xs text-slate-400">@sozFatAdetPay / @Model.SozlesmelerAdet adet</span>
             <span id="sozYuzde" class="text-lg font-extrabold @sozPctCls">%@sozYuzde.ToString("N1")</span>
         </div>
         <div class="h-2 rounded-full overflow-hidden mt-1.5 mb-2" style="background:rgba(0,0,0,0.06);">
@@ -593,60 +600,66 @@
             var fatAdetSoz = Model.SozFaturalandiAdet + Model.SozKismiFatAdet;
             var tamamlanmasiGereken = Model.SozlesmelerAdet - fatAdetSoz - Model.SozFesihAdet;
         }
-        <!-- 1) Faturalandı + Kısmi oran -->
+        <!-- 1) Arşivlendi (alt not — kullanıcı kararı: pay yerinden buraya taşındı) -->
         <div class="mt-3 pt-3 border-t border-slate-200/60">
-            <span class="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                <i class="bi bi-receipt-cutoff" style="font-size:11px;"></i>
-                Faturalandı &middot; <span id="sozFatOranInfo">@Model.SozFaturalandiAdet tam + @Model.SozKismiFatAdet kısmi</span>
+            <span class="text-[11px] text-sky-700 font-semibold flex items-center gap-1">
+                <i class="bi bi-archive" style="font-size:11px;"></i>
+                Arşivlendi &middot; <span id="sozArchivedInfo">@Model.SozArchivedAdet sözleşme</span>
             </span>
-            <p id="sozFatOranTutar" class="text-sm font-bold text-emerald-600 mt-1">₺@fatToplamSoz.ToString("N0")</p>
+            <p id="sozArchivedTutarRozet" class="text-sm font-bold text-sky-700 mt-1">₺@Model.SozArchivedToplam.ToString("N0")</p>
         </div>
 
-        <!-- 2) Tamamlanması gereken -->
+        <!-- 2) Tamamlanması gereken (+ sağda fesih/iptal mini rozeti) -->
         <div class="mt-2 pt-2 border-t border-slate-200/60" id="sozTamamlanmasiSection" style="@(tamamlanmasiGereken <= 0 ? "display:none" : "")">
-            <span class="text-[11px] text-amber-600 font-semibold flex items-center gap-1">
-                <i class="bi bi-hourglass-split" style="font-size:11px;"></i>
-                Tamamlanması gereken &middot; <span id="sozTamamlanmasiAdet">@tamamlanmasiGereken sözleşme</span>
-            </span>
+            <div class="flex items-start justify-between gap-2">
+                <span class="text-[11px] text-amber-600 font-semibold flex items-center gap-1">
+                    <i class="bi bi-hourglass-split" style="font-size:11px;"></i>
+                    Tamamlanması gereken &middot; <span id="sozTamamlanmasiAdet">@tamamlanmasiGereken sözleşme</span>
+                </span>
+                <span id="sozFesihMini" class="text-[10px] text-red-500 font-medium flex items-center gap-1" style="@(Model.SozFesihAdet == 0 ? "display:none" : "")">
+                    <i class="bi bi-x-circle-fill" style="font-size:9px;"></i>
+                    Fesih/İptal &middot; <span id="sozFesihInfo">@Model.SozFesihAdet sözleşme</span>
+                </span>
+            </div>
             <p id="sozTamamlanmasiTutar" class="text-sm font-bold text-amber-600 mt-1">₺@((Model.SozlesmelerToplam - fatToplamSoz - Model.SozFesihToplam).ToString("N0"))</p>
         </div>
-
-        <!-- 3) Fesih/İptal uyarısı -->
-        <div class="mt-2 pt-2 border-t border-slate-200/60" id="sozFesihSection" style="@(Model.SozFesihAdet == 0 ? "display:none" : "")">
-            <span class="text-[11px] text-red-600 font-semibold flex items-center gap-1">
-                <i class="bi bi-x-circle-fill" style="font-size:11px;"></i>
-                Fesih / İptal &middot; <span id="sozFesihInfo">@Model.SozFesihAdet sözleşme</span>
-            </span>
-            <p id="sozFesihTutar" class="text-sm font-bold text-red-600 mt-1">₺@Model.SozFesihToplam.ToString("N0")</p>
-            <p id="sozFesihFirmalar" class="text-[10px] text-red-400 mt-0.5">@string.Join(", ", Model.SozFesihFirmalar)</p>
-        </div>
     </div>
 </div>
 
-<!-- ═══ Ürün Kırılımı ═══ -->
-<div class="flex items-center gap-2 mb-3 fade-ready">
-    <div class="h-px w-6 bg-slate-200"></div>
-    <span class="text-[10px] font-semibold text-slate-400 tracking-widest">Ürün Bazlı Fatura Dağılımı</span>
-</div>
-<div class="flex flex-wrap gap-2 mb-5 fade-ready" id="urunKirilimRow">
-    <p class="text-[10px] text-slate-400">Yükleniyor...</p>
-</div>
-
-<!-- ═══ Charts ═══ -->
+<!-- ═══ Ürün Treemap (sol) + Fatura/Tahsilat Grafikleri (sağ) ═══ -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 fade-ready">
-    <div class="card px-4 pt-3 pb-2">
+    <!-- SOL: Ürün Grubu Performansı (Treemap) -->
+    <div class="card px-4 pt-3 pb-3">
         <div class="flex items-center justify-between mb-2">
-            <h3 class="text-[10px] font-semibold text-slate-500 tracking-wide flex items-center gap-1.5"><i class="bi bi-receipt text-blue-600" style="font-size:11px;"></i> Fatura Dağılımı</h3>
-            <span class="text-[9px] text-slate-400" id="chartDateRange">@dateRange</span>
+            <h3 class="text-[10px] font-semibold text-slate-500 tracking-wide flex items-center gap-1.5">
+                <i class="bi bi-grid-1x2-fill text-indigo-600" style="font-size:11px;"></i>
+                Ürün Grubu Performansı
+            </h3>
+            <span class="text-[9px] text-slate-400" id="treemapDateRange">@dateRange</span>
         </div>
-        <div style="height:160px"><canvas id="chart-faturalar"></canvas></div>
+        <div id="urunKirilimTreemap" style="position: relative; height: 360px; min-height: 360px; overflow: hidden; border-radius: 10px; background: #f8fafc;">
+            <p class="text-[10px] text-slate-400 absolute inset-0 flex items-center justify-center">Yükleniyor...</p>
+        </div>
+        <!-- JS bazı eski referansları beklediği için gizli legacy container — geri uyumluluk -->
+        <div id="urunKirilimRow" style="display:none;"></div>
     </div>
-    <div class="card px-4 pt-3 pb-2">
-        <div class="flex items-center justify-between mb-2">
-            <h3 class="text-[10px] font-semibold text-slate-500 tracking-wide flex items-center gap-1.5"><i class="bi bi-cash-stack text-amber-500" style="font-size:11px;"></i> Tahsilat Dağılımı</h3>
-            <span class="text-[9px] text-slate-400" id="chartDateRange2">@dateRange</span>
+
+    <!-- SAĞ: Fatura + Tahsilat dağılım grafikleri (dikey) -->
+    <div class="flex flex-col gap-4">
+        <div class="card px-4 pt-3 pb-2 flex-1">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-[10px] font-semibold text-slate-500 tracking-wide flex items-center gap-1.5"><i class="bi bi-receipt text-blue-600" style="font-size:11px;"></i> Fatura Dağılımı</h3>
+                <span class="text-[9px] text-slate-400" id="chartDateRange">@dateRange</span>
+            </div>
+            <div style="height:140px"><canvas id="chart-faturalar"></canvas></div>
         </div>
-        <div style="height:160px"><canvas id="chart-tahsilatlar"></canvas></div>
+        <div class="card px-4 pt-3 pb-2 flex-1">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-[10px] font-semibold text-slate-500 tracking-wide flex items-center gap-1.5"><i class="bi bi-cash-stack text-amber-500" style="font-size:11px;"></i> Tahsilat Dağılımı</h3>
+                <span class="text-[9px] text-slate-400" id="chartDateRange2">@dateRange</span>
+            </div>
+            <div style="height:140px"><canvas id="chart-tahsilatlar"></canvas></div>
+        </div>
     </div>
 </div>
 
@@ -668,14 +681,19 @@
 
 <div id="detail-tahsilatlar" class="drill-panel">
     <div class="flex items-center justify-between mb-4">
-        <h3 class="text-sm font-semibold text-[#1e293b] flex items-center gap-2"><i class="bi bi-cash-stack text-blue-700"></i> Tahsilat detayları</h3>
-        <div class="flex items-center gap-4">
+        <h3 class="text-sm font-semibold text-[#1e293b] flex items-center gap-2">
+            <i id="tahsilatPanelIcon" class="bi bi-cash-stack text-blue-700"></i>
+            <span id="tahsilatPanelTitle">Tahsilat detayları</span>
+            <span id="vgOzet" class="text-[10px] text-slate-400 font-normal hidden"></span>
+        </h3>
+        <div id="tahsilatPanelLegend" class="flex items-center gap-4">
             <span class="flex items-center gap-1.5 text-[10px] text-slate-400"><span class="inline-block w-2 h-2 rounded-full bg-green-400"></span> Tahsil edildi</span>
             <span class="flex items-center gap-1.5 text-[10px] text-slate-400"><span class="inline-block w-2 h-2 rounded-full bg-blue-400"></span> Kredi kartı</span>
             <span class="text-[10px] text-slate-400" id="tahsilatCount"></span>
         </div>
     </div>
     <div class="overflow-y-auto max-h-[420px] rounded-xl" id="tahsilatTableContainer"></div>
+    <div class="overflow-y-auto max-h-[420px] rounded-xl hidden" id="vadesiGecmisTableContainer"></div>
 </div>
 
 <div id="detail-sozlesmeler" class="drill-panel">
@@ -920,9 +938,10 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
                 if (!result.hierarchy || !result.hierarchy.length) { container.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-4">Veri bulunamadı.</p>'; return; }
                 const sozSl = result.startLevel;
                 let h = '<table class="w-full text-[11px]">';
-                h += `<thead class="sticky top-0 z-10 bg-white"><tr class="border-b border-slate-200 text-[10px] text-slate-400 uppercase tracking-wider">
+                h += `<thead class="sticky top-0 z-10 bg-white"><tr class="border-b border-slate-200 text-[10px] text-slate-400 tracking-wider">
                     <th class="py-2 px-2 w-5"></th>
                     <th class="text-left py-2 px-2 font-semibold">Müşteri</th>
+                    <th class="text-left py-2 px-2 font-semibold">Sözleşme Tanımı</th>
                     <th class="text-center py-2 px-2 font-semibold">Eski bitiş</th>
                     <th class="text-right py-2 px-2 font-semibold">Eski tutar</th>
                     <th class="text-right py-2 px-2 font-semibold">Yeni tutar</th>
@@ -956,7 +975,7 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
                     var pAttr = sozParent.length > 0 ? ` data-parent="${sozParent[sozParent.length-1]}"` : '';
                     var hiddenCls = closed ? 'hidden' : '';
                     h += `<tr class="cursor-pointer hover:bg-blue-50/30 ${bg} ${hiddenCls}" data-group="${uid}"${pAttr}>
-                        <td colspan="4" class="py-2 px-2 ${indent}">
+                        <td colspan="5" class="py-2 px-2 ${indent}">
                             <div class="flex items-center gap-2">
                                 <i class="bi bi-chevron-right text-slate-400 transition-transform duration-200 ${arrowCls}" id="arr-${uid}" style="font-size:10px;"></i>
                                 <span class="${size} text-[#1e293b]">${esc(label)}</span>
@@ -970,18 +989,52 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
                     return uid;
                 }
 
+                // ContractType (NewSales/Renewal) için küçük rozet üretir
+                function tipRozet(tip) {
+                    if (tip === 'NewSales') return ' <span class="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[9px] font-semibold align-middle" title="Yeni Satış"><i class="bi bi-stars"></i>Yeni Satış</span>';
+                    if (tip === 'Renewal')  return ' <span class="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[9px] font-semibold align-middle" title="Yenileme"><i class="bi bi-arrow-repeat"></i>Yenileme</span>';
+                    return '';
+                }
+
                 function addSozRows(parentUid, items, hide) {
                     (items||[]).forEach(s => {
+                        var isBagsiz = s.tipi === 'BagsizYeni';
+                        // İlk yenileme = eski sözleşme NewSales tipindeyken yeni sözleşme Renewal
+                        // Bu doğal proje teslim → bakım/destek geçişidir, "düşüş" sayılmaz.
+                        var isIlkYenileme = !isBagsiz && s.yenilendi
+                                         && s.eskiTip === 'NewSales' && s.yeniTip === 'Renewal';
                         var yeniTutarHtml, yeniBitisHtml, sozDurumHtml, fatDurumHtml, degisimHtml;
-                        if (s.yenilendi) {
+                        var musteriHtml = esc(s.musteri) || '—';
+                        if (isBagsiz) {
+                            // Bağsız yeni: eski yok, sadece yeni sözleşme + tip rozeti
+                            musteriHtml += ' <span class="ml-1 inline-flex px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[9px] font-semibold align-middle">Bağsız yeni</span>';
+                            musteriHtml += tipRozet(s.yeniTip);
+                        } else {
+                            // Eski → Yeni geçişi: önce eski tipi, sonra yeni tipi
+                            musteriHtml += tipRozet(s.eskiTip);
+                            if (s.yenilendi) musteriHtml += ' <span class="text-slate-300 text-[10px] mx-0.5">→</span>' + tipRozet(s.yeniTip);
+                        }
+                        if (isBagsiz) {
+                            yeniTutarHtml = `<span class="font-semibold text-sky-700">₺${fmtN.format(s.yeniTutar||0)}</span>`;
+                            yeniBitisHtml = esc(s.yeniBitis) || '—';
+                            sozDurumHtml = sozDurumBadge(s.yeniDurum);
+                            fatDurumHtml = faturaStatuBadge(s.faturaStatu);
+                            degisimHtml = '<span class="text-slate-300 text-[10px]">yeni</span>';
+                        } else if (s.yenilendi) {
                             yeniTutarHtml = `<span class="font-semibold text-emerald-700">₺${fmtN.format(s.yeniTutar)}</span>`;
                             yeniBitisHtml = esc(s.yeniBitis);
                             sozDurumHtml = sozDurumBadge(s.yeniDurum);
                             fatDurumHtml = faturaStatuBadge(s.faturaStatu);
-                            var pct = s.tutar > 0 ? ((s.yeniTutar - s.tutar) / s.tutar * 100) : 0;
-                            var pctCls = pct >= 0 ? 'text-emerald-600' : 'text-red-500';
-                            var pctIcon = pct >= 0 ? '↑' : '↓';
-                            degisimHtml = `<span class="${pctCls} text-[10px] font-semibold">${pctIcon}%${Math.abs(pct).toFixed(1)}</span>`;
+                            if (isIlkYenileme) {
+                                // NewSales → Renewal: yenileme oranı, kırmızı düşüş etiketi YOK
+                                var oran = s.tutar > 0 ? (s.yeniTutar / s.tutar * 100) : 0;
+                                degisimHtml = `<span class="inline-flex items-center gap-1 text-amber-600 text-[10px] font-semibold" title="Yeni satış sonrası ilk yenileme — proje teslim → bakım/destek geçişi. Düşüş değil, yenileme oranı."><i class="bi bi-arrow-repeat"></i>İlk yenileme · %${oran.toFixed(1)}</span>`;
+                            } else {
+                                var pct = s.tutar > 0 ? ((s.yeniTutar - s.tutar) / s.tutar * 100) : 0;
+                                var pctCls = pct >= 0 ? 'text-emerald-600' : 'text-red-500';
+                                var pctIcon = pct >= 0 ? '↑' : '↓';
+                                degisimHtml = `<span class="${pctCls} text-[10px] font-semibold">${pctIcon}%${Math.abs(pct).toFixed(1)}</span>`;
+                            }
                         } else {
                             yeniTutarHtml = '<span class="text-slate-300">—</span>';
                             yeniBitisHtml = '—';
@@ -989,11 +1042,18 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
                             fatDurumHtml = '<span class="text-slate-300 text-[10px]">—</span>';
                             degisimHtml = '—';
                         }
+                        // Bağsız satırda eski kolonlar boş gösterilir
+                        var eskiBitisHtml = isBagsiz ? '<span class="text-slate-300">—</span>' : (esc(s.bitis) || '—');
+                        var eskiTutarHtml = isBagsiz ? '<span class="text-slate-300">—</span>' : ('₺' + fmtN.format(s.tutar||0));
+                        var tanimHtml = s.tanim
+                            ? `<span class="text-slate-600" title="${esc(s.tanim)}">${esc(s.tanim)}</span>`
+                            : '<span class="text-slate-300">—</span>';
                         h += `<tr class="detail-row border-t border-slate-50 hover:bg-sky-50/30 ${hide?'hidden':''}" data-parent="${parentUid}">
                             <td></td>
-                            <td class="py-1.5 px-2 text-[#1e293b] font-medium truncate max-w-[200px]">${esc(s.musteri)||'—'}</td>
-                            <td class="py-1.5 px-2 text-center text-slate-500 text-[10px]">${esc(s.bitis)||'—'}</td>
-                            <td class="py-1.5 px-2 text-right text-slate-500">₺${fmtN.format(s.tutar)}</td>
+                            <td class="py-1.5 px-2 text-[#1e293b] font-medium truncate max-w-[260px]">${musteriHtml}</td>
+                            <td class="py-1.5 px-2 text-[10px] truncate max-w-[220px]">${tanimHtml}</td>
+                            <td class="py-1.5 px-2 text-center text-slate-500 text-[10px]">${eskiBitisHtml}</td>
+                            <td class="py-1.5 px-2 text-right text-slate-500">${eskiTutarHtml}</td>
                             <td class="py-1.5 px-2 text-right">${yeniTutarHtml}</td>
                             <td class="py-1.5 px-2 text-center text-[10px]">${degisimHtml}</td>
                             <td class="py-1.5 px-2 text-center text-slate-500 text-[10px]">${yeniBitisHtml}</td>
@@ -1029,12 +1089,12 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
 
                 h += `</tbody><tfoot><tr class="border-t-2 border-slate-200 bg-slate-50">
                     <td></td><td class="py-2 px-2 font-bold text-[12px]">Hedef (yeni sözleşme tutarı)</td>
-                    <td colspan="2"></td>
+                    <td colspan="3"></td>
                     <td class="py-2 px-2 text-right font-bold text-[12px] text-emerald-700">₺${fmtN.format(result.dipToplam)}</td>
                     <td colspan="4"></td>
                 </tr>`;
                 if (yenilenmemisCount > 0) {
-                    h += `<tr class="bg-amber-50"><td colspan="9" class="py-1.5 px-4 text-[10px] text-amber-700">
+                    h += `<tr class="bg-amber-50"><td colspan="10" class="py-1.5 px-4 text-[10px] text-amber-700">
                         <i class="bi bi-exclamation-triangle mr-1"></i> ${yenilenmemisCount} sözleşmenin yenilemesi bulunamadı
                     </td></tr>`;
                 }
@@ -1050,7 +1110,7 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
             let h = '<table class="w-full">';
             if (isFatura) {
                 hierColSpan = 3;
-                h += `<thead class="sticky top-0 z-10 bg-white"><tr class="border-b border-slate-200 text-[10px] text-slate-400 uppercase tracking-wider">
+                h += `<thead class="sticky top-0 z-10 bg-white"><tr class="border-b border-slate-200 text-[10px] text-slate-400 tracking-wider">
                     <th class="py-2 px-2 w-5"></th>
                     <th class="text-left py-2 px-2 font-semibold">Müşteri</th>
                     <th class="text-left py-2 px-2 font-semibold">Fatura No</th>
@@ -1059,7 +1119,7 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
                 </tr></thead>`;
             } else if (type === 'tahsilatlar') {
                 hierColSpan = 5;
-                h += `<thead class="sticky top-0 z-10 bg-white"><tr class="border-b border-slate-200 text-[10px] text-slate-400 uppercase tracking-wider">
+                h += `<thead class="sticky top-0 z-10 bg-white"><tr class="border-b border-slate-200 text-[10px] text-slate-400 tracking-wider">
                     <th class="py-2 px-2 w-5"></th>
                     <th class="text-left py-2 px-2 font-semibold">Müşteri</th>
                     <th class="text-left py-2 px-2 font-semibold">Fatura No</th>
@@ -1144,6 +1204,83 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
             console.error('Hierarchy load error:', e);
             container.innerHTML = '<p class="text-[11px] text-red-400 text-center py-4">Yüklenirken hata oluştu.</p>';
         }
+
+    }
+
+    // ═══ VADESİ GEÇMİŞ — Tahsilat paneli ile aynı yer, filtresiz tek tablo ═══
+    var _vgData = null;
+    var _vgLoaded = false;
+    function vgYasRenkCls(g) {
+        return g >= 90 ? 'text-red-700 font-bold' : g >= 60 ? 'text-red-500' : g >= 30 ? 'text-amber-600' : 'text-slate-500';
+    }
+    function vgDot(g) {
+        return g >= 90 ? 'bg-red-500' : g >= 60 ? 'bg-red-400' : g >= 30 ? 'bg-amber-400' : 'bg-slate-300';
+    }
+    function buildVgRow(r) {
+        var hukukiBadge = r.hukuki
+            ? ' <span class="inline-flex px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 text-[9px] font-medium align-middle">Hukuki</span>'
+            : '';
+        var kaynakBadge = r.musteriKaynak === 'excel'
+            ? ' <span class="inline-flex px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-medium align-middle" title="Müşteri unvanı Excel kaynağından (Varuna eşleşmesi yok)">Excel</span>'
+            : '';
+        return `<tr class="border-t border-slate-50 hover:bg-amber-50/30 text-[11px]">
+            <td class="py-1.5 px-2 text-center"><span class="inline-block w-1.5 h-1.5 rounded-full ${vgDot(r.yas)}"></span></td>
+            <td class="py-1.5 px-2 text-slate-500 max-w-[240px] truncate">${esc(r.musteri)||'—'}${kaynakBadge}${hukukiBadge}</td>
+            <td class="py-1.5 px-2 text-slate-500 max-w-[140px] truncate">${esc(r.satisRep)||'—'}</td>
+            <td class="py-1.5 px-2 text-[#1e293b] font-medium text-[10px]">${esc(r.faturaNo)||'—'}</td>
+            <td class="py-1.5 px-2 text-center text-[10px] text-slate-500">${esc(r.faturaTarihi)||'—'}</td>
+            <td class="py-1.5 px-2 text-center text-[10px] text-slate-500">${esc(r.vadeTarihi)||'—'}</td>
+            <td class="py-1.5 px-2 text-right text-[11px] ${vgYasRenkCls(r.yas)}">${fmtN.format(r.yas)} <span class="text-[9px] font-normal opacity-70">gün</span></td>
+            <td class="py-1.5 px-2 text-right font-semibold text-red-600">₺${fmtN.format(r.bakiye)}</td>
+        </tr>`;
+    }
+    function vgRender() {
+        var container = document.getElementById('vadesiGecmisTableContainer');
+        if (!container || !_vgData) return;
+        var rows = _vgData.rows || [];
+        if (!rows.length) {
+            container.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-4">Vadesi geçmiş kayıt bulunamadı.</p>';
+            return;
+        }
+        var h = '<table class="w-full text-[11px]">';
+        h += `<thead class="sticky top-0 z-10 bg-white"><tr class="border-b border-slate-200 text-[10px] text-slate-400 tracking-wider">
+            <th class="py-2 px-2 w-5"></th>
+            <th class="text-left py-2 px-2 font-semibold">Müşteri</th>
+            <th class="text-left py-2 px-2 font-semibold">Satış Temsilcisi</th>
+            <th class="text-left py-2 px-2 font-semibold">Fatura No</th>
+            <th class="text-center py-2 px-2 font-semibold">Fatura Tarihi</th>
+            <th class="text-center py-2 px-2 font-semibold">Vade Tarihi</th>
+            <th class="text-right py-2 px-2 font-semibold">Yaş</th>
+            <th class="text-right py-2 px-2 font-semibold">Bakiye</th>
+        </tr></thead><tbody>`;
+        h += rows.map(buildVgRow).join('');
+        var toplam = rows.reduce(function (s, r) { return s + Number(r.bakiye || 0); }, 0);
+        h += `</tbody><tfoot><tr class="border-t-2 border-slate-200 bg-slate-50">
+            <td colspan="6" class="py-2 px-2 font-bold text-[11px]">${fmtN.format(rows.length)} fatura</td>
+            <td></td>
+            <td class="py-2 px-2 text-right font-bold text-[12px] num text-red-600">₺${fmtN.format(toplam)}</td>
+        </tr></tfoot></table>`;
+        container.innerHTML = h;
+    }
+    async function vgLoad() {
+        var container = document.getElementById('vadesiGecmisTableContainer');
+        if (!container) return;
+        container.innerHTML = '<div class="py-4 text-center"><div class="shimmer" style="height:20px;width:100%;display:block;margin-bottom:8px"></div><div class="shimmer" style="height:20px;width:80%;display:block;margin-bottom:8px"></div><div class="shimmer" style="height:20px;width:90%;display:block"></div></div>';
+        try {
+            var r = await fetch('/Cockpit/VadesiGecmisDetay?_=' + Date.now());
+            var j = await r.json();
+            if (!j.ok) { container.innerHTML = '<p class="text-[11px] text-red-400 text-center py-4">Yüklenemedi.</p>'; return; }
+            _vgData = j;
+            _vgLoaded = true;
+            var ozetEl = document.getElementById('vgOzet');
+            if (ozetEl) {
+                ozetEl.innerHTML = '· Toplam <b>' + fmtN.format(j.ozet.toplamAdet) + '</b> · ₺' + fmtN.format(j.ozet.toplamBakiye)
+                                 + (j.ozet.hukukiAdet > 0 ? ' · <span class="text-slate-500">Hukuki: ' + fmtN.format(j.ozet.hukukiAdet) + '</span>' : '');
+            }
+            vgRender();
+        } catch (err) {
+            container.innerHTML = '<p class="text-[11px] text-red-400 text-center py-4">Ağ hatası.</p>';
+        }
     }
 
     // ═══ KALEM DETAY ═══
@@ -1173,21 +1310,83 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
 
     // ═══ DRILL TOGGLE ═══
     const detailMap = {faturalar:'detail-faturalar', tahsilatlar:'detail-tahsilatlar', sozlesmeler:'detail-sozlesmeler'};
+    // Tahsilat paneli iki modda çalışır: 'tahsilatlar' (default) | 'vadesi-gecmis'
+    let tahsilatMode = 'tahsilatlar';
+
+    function setTahsilatPanelMode(mode) {
+        tahsilatMode = mode;
+        var tahCont   = document.getElementById('tahsilatTableContainer');
+        var vgCont    = document.getElementById('vadesiGecmisTableContainer');
+        var titleEl   = document.getElementById('tahsilatPanelTitle');
+        var iconEl    = document.getElementById('tahsilatPanelIcon');
+        var legendEl  = document.getElementById('tahsilatPanelLegend');
+        var ozetEl    = document.getElementById('vgOzet');
+        if (mode === 'vadesi-gecmis') {
+            if (tahCont)  tahCont.classList.add('hidden');
+            if (vgCont)   vgCont.classList.remove('hidden');
+            if (titleEl)  titleEl.textContent = 'Vadesi geçmiş faturalar';
+            if (iconEl)   iconEl.className = 'bi bi-exclamation-triangle-fill text-amber-600';
+            if (legendEl) legendEl.classList.add('hidden');
+            if (ozetEl)   ozetEl.classList.remove('hidden');
+            if (!_vgLoaded) vgLoad();
+        } else {
+            if (tahCont)  tahCont.classList.remove('hidden');
+            if (vgCont)   vgCont.classList.add('hidden');
+            if (titleEl)  titleEl.textContent = 'Tahsilat detayları';
+            if (iconEl)   iconEl.className = 'bi bi-cash-stack text-blue-700';
+            if (legendEl) legendEl.classList.remove('hidden');
+            if (ozetEl)   ozetEl.classList.add('hidden');
+        }
+    }
 
     function closeAll(t) {
         document.getElementById('arrow-'+t)?.classList.remove('rotated');
         document.getElementById(detailMap[t])?.classList.remove('open');
     }
 
-    function openAll(t) {
+    function openAll(t, mode) {
         document.getElementById('arrow-'+t)?.classList.add('rotated');
         document.getElementById(detailMap[t])?.classList.add('open');
-        if (!drillLoaded[t]) { loadDetailTable(t); drillLoaded[t] = true; }
+        if (t === 'tahsilatlar') {
+            setTahsilatPanelMode(mode || 'tahsilatlar');
+            if (tahsilatMode === 'tahsilatlar' && !drillLoaded[t]) {
+                loadDetailTable(t);
+                drillLoaded[t] = true;
+            }
+        } else if (!drillLoaded[t]) {
+            loadDetailTable(t);
+            drillLoaded[t] = true;
+        }
     }
 
     window.toggleDrill = function(t) {
-        if (activeDetail === t) { closeAll(t); activeDetail = null; }
-        else { if (activeDetail) closeAll(activeDetail); openAll(t); activeDetail = t; }
+        // Tahsilat chevron'u her zaman tahsilatlar moduna döner
+        if (activeDetail === t) {
+            if (t === 'tahsilatlar' && tahsilatMode !== 'tahsilatlar') {
+                setTahsilatPanelMode('tahsilatlar');
+                if (!drillLoaded[t]) { loadDetailTable(t); drillLoaded[t] = true; }
+                return;
+            }
+            closeAll(t); activeDetail = null;
+        } else {
+            if (activeDetail) closeAll(activeDetail);
+            openAll(t, 'tahsilatlar');
+            activeDetail = t;
+        }
+    };
+
+    window.openVadesiGecmisPanel = function(ev) {
+        if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+        var t = 'tahsilatlar';
+        if (activeDetail !== t) {
+            if (activeDetail) closeAll(activeDetail);
+            openAll(t, 'vadesi-gecmis');
+            activeDetail = t;
+        } else if (tahsilatMode === 'vadesi-gecmis') {
+            closeAll(t); activeDetail = null;
+        } else {
+            setTahsilatPanelMode('vadesi-gecmis');
+        }
     };
 
     // ═══ AJAX FILTER — Full dashboard update without page reload ═══
@@ -1284,28 +1483,26 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
             snap('vadesiGecmisAdet', d.vadesiGecmisAdet + ' fatura');
             snap('vadesiGecmisLabel', d.filtreBaslangic + ' öncesi açık bakiye');
 
-            // Sözleşme kartı — PAY: Archived (imzalanan)
-            countUp(document.getElementById('sozlesmelerTutar'), d.sozArchivedToplam || 0, 600, '₺');
-            snap('sozlesmelerPayda', '/ ₺' + fmtN.format(d.sozlesmelerToplam));
-            snap('sozlesmelerAdet', (d.sozArchivedAdet || 0) + ' / ' + d.sozlesmelerAdet + ' adet');
-            var sozPct = d.sozlesmelerToplam > 0 ? Math.round((d.sozArchivedToplam || 0) / d.sozlesmelerToplam * 1000) / 10 : 0;
-            // 1) Faturalandı + Kısmi oran
+            // Sözleşme kartı — PAY: Faturalandı (tam + kısmi). Arşivlendi alt rozete taşındı.
             var fatAdetSoz = (d.sozFaturalandiAdet || 0) + (d.sozKismiFatAdet || 0);
             var fatToplamSoz = (d.sozFaturalandiToplam || 0) + (d.sozKismiFatToplam || 0);
-            snap('sozFatOranInfo', (d.sozFaturalandiAdet || 0) + ' tam + ' + (d.sozKismiFatAdet || 0) + ' kısmi');
-            snap('sozFatOranTutar', '₺' + fmtN.format(fatToplamSoz));
+            countUp(document.getElementById('sozlesmelerTutar'), fatToplamSoz, 600, '₺');
+            snap('sozlesmelerPayda', '/ ₺' + fmtN.format(d.sozlesmelerToplam));
+            snap('sozlesmelerAdet', fatAdetSoz + ' / ' + d.sozlesmelerAdet + ' adet');
+            var sozPct = d.sozlesmelerToplam > 0 ? Math.round(fatToplamSoz / d.sozlesmelerToplam * 1000) / 10 : 0;
+            // 1) Arşivlendi alt rozeti (eski Faturalandı yerinde)
+            snap('sozArchivedInfo', (d.sozArchivedAdet || 0) + ' sözleşme');
+            snap('sozArchivedTutarRozet', '₺' + fmtN.format(d.sozArchivedToplam || 0));
             // 2) Tamamlanması gereken
             var tamamlanmasi = d.sozlesmelerAdet - fatAdetSoz - (d.sozFesihAdet || 0);
             snap('sozTamamlanmasiAdet', Math.max(tamamlanmasi, 0) + ' sözleşme');
             snap('sozTamamlanmasiTutar', '₺' + fmtN.format(Math.max(d.sozlesmelerToplam - fatToplamSoz - (d.sozFesihToplam || 0), 0)));
             var tamEl = document.getElementById('sozTamamlanmasiSection');
             if (tamEl) tamEl.style.display = tamamlanmasi > 0 ? '' : 'none';
-            // 3) Fesih/İptal
+            // 3) Fesih/İptal mini rozeti (Tamamlanması gereken satırının sağında)
             snap('sozFesihInfo', (d.sozFesihAdet || 0) + ' sözleşme');
-            snap('sozFesihTutar', '₺' + fmtN.format(d.sozFesihToplam || 0));
-            snap('sozFesihFirmalar', (d.sozFesihFirmalar || []).join(', '));
-            var fesihEl = document.getElementById('sozFesihSection');
-            if (fesihEl) fesihEl.style.display = (d.sozFesihAdet || 0) > 0 ? '' : 'none';
+            var fesihMini = document.getElementById('sozFesihMini');
+            if (fesihMini) fesihMini.style.display = (d.sozFesihAdet || 0) > 0 ? '' : 'none';
             // Progress bar + yüzde
             var sozClamp = Math.min(sozPct, 100);
             var sozClr = sozPct >= 80 ? '#10b981' : sozPct >= 50 ? '#f59e0b' : '#ef4444';
@@ -1313,7 +1510,7 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
             if (sozPctEl) { sozPctEl.className = 'text-lg font-extrabold ' + (sozPct >= 80 ? 'text-green-600' : sozPct >= 50 ? 'text-amber-600' : 'text-red-500'); sozPctEl.textContent = '%' + sozPct.toFixed(1); }
             var sozBar = document.getElementById('sozProgressBar');
             if (sozBar) { sozBar.style.width = sozClamp + '%'; sozBar.style.background = sozClr; }
-            snapHtml('sozKalan', 'Kalan: <span class="font-bold text-blue-700">₺' + fmtN.format(d.sozlesmelerToplam - (d.sozArchivedToplam || 0)) + '</span>');
+            snapHtml('sozKalan', 'Kalan: <span class="font-bold text-blue-700">₺' + fmtN.format(d.sozlesmelerToplam - fatToplamSoz) + '</span>');
 
             // Trend
             snapHtml('faturalarTrend', trendHtml(d.faturalarTrend, d.prevFaturalarToplam));
@@ -1354,30 +1551,187 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
     };
 
     // ═══ ÜRÜN KIRILIM KARTLARI ═══
+    // Yumuşak (soft) palet — Tailwind 400 tonları, pastel hissi + okunaklı kontrast
     var urunColors = {
-        'Enroute':'#dc2626','Stokbar':'#2563eb','Quest':'#059669','ServiceCore':'#7c3aed',
-        'Varuna':'#d97706','Hosting':'#0891b2','E-Dönüşüm':'#dc2626','BFG':'#be185d','Diğer':'#64748b'
+        'Enroute':'#f87171',      // soft red
+        'Stokbar':'#60a5fa',      // soft blue
+        'Quest':'#34d399',        // soft emerald
+        'ServiceCore':'#a78bfa',  // soft violet
+        'Varuna':'#fbbf24',       // soft amber
+        'Hosting':'#22d3ee',      // soft cyan
+        'E-Dönüşüm':'#fb923c',    // soft orange (Enroute'tan ayrılması için)
+        'CallDesk':'#818cf8',     // soft indigo
+        'BFG':'#f472b6',          // soft pink
+        'Diğer':'#94a3b8'         // soft slate
     };
     function renderUrunKirilim(items) {
-        var container = document.getElementById('urunKirilimRow');
-        if (!container || !items) return;
-        if (!items.length) { container.innerHTML = '<p class="text-[10px] text-slate-400">Veri yok</p>'; return; }
-        var total = items.reduce((s,x) => s + x.toplam, 0);
-        var html = '';
-        items.forEach(x => {
-            var pct = total > 0 ? (x.toplam / total * 100).toFixed(1) : 0;
-            var clr = urunColors[x.grup] || '#64748b';
-            html += `<div class="rounded-xl border border-slate-200 bg-white px-3 py-2 min-w-[130px] flex-1" style="border-left:3px solid ${clr};">
-                <div class="flex items-center justify-between mb-0.5">
-                    <span class="text-[10px] font-bold text-slate-700">${esc(x.grup)}</span>
-                    <span class="text-[9px] text-slate-400">${x.adet} adet</span>
-                </div>
-                <div class="text-[13px] font-bold text-slate-800">₺${fmtN.format(x.toplam)}</div>
-                <div class="text-[9px] text-slate-400">%${pct}</div>
-            </div>`;
+        window.__lastUrunKirilim = items;  // resize için sakla
+        // Treemap renderer — squarified algorithm
+        var tm = document.getElementById('urunKirilimTreemap');
+        if (!tm || !items) return;
+        if (!items.length) {
+            tm.innerHTML = '<p class="text-[10px] text-slate-400 absolute inset-0 flex items-center justify-center">Veri yok</p>';
+            return;
+        }
+        // Sıralı sortlanmış, > 0 olan kalemler
+        var sorted = items.filter(x => x.toplam > 0).slice().sort((a, b) => b.toplam - a.toplam);
+        if (!sorted.length) {
+            tm.innerHTML = '<p class="text-[10px] text-slate-400 absolute inset-0 flex items-center justify-center">Veri yok</p>';
+            return;
+        }
+
+        var W = tm.clientWidth || 600;
+        var H = tm.clientHeight || 360;
+        var total = sorted.reduce((s, x) => s + x.toplam, 0);
+        // Her kalemin alanını W*H ile ölçekle
+        var values = sorted.map(x => x.toplam * (W * H) / total);
+
+        // Squarified treemap (Bruls et al. 2000) — basit implementasyon
+        function worstRatio(row, w) {
+            var sum = row.reduce((s, v) => s + v, 0);
+            var sumSq = sum * sum;
+            var wSq = w * w;
+            var rMax = Math.max.apply(null, row);
+            var rMin = Math.min.apply(null, row);
+            return Math.max((wSq * rMax) / sumSq, sumSq / (wSq * rMin));
+        }
+        // Min hücre boyutları — etiketlerin sığması için zorla
+        var MIN_ROW_H = 36;   // küçük yüksekliği olan satırları büyüt
+        var MIN_ROW_W = 110;  // dar genişliği olan kolonları büyüt
+        function layoutRow(row, x, y, w, h, horizontal) {
+            var sum = row.reduce((s, v) => s + v, 0);
+            var rects = [];
+            if (horizontal) {
+                var rowH = Math.max(sum / w, MIN_ROW_H);
+                var cx = x;
+                // rw oranı sum/w bazında, böylece toplam w aynı kalır
+                var rowSum = sum;
+                row.forEach(v => {
+                    var rw = (v / rowSum) * w;
+                    rects.push({ x: cx, y: y, w: rw, h: rowH });
+                    cx += rw;
+                });
+                return { rects: rects, newX: x, newY: y + rowH, newW: w, newH: h - rowH };
+            } else {
+                var rowW = Math.max(sum / h, MIN_ROW_W);
+                var cy = y;
+                var rowSum = sum;
+                row.forEach(v => {
+                    var rh = (v / rowSum) * h;
+                    rects.push({ x: x, y: cy, w: rowW, h: rh });
+                    cy += rh;
+                });
+                return { rects: rects, newX: x + rowW, newY: y, newW: w - rowW, newH: h };
+            }
+        }
+        function squarify(items, x, y, w, h) {
+            var rects = [];
+            var i = 0;
+            while (i < items.length) {
+                var horizontal = w >= h;
+                var sideW = horizontal ? w : h;
+                var row = [items[i]];
+                i++;
+                while (i < items.length) {
+                    var test = row.concat([items[i]]);
+                    if (worstRatio(test, sideW) <= worstRatio(row, sideW)) {
+                        row.push(items[i]);
+                        i++;
+                    } else break;
+                }
+                var laid = layoutRow(row, x, y, w, h, horizontal);
+                rects = rects.concat(laid.rects);
+                x = laid.newX; y = laid.newY; w = laid.newW; h = laid.newH;
+            }
+            return rects;
+        }
+
+        var rects = squarify(values, 0, 0, W, H);
+
+        // Container yüksekliğini gerçek toplam içeriğe göre büyüt (min row enforcement sonrası taşmaması için)
+        var contentMaxY = rects.reduce(function (mx, r) { return Math.max(mx, r.y + r.h); }, 0);
+        if (contentMaxY > H) {
+            tm.style.height = (contentMaxY + 4) + 'px';
+        } else {
+            tm.style.height = H + 'px';
+        }
+
+        // HTML üret
+        tm.innerHTML = '';
+        sorted.forEach((item, i) => {
+            var r = rects[i]; if (!r) return;
+            var pct = total > 0 ? (item.toplam / total * 100).toFixed(1) : 0;
+            var clr = urunColors[item.grup] || '#94a3b8';
+            var cell = document.createElement('div');
+            cell.className = 'tm-cell';
+            // Hover'da küçük hücrelerin tam içeriği native tooltip ile okunsun (truncate + tek satır durumunda)
+            var tooltipText = item.grup + ' · ₺' + fmtN.format(item.toplam) + ' · %' + pct + ' · ' + item.adet + ' fatura';
+            cell.title = tooltipText;
+            cell.setAttribute('aria-label', tooltipText);
+            var isThinRow = r.h < 50;       // tek satıra sıkıştırılacak
+            var isShortRow = r.h < 36;      // çok dar — ana etiket + tutar inline
+            var pad = isThinRow ? '4px 10px' : '10px 12px';
+            cell.style.cssText = `
+                position: absolute;
+                left: ${r.x}px; top: ${r.y}px;
+                width: ${r.w}px; height: ${r.h}px;
+                background: ${clr};
+                border: 3px solid #fff;
+                border-radius: 10px;
+                padding: ${pad};
+                color: #fff;
+                overflow: hidden;
+                cursor: default;
+                transition: filter .15s ease, transform .15s ease;
+                box-sizing: border-box;
+                font-family: 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                font-feature-settings: "ss01", "cv11";
+                -webkit-font-smoothing: antialiased;
+                ${isThinRow ? 'display:flex; align-items:center; gap:10px;' : ''}
+            `;
+            var area = r.w * r.h;
+            var nameSize = area > 22000 ? 14 : area > 10000 ? 12 : area > 5000 ? 11 : 11;
+            var valueSize = area > 22000 ? 15 : area > 10000 ? 13 : area > 5000 ? 12 : 11;
+            var subSize = 10;
+            // Sub-text: dar satırlarda ana hücre içinde tek satıra dahil edilir
+            var showSubBlock = !isThinRow && area > 3000;
+            var tutarText = '₺' + (area > 10000 ? fmtN.format(item.toplam) : abbr(item.toplam));
+            var truncateStyle = 'white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+            if (isThinRow) {
+                // Dar satır: tek satırda Grup + ₺tutar + %pct · adet fatura
+                cell.innerHTML = `
+                    <div style="font-size:${nameSize}px; font-weight:600; letter-spacing:0.005em; line-height:1.2; ${truncateStyle} flex:0 1 auto; min-width:0;">${esc(item.grup)}</div>
+                    <div style="font-size:${valueSize}px; font-weight:700; line-height:1.2; ${truncateStyle} font-variant-numeric:tabular-nums; flex:0 0 auto;">${tutarText}</div>
+                    <div style="font-size:${subSize}px; font-weight:500; line-height:1.3; opacity:.88; ${truncateStyle} flex:0 0 auto; margin-left:auto;">%${pct} · ${item.adet} fatura</div>
+                `;
+            } else {
+                cell.innerHTML = `
+                    <div style="font-size:${nameSize}px; font-weight:600; letter-spacing:0.005em; line-height:1.15; ${truncateStyle}">${esc(item.grup)}</div>
+                    <div style="font-size:${valueSize}px; font-weight:700; line-height:1.2; margin-top:3px; ${truncateStyle} font-variant-numeric:tabular-nums;">${tutarText}</div>
+                    ${showSubBlock ? `<div style="font-size:${subSize}px; font-weight:500; line-height:1.3; opacity:.88; margin-top:2px; ${truncateStyle}">%${pct} · ${item.adet} fatura</div>` : ''}
+                `;
+            }
+            cell.onmouseenter = () => { cell.style.filter = 'brightness(1.04)'; };
+            cell.onmouseleave = () => { cell.style.filter = ''; };
+            tm.appendChild(cell);
         });
-        container.innerHTML = html;
     }
+    // Kompakt para formatı (küçük hücreler için ₺5.4M gibi)
+    function abbr(v) {
+        v = Number(v) || 0;
+        if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(1).replace('.', ',') + 'Mr';
+        if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + 'M';
+        if (Math.abs(v) >= 1e3) return Math.round(v / 1e3) + 'K';
+        return Math.round(v).toLocaleString('tr-TR');
+    }
+    // Pencere yeniden boyutlandığında treemap'i yeniden çiz
+    var __treemapResizeTO;
+    window.addEventListener('resize', function () {
+        clearTimeout(__treemapResizeTO);
+        __treemapResizeTO = setTimeout(function () {
+            if (window.__lastUrunKirilim) renderUrunKirilim(window.__lastUrunKirilim);
+        }, 180);
+    });
 
     // ═══ CEI BAR UPDATE (GPU scaleX) ═══
     function ceiBgClass(v) { return 'bg-blue-50 border-blue-200'; }
@@ -1543,6 +1897,8 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
             var fatVals = data.map(function(d){ return d.faturaToplam; });
             var tahVals = data.map(function(d){ return d.tahsilatToplam; });
             var vadeVals = data.map(function(d){ return d.vadeToplam; });
+            // Geçmişten gelen bekleyen bakiye — null değerler grafiği kesintiye uğratır (gelecek aylar boş)
+            var kumBekVals = data.map(function(d){ return d.kumulatifBekleyenToplam; });
 
             if (monthlyChart) monthlyChart.destroy();
             monthlyChart = new Chart(cv, {
@@ -1601,6 +1957,21 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
                             pointRadius: 4,
                             pointHoverRadius: 7,
                             tension: 0.3
+                        },
+                        {
+                            label: 'Kalan Tahsilat',
+                            data: kumBekVals,
+                            fill: false,
+                            spanGaps: false,  // null değerlerde çizgi kesilsin (gelecek aylar)
+                            borderColor: '#8b5cf6',
+                            borderWidth: 2,
+                            borderDash: [2, 4],
+                            pointBackgroundColor: '#8b5cf6',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 1.5,
+                            pointRadius: 4,
+                            pointHoverRadius: 7,
+                            tension: 0.3
                         }
                     ]
                 },
@@ -1640,7 +2011,9 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
                                     var idx = ctx.dataIndex, d = data[idx];
                                     if (ctx.datasetIndex === 0) return ' Kesilen fatura: ₺' + fmtN.format(ctx.raw) + '  (' + d.faturaAdet + ' adet)';
                                     if (ctx.datasetIndex === 1) return ' Tahsil edilen: ₺' + fmtN.format(ctx.raw) + '  (' + d.tahsilatAdet + ' adet)';
-                                    return ' Vade tarihi: ₺' + fmtN.format(ctx.raw) + '  (' + d.vadeAdet + ' fatura)';
+                                    if (ctx.datasetIndex === 2) return ' Vade tarihi: ₺' + fmtN.format(ctx.raw) + '  (' + d.vadeAdet + ' fatura)';
+                                    if (ctx.datasetIndex === 3) return ' Kalan tahsilat: ₺' + fmtN.format(ctx.raw) + '  (toplam alacak)';
+                                    return '';
                                 },
                                 footer: function(items) {
                                     var idx = items[0].dataIndex, d = data[idx];
@@ -1727,6 +2100,35 @@ window.__initialData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
     }
     refreshCacheStatus();
     setInterval(refreshCacheStatus, 30000); // 30 sn'de bir
+
+    // Manuel cache refresh butonu
+    var refreshBtn = document.getElementById('cacheRefreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async function () {
+            var origText = refreshBtn.textContent;
+            refreshBtn.textContent = '… yenileniyor';
+            refreshBtn.disabled = true;
+            try {
+                var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                var r = await fetch('/Cockpit/CacheRefresh', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: token ? { 'RequestVerificationToken': token } : {}
+                });
+                if (r.ok) {
+                    await refreshCacheStatus();
+                    // Sayfayı yenile ki yeni veri gelsin
+                    location.reload();
+                } else {
+                    refreshBtn.textContent = '✗ hata';
+                    setTimeout(function () { refreshBtn.textContent = origText; refreshBtn.disabled = false; }, 2000);
+                }
+            } catch (e) {
+                refreshBtn.textContent = '✗ hata';
+                setTimeout(function () { refreshBtn.textContent = origText; refreshBtn.disabled = false; }, 2000);
+            }
+        });
+    }
 
 })();
 </script>

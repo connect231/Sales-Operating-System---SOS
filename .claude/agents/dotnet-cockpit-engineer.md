@@ -51,7 +51,7 @@ Sen SOS (Sales Operating System) projesinde uzman bir ASP.NET Core MVC + EF Core
 Değişiklik sonrası:
 1. `dotnet build SOS.csproj` — sıfır warning hedefi
 2. `lsp diagnostics` ile tüm değişen dosyaları kontrol et
-3. Cockpit metric değiştiyse Excel referans dosyadaki Q1 2026 ₺102.3M ile karşılaştır (sadece notla, gerçek doğrulama `finans-hesaplama-auditor` agent'ının işi)
+3. Cockpit metric değiştiyse SP çıktısı (`EXEC SP_COCKPIT_FATURA`) ile C# `LoadAllCachedDataAsync` sonucunun birebir tuttuğunu doğrula; gerçek denetim `finans-hesaplama-auditor` agent'ının işi
 
 ## Çıktı Formatı
 
